@@ -4,6 +4,28 @@ from sqlalchemy.orm import relationship
 from app.db.database import Base
 
 
+class Usuario(Base):
+    """
+    Representa un usuario interno del sistema (admin, gerencia, bodega).
+    Mapea a la tabla 'usuarios'.
+
+    El chatbot no gestiona usuarios internos directamente, pero
+    necesitamos este modelo porque 'lotes' y 'pagos' hacen referencia
+    a 'usuarios' mediante llaves foráneas (aprobado_por, registrado_por).
+    Sin este modelo, SQLAlchemy no puede resolver esas relaciones.
+    """
+    __tablename__ = "usuarios"
+
+    id = Column(Integer, primary_key=True)
+    nombre = Column(String)
+    apellido = Column(String)
+    email = Column(String)
+    password_hash = Column(String)
+    rol = Column(String)  # admin | gerencia | bodega | cliente | agencia
+    activo = Column(Boolean, default=True)
+
+
+    
 class ClienteCBC(Base):
     """
     Representa un cliente final (persona natural) de Cúbico.
@@ -153,4 +175,3 @@ class Pago(Base):
     factura = relationship("Factura", back_populates="pagos")
     cliente_cbc = relationship("ClienteCBC", back_populates="pagos")
     agencia = relationship("Agencia", back_populates="pagos")
-    
