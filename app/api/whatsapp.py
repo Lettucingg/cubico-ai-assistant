@@ -39,7 +39,16 @@ async def recibir_mensaje(request: Request):
     estructura real de los datos que manda Meta — todavía no
     procesamos nada ni respondemos al cliente.
     """
-    payload = await request.json()
+    try:
+        payload = await request.json()
+    except Exception:
+        # Si el cuerpo llega vacío o mal formado (por ejemplo, al
+        # probar manualmente sin escribir un JSON), no queremos que
+        # el servidor truene con un error 500. Lo registramos y
+        # respondemos igual con 200, para no interrumpir el flujo.
+        print("Se recibió una petición sin un JSON válido.")
+        return {"status": "ignorado", "razon": "cuerpo vacío o inválido"}
+
     print("Mensaje recibido de WhatsApp:")
     print(payload)
 
