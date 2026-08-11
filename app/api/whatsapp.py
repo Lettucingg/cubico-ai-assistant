@@ -31,26 +31,69 @@ def verificar_webhook(request: Request):
     raise HTTPException(status_code=403, detail="Token de verificación inválido")
 
 
+def extraer_mensaje_entrante(payload: dict):
+    """
+    Recibe el JSON completo que manda Meta y extrae, de forma segura,
+    el número de teléfono del cliente y el texto de su mensaje.
+
+    Meta manda distintos tipos de eventos por el mismo webhook
+    (mensajes nuevos, confirmaciones de lectura, actualizaciones de
+    plantillas, etc.). Esta función solo nos interesa cuando el
+    evento es un mensaje de texto real de un cliente — para todo lo
+    demás, devuelve None, y el resto del código simplemente lo ignora.
+
+    Devuelve un diccionario {"telefono": ..., "texto": ...} o None
+    si el payload no contiene un mensaje de texto entrante.
+    """
+    try:
+        entry = payload["entry"][0]
+        changes = entry["changes"][0]
+        value = changes["value"]
+
+        # Si no hay "messages" en este evento, no es un mensaje nuevo
+        # (puede ser un "status" de entrega/lectura, por ejemplo).
+        if "messages" not in value:
+            return None
+
+        mensaje = value["messages"][0]
+
+        # Por ahora solo manejamos mensajes de texto. Más adelante
+        # podemos agregar soporte para imágenes, audios, etc.
+        if mensaje.get("type") != "text":
+            return None
+
+        return {
+            "telefono": mensaje["from"],
+            "texto": mensaje["text"]["body"],
+        }
+
+    except (KeyError, IndexError, TypeError):
+        # Si la estructura no es la esperada, no truena el servidor,
+        # simplemente indicamos que no había un mensaje que procesar.
+        return None
+
+
 @router.post("/webhook")
 async def recibir_mensaje(request: Request):
     """
     Endpoint que Meta llama CADA VEZ que llega un mensaje real de
-    WhatsApp. Por ahora solo lo imprimimos en consola para ver la
-    estructura real de los datos que manda Meta — todavía no
-    procesamos nada ni respondemos al cliente.
+    WhatsApp. Extrae el número de teléfono y el texto del cliente,
+    y por ahora los imprime en consola — la respuesta automática
+    la conectamos en el siguiente paso, con Claude API.
     """
     try:
         payload = await request.json()
     except Exception:
-        # Si el cuerpo llega vacío o mal formado (por ejemplo, al
-        # probar manualmente sin escribir un JSON), no queremos que
-        # el servidor truene con un error 500. Lo registramos y
-        # respondemos igual con 200, para no interrumpir el flujo.
         print("Se recibió una petición sin un JSON válido.")
         return {"status": "ignorado", "razon": "cuerpo vacío o inválido"}
 
-    print("Mensaje recibido de WhatsApp:")
-    print(payload)
+    mensaje = extraer_mensaje_entrante(payload)
+
+    if mensaje is None:
+        print("Evento recibido, pero no es un mensaje de texto entrante (ignorado).")
+        return {"status": "ignorado", "razon": "no es un mensaje de texto"}
+
+    print(f"Mensaje de {mensaje['telefono']}: {mensaje['texto']}")
 
     # Meta espera un 200 OK rápido, sin importar el contenido de la
     # respuesta. Si no respondemos rápido, Meta reintenta el envío.
