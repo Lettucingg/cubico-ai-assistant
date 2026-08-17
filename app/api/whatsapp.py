@@ -1,6 +1,9 @@
+import httpx
+
 from fastapi import APIRouter, Request, HTTPException
 
 from app.core.config import settings
+from app.ai.orchestrator import generar_respuesta
 
 router = APIRouter()
 
@@ -10,55 +13,65 @@ def verificar_webhook(request: Request):
     """
     Endpoint de VERIFICACIÓN que Meta llama una sola vez, cuando
     configuras el webhook en Meta for Developers.
-
-    Meta envía tres parámetros por la URL (query params):
-      - hub.mode: siempre será "subscribe"
-      - hub.verify_token: el token secreto que tú definiste
-      - hub.challenge: un número aleatorio que debes devolver tal cual
-
-    Si el token coincide con el nuestro, respondemos con el challenge
-    y Meta confirma que esta URL es legítimamente nuestra.
     """
     modo = request.query_params.get("hub.mode")
     token = request.query_params.get("hub.verify_token")
     challenge = request.query_params.get("hub.challenge")
 
     if modo == "subscribe" and token == settings.WHATSAPP_VERIFY_TOKEN:
-        # Meta espera el challenge como texto plano, no como JSON
         return int(challenge)
 
-    # Si el token no coincide, rechazamos con un error 403 (Forbidden)
     raise HTTPException(status_code=403, detail="Token de verificación inválido")
+
+
+async def enviar_mensaje_whatsapp(telefono_destino: str, texto: str):
+    """
+    Envía un mensaje de texto a un número de WhatsApp usando la API
+    de Meta (WhatsApp Cloud API).
+    """
+    url = f"https://graph.facebook.com/v21.0/{settings.WHATSAPP_PHONE_NUMBER_ID}/messages"
+
+    headers = {
+        "Authorization": f"Bearer {settings.WHATSAPP_TOKEN}",
+        "Content-Type": "application/json",
+    }
+
+    payload = {
+        "messaging_product": "whatsapp",
+        "to": telefono_destino,
+        "type": "text",
+        "text": {"body": texto},
+    }
+
+    async with httpx.AsyncClient() as client:
+        respuesta = await client.post(url, headers=headers, json=payload)
+
+        print(f"[DEBUG] Status code: {respuesta.status_code}")
+    print(f"[DEBUG] Respuesta completa: {respuesta.text}")
+
+    if respuesta.status_code != 200:
+        print(f"Error al enviar mensaje a {telefono_destino}: {respuesta.text}")
+    else:
+        print(f"Mensaje enviado a {telefono_destino}: {texto}")
+
+    return respuesta
 
 
 def extraer_mensaje_entrante(payload: dict):
     """
     Recibe el JSON completo que manda Meta y extrae, de forma segura,
     el número de teléfono del cliente y el texto de su mensaje.
-
-    Meta manda distintos tipos de eventos por el mismo webhook
-    (mensajes nuevos, confirmaciones de lectura, actualizaciones de
-    plantillas, etc.). Esta función solo nos interesa cuando el
-    evento es un mensaje de texto real de un cliente — para todo lo
-    demás, devuelve None, y el resto del código simplemente lo ignora.
-
-    Devuelve un diccionario {"telefono": ..., "texto": ...} o None
-    si el payload no contiene un mensaje de texto entrante.
     """
     try:
         entry = payload["entry"][0]
         changes = entry["changes"][0]
         value = changes["value"]
 
-        # Si no hay "messages" en este evento, no es un mensaje nuevo
-        # (puede ser un "status" de entrega/lectura, por ejemplo).
         if "messages" not in value:
             return None
 
         mensaje = value["messages"][0]
 
-        # Por ahora solo manejamos mensajes de texto. Más adelante
-        # podemos agregar soporte para imágenes, audios, etc.
         if mensaje.get("type") != "text":
             return None
 
@@ -68,8 +81,6 @@ def extraer_mensaje_entrante(payload: dict):
         }
 
     except (KeyError, IndexError, TypeError):
-        # Si la estructura no es la esperada, no truena el servidor,
-        # simplemente indicamos que no había un mensaje que procesar.
         return None
 
 
@@ -77,15 +88,16 @@ def extraer_mensaje_entrante(payload: dict):
 async def recibir_mensaje(request: Request):
     """
     Endpoint que Meta llama CADA VEZ que llega un mensaje real de
-    WhatsApp. Extrae el número de teléfono y el texto del cliente,
-    y por ahora los imprime en consola — la respuesta automática
-    la conectamos en el siguiente paso, con Claude API.
+    WhatsApp. Extrae el mensaje, genera una respuesta con Claude,
+    y la envía de vuelta al cliente.
     """
     try:
         payload = await request.json()
     except Exception:
         print("Se recibió una petición sin un JSON válido.")
         return {"status": "ignorado", "razon": "cuerpo vacío o inválido"}
+    except (KeyError, IndexError, TypeError):
+        pass
 
     mensaje = extraer_mensaje_entrante(payload)
 
@@ -95,6 +107,7 @@ async def recibir_mensaje(request: Request):
 
     print(f"Mensaje de {mensaje['telefono']}: {mensaje['texto']}")
 
-    # Meta espera un 200 OK rápido, sin importar el contenido de la
-    # respuesta. Si no respondemos rápido, Meta reintenta el envío.
+    texto_respuesta = generar_respuesta(mensaje["texto"])
+    await enviar_mensaje_whatsapp(mensaje["telefono"], texto_respuesta)
+
     return {"status": "recibido"}
