@@ -32,7 +32,7 @@ payload_simulado = {
                                 "id": "wamid.PRUEBA123",
                                 "timestamp": "1786412949",
                                 "type": "text",
-                                "text": {"body": "Hola, esto es una prueba real"},
+                                "text": {"body": "Hola, quiero saber cuáles son mis paquetes. Mi código es CBC-0006"},
                             }
                         ],
                     },
