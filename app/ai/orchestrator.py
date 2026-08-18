@@ -46,14 +46,27 @@ FUNCIONES_DISPONIBLES = {
     "consultar_paquetes_por_codigo": consultar_paquetes_por_codigo,
 }
 
-
-def generar_respuesta(texto_cliente: str) -> str:
+def generar_respuesta(texto_cliente: str, codigo_cliente: str = None) -> str:
     """
     Envía el mensaje del cliente a Claude. Si Claude decide usar una
     herramienta, la ejecutamos y le devolvemos el resultado, hasta
     que Claude entregue una respuesta final en texto.
+
+    Si el cliente ya está verificado, le pasamos su código CBC como
+    contexto adicional, para que Claude no tenga que volver a
+    pedírselo en cada mensaje.
     """
-    mensajes = [{"role": "user", "content": texto_cliente}]
+    if codigo_cliente:
+        texto_para_claude = (
+            f"[Contexto interno: el código de cliente verificado es "
+            f"{codigo_cliente}. Úsalo automáticamente si necesitas "
+            f"consultar sus paquetes, sin pedírselo de nuevo.]\n\n"
+            f"{texto_cliente}"
+        )
+    else:
+        texto_para_claude = texto_cliente
+
+    mensajes = [{"role": "user", "content": texto_para_claude}]
 
     while True:
         respuesta = cliente_claude.messages.create(

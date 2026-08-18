@@ -4,6 +4,8 @@ from fastapi import APIRouter, Request, HTTPException
 
 from app.core.config import settings
 from app.ai.orchestrator import generar_respuesta
+from app.db.session_store import obtener_o_crear_sesion, actualizar_sesion
+from app.tools.clientes import verificar_cliente
 
 router = APIRouter()
 
@@ -46,9 +48,6 @@ async def enviar_mensaje_whatsapp(telefono_destino: str, texto: str):
     async with httpx.AsyncClient() as client:
         respuesta = await client.post(url, headers=headers, json=payload)
 
-        print(f"[DEBUG] Status code: {respuesta.status_code}")
-    print(f"[DEBUG] Respuesta completa: {respuesta.text}")
-
     if respuesta.status_code != 200:
         print(f"Error al enviar mensaje a {telefono_destino}: {respuesta.text}")
     else:
@@ -84,20 +83,63 @@ def extraer_mensaje_entrante(payload: dict):
         return None
 
 
+def manejar_verificacion(sesion, texto_cliente: str) -> str:
+    """
+    Maneja el flujo de verificación de identidad, paso a paso.
+    """
+    if sesion.estado == "esperando_codigo":
+        actualizar_sesion(
+            sesion.telefono,
+            estado="esperando_correo",
+            codigo_cliente_temporal=texto_cliente.strip(),
+        )
+        return (
+            "¡Hola! Para ayudarte, primero necesito verificar tu "
+            "identidad. Por favor, escribe el correo electrónico "
+            "con el que estás registrado en Cúbico."
+        )
+
+    if sesion.estado == "esperando_correo":
+        codigo = sesion.codigo_cliente_temporal
+        correo = texto_cliente.strip()
+
+        if verificar_cliente(codigo, correo):
+            actualizar_sesion(
+                sesion.telefono,
+                estado="verificado",
+                codigo_cliente_verificado=codigo,
+            )
+            return (
+                "¡Perfecto, tu identidad quedó verificada! ✅ "
+                "Ahora puedo ayudarte con tus paquetes, facturas y "
+                "cualquier otra consulta. ¿En qué te ayudo?"
+            )
+        else:
+            actualizar_sesion(
+                sesion.telefono,
+                estado="esperando_codigo",
+                codigo_cliente_temporal=None,
+            )
+            return (
+                "No pude verificar esos datos. Por favor, escribe "
+                "de nuevo tu código de cliente CBC (ej: CBC-0001)."
+            )
+
+    return "Escribe tu código de cliente CBC para comenzar."
+
+
 @router.post("/webhook")
 async def recibir_mensaje(request: Request):
     """
     Endpoint que Meta llama CADA VEZ que llega un mensaje real de
-    WhatsApp. Extrae el mensaje, genera una respuesta con Claude,
-    y la envía de vuelta al cliente.
+    WhatsApp. Verifica la identidad del cliente antes de dejarlo
+    conversar libremente con Claude.
     """
     try:
         payload = await request.json()
     except Exception:
         print("Se recibió una petición sin un JSON válido.")
         return {"status": "ignorado", "razon": "cuerpo vacío o inválido"}
-    except (KeyError, IndexError, TypeError):
-        pass
 
     mensaje = extraer_mensaje_entrante(payload)
 
@@ -107,7 +149,15 @@ async def recibir_mensaje(request: Request):
 
     print(f"Mensaje de {mensaje['telefono']}: {mensaje['texto']}")
 
-    texto_respuesta = generar_respuesta(mensaje["texto"])
+    sesion = obtener_o_crear_sesion(mensaje["telefono"])
+
+    if sesion.estado != "verificado":
+        texto_respuesta = manejar_verificacion(sesion, mensaje["texto"])
+    else:
+        texto_respuesta = generar_respuesta(
+            mensaje["texto"],
+            codigo_cliente=sesion.codigo_cliente_verificado,
+            )
     await enviar_mensaje_whatsapp(mensaje["telefono"], texto_respuesta)
 
     return {"status": "recibido"}
