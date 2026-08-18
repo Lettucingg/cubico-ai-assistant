@@ -3,8 +3,9 @@ from anthropic import Anthropic
 from app.core.config import settings
 from app.tools.paquetes import consultar_paquetes_por_codigo
 from app.tools.facturas import consultar_facturas_por_codigo
-
-cliente_claude = Anthropic(api_key=settings.ANTHROPIC_API_KEY)
+from app.tools.cotizador import calcular_costo_envio
+cliente_claude = Anthropic(api_key=settings.
+ANTHROPIC_API_KEY)
 
 
 SYSTEM_PROMPT = """
@@ -115,11 +116,41 @@ HERRAMIENTAS = [
             "required": ["codigo_cliente"],
         },
     },
+        {
+        "name": "calcular_costo_envio",
+        "description": (
+            "Calcula el costo estimado de un envío. Úsala cuando el "
+            "cliente pregunte cuánto costaría enviar algo, dando el "
+            "peso (para aéreo) o el tamaño en pies cúbicos (para "
+            "marítimo)."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "tipo_envio": {
+                    "type": "string",
+                    "description": "'aereo' o 'maritimo'",
+                },
+                "peso_libras": {
+                    "type": "number",
+                    "description": "Peso en libras (solo para envío aéreo)",
+                },
+                "pies_cubicos": {
+                    "type": "number",
+                    "description": "Tamaño en pies cúbicos (solo para envío marítimo)",
+                },
+            },
+            "required": ["tipo_envio"],
+        },
+    },
+    
 ]
 
 FUNCIONES_DISPONIBLES = {
     "consultar_paquetes_por_codigo": consultar_paquetes_por_codigo,
     "consultar_facturas_por_codigo": consultar_facturas_por_codigo,
+    "calcular_costo_envio": 
+    calcular_costo_envio,
 }
 
 
