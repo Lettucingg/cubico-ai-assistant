@@ -21,7 +21,10 @@ def verificar_webhook(request: Request):
     challenge = request.query_params.get("hub.challenge")
 
     if modo == "subscribe" and token == settings.WHATSAPP_VERIFY_TOKEN:
-        return int(challenge)
+        try:
+            return int(challenge)
+        except (TypeError, ValueError):
+            raise HTTPException(status_code=403, detail="Challenge inválido")
 
     raise HTTPException(status_code=403, detail="Token de verificación inválido")
 
@@ -45,7 +48,7 @@ async def enviar_mensaje_whatsapp(telefono_destino: str, texto: str):
         "text": {"body": texto},
     }
 
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(timeout=10.0) as client:
         respuesta = await client.post(url, headers=headers, json=payload)
 
     if respuesta.status_code != 200:
@@ -149,15 +152,20 @@ async def recibir_mensaje(request: Request):
 
     print(f"Mensaje de {mensaje['telefono']}: {mensaje['texto']}")
 
-    sesion = obtener_o_crear_sesion(mensaje["telefono"])
+    try:
+        sesion = obtener_o_crear_sesion(mensaje["telefono"])
 
-    if sesion.estado != "verificado":
-        texto_respuesta = manejar_verificacion(sesion, mensaje["texto"])
-    else:
-        texto_respuesta = generar_respuesta(
-            mensaje["texto"],
-            codigo_cliente=sesion.codigo_cliente_verificado,
+        if sesion.estado != "verificado":
+            texto_respuesta = manejar_verificacion(sesion, mensaje["texto"])
+        else:
+            texto_respuesta = generar_respuesta(
+                mensaje["texto"],
+                codigo_cliente=sesion.codigo_cliente_verificado,
             )
-    await enviar_mensaje_whatsapp(mensaje["telefono"], texto_respuesta)
+
+        await enviar_mensaje_whatsapp(mensaje["telefono"], texto_respuesta)
+    except Exception as error:
+        print(f"Error procesando mensaje de {mensaje['telefono']}: {error}")
+        return {"status": "error", "razon": "fallo interno al procesar el mensaje"}
 
     return {"status": "recibido"}
