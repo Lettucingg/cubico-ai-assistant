@@ -1,11 +1,9 @@
-from sqlalchemy import create_engine, Column, Integer, String, DateTime
+import json
+
+from sqlalchemy import create_engine, Column, Integer, String, DateTime, Text
 from sqlalchemy.orm import sessionmaker, declarative_base
 from datetime import datetime
 
-# Esta es una base de datos PROPIA del bot, separada por completo de
-# la base de datos de Cúbico (que es de solo lectura). Aquí guardamos
-# información que solo le importa al bot: en qué paso de verificación
-# está cada número de teléfono.
 engine_sesiones = create_engine("sqlite:///sesiones.db")
 SessionSesiones = sessionmaker(bind=engine_sesiones)
 BaseSesiones = declarative_base()
@@ -14,12 +12,8 @@ BaseSesiones = declarative_base()
 class Sesion(BaseSesiones):
     """
     Representa el estado de la conversación con un número de
-    teléfono específico.
-
-    estado puede ser:
-      - "esperando_codigo": recién empezó, pedimos el código CBC
-      - "esperando_correo": ya dio el código, pedimos el correo
-      - "verificado": ya se identificó correctamente
+    teléfono específico, incluyendo el historial de mensajes
+    recientes para que Claude tenga memoria de la conversación.
     """
     __tablename__ = "sesiones"
 
@@ -28,17 +22,18 @@ class Sesion(BaseSesiones):
     estado = Column(String, default="esperando_codigo")
     codigo_cliente_temporal = Column(String, nullable=True)
     codigo_cliente_verificado = Column(String, nullable=True)
+    historial_json = Column(Text, default="[]")
     actualizado_en = Column(DateTime, default=datetime.utcnow)
+
+    def obtener_historial(self):
+        """Convierte el historial guardado (texto JSON) en una lista de Python."""
+        return json.loads(self.historial_json or "[]")
 
 
 BaseSesiones.metadata.create_all(engine_sesiones)
 
 
 def obtener_o_crear_sesion(telefono: str) -> Sesion:
-    """
-    Busca la sesión de un teléfono. Si no existe, crea una nueva
-    en estado "esperando_codigo".
-    """
     db = SessionSesiones()
     try:
         sesion = db.query(Sesion).filter(Sesion.telefono == telefono).first()
@@ -56,9 +51,6 @@ def obtener_o_crear_sesion(telefono: str) -> Sesion:
 
 
 def actualizar_sesion(telefono: str, **cambios):
-    """
-    Actualiza campos específicos de la sesión de un teléfono.
-    """
     db = SessionSesiones()
     try:
         sesion = db.query(Sesion).filter(Sesion.telefono == telefono).first()
@@ -67,5 +59,28 @@ def actualizar_sesion(telefono: str, **cambios):
                 setattr(sesion, campo, valor)
             sesion.actualizado_en = datetime.utcnow()
             db.commit()
+    finally:
+        db.close()
+
+
+def agregar_al_historial(telefono: str, rol: str, contenido: str, max_mensajes: int = 20):
+    """
+    Agrega un mensaje al historial de la conversación, y recorta
+    el historial si supera max_mensajes (para no mandar contexto
+    infinito a Claude, lo cual encarecería cada llamada).
+    """
+    db = SessionSesiones()
+    try:
+        sesion = db.query(Sesion).filter(Sesion.telefono == telefono).first()
+        if sesion is None:
+            return
+
+        historial = json.loads(sesion.historial_json or "[]")
+        historial.append({"role": rol, "content": contenido})
+        historial = historial[-max_mensajes:]
+
+        sesion.historial_json = json.dumps(historial)
+        sesion.actualizado_en = datetime.utcnow()
+        db.commit()
     finally:
         db.close()

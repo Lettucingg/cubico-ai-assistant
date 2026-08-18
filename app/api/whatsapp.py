@@ -1,11 +1,12 @@
+import asyncio
+
 import httpx
 
 from fastapi import APIRouter, Request, HTTPException
 
 from app.core.config import settings
 from app.ai.orchestrator import generar_respuesta
-from app.db.session_store import obtener_o_crear_sesion, actualizar_sesion
-from app.tools.clientes import verificar_cliente
+from app.db.session_store import obtener_o_crear_sesion, agregar_al_historial
 
 router = APIRouter()
 
@@ -59,6 +60,69 @@ async def enviar_mensaje_whatsapp(telefono_destino: str, texto: str):
     return respuesta
 
 
+async def marcar_leido_y_escribiendo(message_id: str):
+    """
+    Marca el mensaje del cliente como leído y muestra el indicador
+    de "escribiendo..." en su chat, mientras preparamos la respuesta
+    real. Se apaga solo cuando mandamos la respuesta, o después de
+    25 segundos si no respondemos.
+    """
+    url = f"https://graph.facebook.com/v21.0/{settings.WHATSAPP_PHONE_NUMBER_ID}/messages"
+
+    headers = {
+        "Authorization": f"Bearer {settings.WHATSAPP_TOKEN}",
+        "Content-Type": "application/json",
+    }
+
+    payload = {
+        "messaging_product": "whatsapp",
+        "status": "read",
+        "message_id": message_id,
+        "typing_indicator": {"type": "text"},
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            await client.post(url, headers=headers, json=payload)
+    except httpx.RequestError:
+        pass
+
+
+async def enviar_respuesta_natural(telefono_destino: str, texto_completo: str, message_id: str):
+    """
+    Envía la respuesta del bot simulando una escritura más humana:
+    - Divide el texto en partes (por doble salto de línea, si existen;
+      si no, lo manda completo como un solo mensaje).
+    - Antes de cada parte, muestra el indicador de "escribiendo..."
+      durante un tiempo proporcional al largo de esa parte.
+    - Manda cada parte como un mensaje de WhatsApp separado.
+
+    Esto hace que respuestas largas se sientan como una persona
+    escribiendo varios mensajes seguidos, en vez de un bloque de
+    texto instantáneo.
+    """
+    partes = [p.strip() for p in texto_completo.split("\n\n") if p.strip()]
+
+    if not partes:
+        partes = [texto_completo]
+
+    for i, parte in enumerate(partes):
+        # Simula tiempo de escritura: ~0.05 segundos por palabra,
+        # con un mínimo de 1 segundo y un máximo de 4 segundos,
+        # para no hacer esperar demasiado en respuestas largas.
+        palabras = len(parte.split())
+        tiempo_espera = min(max(palabras * 0.05, 1.0), 4.0)
+
+        await marcar_leido_y_escribiendo(message_id)
+        await asyncio.sleep(tiempo_espera)
+        await enviar_mensaje_whatsapp(telefono_destino, parte)
+
+        # Pequeña pausa entre mensajes consecutivos, como si la
+        # persona hiciera una breve pausa antes de seguir escribiendo.
+        if i < len(partes) - 1:
+            await asyncio.sleep(0.8)
+
+
 def extraer_mensaje_entrante(payload: dict):
     """
     Recibe el JSON completo que manda Meta y extrae, de forma segura,
@@ -80,63 +144,19 @@ def extraer_mensaje_entrante(payload: dict):
         return {
             "telefono": mensaje["from"],
             "texto": mensaje["text"]["body"],
+            "message_id": mensaje["id"],
         }
 
     except (KeyError, IndexError, TypeError):
         return None
 
 
-def manejar_verificacion(sesion, texto_cliente: str) -> str:
-    """
-    Maneja el flujo de verificación de identidad, paso a paso.
-    """
-    if sesion.estado == "esperando_codigo":
-        actualizar_sesion(
-            sesion.telefono,
-            estado="esperando_correo",
-            codigo_cliente_temporal=texto_cliente.strip(),
-        )
-        return (
-            "¡Hola! Para ayudarte, primero necesito verificar tu "
-            "identidad. Por favor, escribe el correo electrónico "
-            "con el que estás registrado en Cúbico."
-        )
-
-    if sesion.estado == "esperando_correo":
-        codigo = sesion.codigo_cliente_temporal
-        correo = texto_cliente.strip()
-
-        if verificar_cliente(codigo, correo):
-            actualizar_sesion(
-                sesion.telefono,
-                estado="verificado",
-                codigo_cliente_verificado=codigo,
-            )
-            return (
-                "¡Perfecto, tu identidad quedó verificada! ✅ "
-                "Ahora puedo ayudarte con tus paquetes, facturas y "
-                "cualquier otra consulta. ¿En qué te ayudo?"
-            )
-        else:
-            actualizar_sesion(
-                sesion.telefono,
-                estado="esperando_codigo",
-                codigo_cliente_temporal=None,
-            )
-            return (
-                "No pude verificar esos datos. Por favor, escribe "
-                "de nuevo tu código de cliente CBC (ej: CBC-0001)."
-            )
-
-    return "Escribe tu código de cliente CBC para comenzar."
-
-
 @router.post("/webhook")
 async def recibir_mensaje(request: Request):
     """
     Endpoint que Meta llama CADA VEZ que llega un mensaje real de
-    WhatsApp. Verifica la identidad del cliente antes de dejarlo
-    conversar libremente con Claude.
+    WhatsApp. Deja que Claude conversa libremente, y usa la
+    herramienta de verificación de identidad solo cuando hace falta.
     """
     try:
         payload = await request.json()
@@ -155,15 +175,18 @@ async def recibir_mensaje(request: Request):
     try:
         sesion = obtener_o_crear_sesion(mensaje["telefono"])
 
-        if sesion.estado != "verificado":
-            texto_respuesta = manejar_verificacion(sesion, mensaje["texto"])
-        else:
-            texto_respuesta = generar_respuesta(
-                mensaje["texto"],
-                codigo_cliente=sesion.codigo_cliente_verificado,
-            )
+        texto_respuesta = generar_respuesta(
+            mensaje["texto"],
+            telefono=mensaje["telefono"],
+            codigo_cliente=sesion.codigo_cliente_verificado,
+            historial=sesion.obtener_historial(),
+        )
 
-        await enviar_mensaje_whatsapp(mensaje["telefono"], texto_respuesta)
+        agregar_al_historial(sesion.telefono, "user", mensaje["texto"])
+        agregar_al_historial(sesion.telefono, "assistant", texto_respuesta)
+
+        await enviar_respuesta_natural(mensaje["telefono"], texto_respuesta, mensaje["message_id"])
+
     except Exception as error:
         print(f"Error procesando mensaje de {mensaje['telefono']}: {error}")
         return {"status": "error", "razon": "fallo interno al procesar el mensaje"}
