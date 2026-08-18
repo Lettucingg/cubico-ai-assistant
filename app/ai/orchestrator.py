@@ -2,6 +2,7 @@ from anthropic import Anthropic
 
 from app.core.config import settings
 from app.tools.paquetes import consultar_paquetes_por_codigo
+from app.tools.facturas import consultar_facturas_por_codigo
 
 cliente_claude = Anthropic(api_key=settings.ANTHROPIC_API_KEY)
 
@@ -94,12 +95,33 @@ HERRAMIENTAS = [
             },
             "required": ["codigo_cliente"],
         },
-    }
+    },
+    {
+        "name": "consultar_facturas_por_codigo",
+        "description": (
+            "Busca las facturas y el saldo pendiente de un cliente "
+            "usando su código CBC. Úsala cuando el cliente pregunte "
+            "cuánto debe, si tiene facturas pendientes, o el estado "
+            "de sus pagos."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "codigo_cliente": {
+                    "type": "string",
+                    "description": "El código CBC del cliente, ej: CBC-0001",
+                }
+            },
+            "required": ["codigo_cliente"],
+        },
+    },
 ]
 
 FUNCIONES_DISPONIBLES = {
     "consultar_paquetes_por_codigo": consultar_paquetes_por_codigo,
+    "consultar_facturas_por_codigo": consultar_facturas_por_codigo,
 }
+
 
 def generar_respuesta(texto_cliente: str, codigo_cliente: str = None) -> str:
     """
@@ -115,7 +137,7 @@ def generar_respuesta(texto_cliente: str, codigo_cliente: str = None) -> str:
         texto_para_claude = (
             f"[Contexto interno: el código de cliente verificado es "
             f"{codigo_cliente}. Úsalo automáticamente si necesitas "
-            f"consultar sus paquetes, sin pedírselo de nuevo.]\n\n"
+            f"consultar sus paquetes o facturas, sin pedírselo de nuevo.]\n\n"
             f"{texto_cliente}"
         )
     else:
