@@ -4,6 +4,8 @@ from app.core.config import settings
 from app.tools.paquetes import consultar_paquetes_por_codigo
 from app.tools.facturas import consultar_facturas_por_codigo
 from app.tools.cotizador import calcular_costo_envio
+from app.tools.ptyfreight import consultar_tracking
+
 cliente_claude = Anthropic(api_key=settings.
 ANTHROPIC_API_KEY)
 
@@ -143,6 +145,29 @@ HERRAMIENTAS = [
             "required": ["tipo_envio"],
         },
     },
+            {
+        "name": "consultar_tracking",
+        "description": (
+            "Consulta el estado de tracking en tiempo real de un "
+            "paquete específico, directo del sistema de logística. "
+            "Úsala cuando el cliente te dé un número de tracking y "
+            "quiera saber dónde está su paquete ahora mismo."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "numero_tracking": {
+                    "type": "string",
+                    "description": "El número de tracking del paquete",
+                },
+                "tipo_envio": {
+                    "type": "string",
+                    "description": "'aereo' o 'maritimo', por defecto 'aereo'",
+                },
+            },
+            "required": ["numero_tracking"],
+        },
+    },
     
 ]
 
@@ -151,6 +176,8 @@ FUNCIONES_DISPONIBLES = {
     "consultar_facturas_por_codigo": consultar_facturas_por_codigo,
     "calcular_costo_envio": 
     calcular_costo_envio,
+    "consultar_tracking": 
+    consultar_tracking,
 }
 
 
