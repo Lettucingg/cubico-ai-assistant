@@ -205,6 +205,13 @@ async def procesar_mensaje_en_segundo_plano(mensaje: dict):
 
     except Exception as error:
         print(f"Error procesando mensaje de {mensaje['telefono']}: {error}")
+        try:
+            await enviar_mensaje_whatsapp(
+                mensaje["telefono"],
+                "Tuve un problema procesando tu mensaje, ¿puedes intentarlo de nuevo?",
+            )
+        except Exception as error_envio:
+            print(f"Error enviando mensaje de respaldo a {mensaje['telefono']}: {error_envio}")
 
 
 @router.post("/webhook")
