@@ -2,11 +2,12 @@ import asyncio
 
 import httpx
 
-from fastapi import APIRouter, Request, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Request, HTTPException
 
 from app.core.config import settings
 from app.ai.orchestrator import generar_respuesta
 from app.db.session_store import obtener_o_crear_sesion, agregar_al_historial
+from app.tools.transcripcion import procesar_nota_de_voz
 
 router = APIRouter()
 
@@ -126,7 +127,8 @@ async def enviar_respuesta_natural(telefono_destino: str, texto_completo: str, m
 def extraer_mensaje_entrante(payload: dict):
     """
     Recibe el JSON completo que manda Meta y extrae, de forma segura,
-    el número de teléfono del cliente y el texto de su mensaje.
+    el número de teléfono del cliente y el contenido de su mensaje
+    (texto o nota de voz).
     """
     try:
         entry = payload["entry"][0]
@@ -138,37 +140,51 @@ def extraer_mensaje_entrante(payload: dict):
 
         mensaje = value["messages"][0]
 
-        if mensaje.get("type") != "text":
-            return None
+        if mensaje.get("type") == "text":
+            return {
+                "telefono": mensaje["from"],
+                "texto": mensaje["text"]["body"],
+                "media_id": None,
+                "message_id": mensaje["id"],
+                "tipo": "text",
+            }
 
-        return {
-            "telefono": mensaje["from"],
-            "texto": mensaje["text"]["body"],
-            "message_id": mensaje["id"],
-        }
+        if mensaje.get("type") == "audio":
+            return {
+                "telefono": mensaje["from"],
+                "texto": None,
+                "media_id": mensaje["audio"]["id"],
+                "message_id": mensaje["id"],
+                "tipo": "audio",
+            }
+
+        return None
 
     except (KeyError, IndexError, TypeError):
         return None
 
 
-@router.post("/webhook")
-async def recibir_mensaje(request: Request):
+async def procesar_mensaje_en_segundo_plano(mensaje: dict):
     """
-    Endpoint que Meta llama CADA VEZ que llega un mensaje real de
-    WhatsApp. Deja que Claude conversa libremente, y usa la
-    herramienta de verificación de identidad solo cuando hace falta.
+    Hace todo el trabajo pesado de un mensaje entrante (transcripción
+    de audio si aplica, verificación, llamada a Claude, historial y
+    envío de la respuesta) fuera del ciclo de request/response del
+    webhook, para que Meta reciba un 200 inmediato y no reintente por
+    timeout.
     """
-    try:
-        payload = await request.json()
-    except Exception:
-        print("Se recibió una petición sin un JSON válido.")
-        return {"status": "ignorado", "razon": "cuerpo vacío o inválido"}
-
-    mensaje = extraer_mensaje_entrante(payload)
-
-    if mensaje is None:
-        print("Evento recibido, pero no es un mensaje de texto entrante (ignorado).")
-        return {"status": "ignorado", "razon": "no es un mensaje de texto"}
+    if mensaje["tipo"] == "audio":
+        try:
+            texto_transcrito = await procesar_nota_de_voz(mensaje["media_id"])
+            print(f"Transcripción de audio: {texto_transcrito}")
+            mensaje["texto"] = texto_transcrito
+        except Exception as error:
+            print(f"Error transcribiendo nota de voz de {mensaje['telefono']}: {error}")
+            texto_respaldo = (
+                "No pude escuchar bien tu nota de voz, ¿puedes escribirlo "
+                "o intentar de nuevo?"
+            )
+            await enviar_mensaje_whatsapp(mensaje["telefono"], texto_respaldo)
+            return
 
     print(f"Mensaje de {mensaje['telefono']}: {mensaje['texto']}")
 
@@ -189,6 +205,27 @@ async def recibir_mensaje(request: Request):
 
     except Exception as error:
         print(f"Error procesando mensaje de {mensaje['telefono']}: {error}")
-        return {"status": "error", "razon": "fallo interno al procesar el mensaje"}
+
+
+@router.post("/webhook")
+async def recibir_mensaje(request: Request, background_tasks: BackgroundTasks):
+    """
+    Endpoint que Meta llama CADA VEZ que llega un mensaje real de
+    WhatsApp. Responde de inmediato y delega el procesamiento pesado
+    (transcripción, Claude, envío) a una tarea en segundo plano.
+    """
+    try:
+        payload = await request.json()
+    except Exception:
+        print("Se recibió una petición sin un JSON válido.")
+        return {"status": "ignorado", "razon": "cuerpo vacío o inválido"}
+
+    mensaje = extraer_mensaje_entrante(payload)
+
+    if mensaje is None:
+        print("Evento recibido, pero no es un mensaje de texto entrante (ignorado).")
+        return {"status": "ignorado", "razon": "no es un mensaje de texto"}
+
+    background_tasks.add_task(procesar_mensaje_en_segundo_plano, mensaje)
 
     return {"status": "recibido"}

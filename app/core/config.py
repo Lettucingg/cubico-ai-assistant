@@ -22,6 +22,8 @@ class Settings(BaseSettings):
     WHATSAPP_TOKEN: str
     WHATSAPP_PHONE_NUMBER_ID: str
     WHATSAPP_VERIFY_TOKEN: str
+    #--- OpenAI (ChatGPT API) ---
+    OPENAI_API_KEY: str
 
     class Config:
         env_file = ".env"
