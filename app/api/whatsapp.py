@@ -64,6 +64,34 @@ async def enviar_mensaje_whatsapp(telefono_destino: str, texto: str):
 NUMEROS_EQUIPO = ["50760348962", "50769837308"]
 
 
+PALABRAS_CLAVE_ESCALAMIENTO = [
+    "dañado", "dañada", "dañó", "roto", "rota", "se rompió",
+    "perdido", "perdida", "extraviado", "extraviada", "se perdió",
+    "robado", "robaron", "no llegó", "no llego", "no ha llegado",
+    "nunca llegó", "no me llegó", "no aparece", "desaparecido",
+    "reclamo", "queja", "denuncia", "estafa", "fraude",
+    "cobro incorrecto", "me cobraron mal", "cobro mal", "cobro de más",
+    "cobro doble", "defectuoso", "defectuosa", "incompleto", "incompleta",
+    "le falta", "faltante", "vino mal", "llegó roto", "llegó dañado",
+    "quiero un reembolso", "quiero mi dinero de vuelta", "devolución", "devolucion",
+    "quiero hablar con una persona", "quiero hablar con alguien",
+    "hablar con un humano", "necesito hablar con un asesor",
+]
+
+
+def detectar_posible_queja(texto: str) -> bool:
+    """
+    Revisa si el mensaje del cliente contiene palabras o frases que
+    sugieren un problema real (paquete dañado/perdido, cobro
+    incorrecto, reclamo formal, etc.). Se usa para forzar el
+    escalamiento a humano directamente en código, sin depender de
+    que Claude decida invocar la herramienta escalar_a_humano
+    correctamente.
+    """
+    texto_normalizado = texto.lower()
+    return any(palabra in texto_normalizado for palabra in PALABRAS_CLAVE_ESCALAMIENTO)
+
+
 async def notificar_equipo_escalamiento(telefono_cliente: str, texto_cliente: str, motivo: str):
     """
     Notifica a los números del equipo cuando una conversación necesita
@@ -213,6 +241,13 @@ async def procesar_mensaje_en_segundo_plano(mensaje: dict):
 
     try:
         sesion = obtener_o_crear_sesion(mensaje["telefono"])
+
+        if detectar_posible_queja(mensaje["texto"]):
+            actualizar_sesion(
+                mensaje["telefono"],
+                necesita_atencion_humana=True,
+                motivo_escalamiento="Posible queja detectada automaticamente",
+            )
 
         texto_respuesta = generar_respuesta(
             mensaje["texto"],
