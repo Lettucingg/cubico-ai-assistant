@@ -79,7 +79,9 @@ async def notificar_equipo_escalamiento(telefono_cliente: str, texto_cliente: st
         try:
             await enviar_mensaje_whatsapp(numero, mensaje)
         except Exception as error:
-            print(f"Error notificando a {numero}: {error}")
+            import traceback
+            print(f"Error notificando a {numero}: {type(error).__name__}: {error}")
+            traceback.print_exc()
 
 
 async def marcar_leido_y_escribiendo(message_id: str):
