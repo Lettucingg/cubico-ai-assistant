@@ -184,8 +184,48 @@ HERRAMIENTAS = [
     },
 ]
 
+def buscar_respuesta_fija(texto_cliente: str) -> str | None:
+    """
+    Revisa si el mensaje coincide con una pregunta muy frecuente y
+    genérica, para responder sin gastar tokens de la API de Claude.
+    """
+    texto = texto_cliente.lower().strip()
+
+    if any(frase in texto for frase in ["cuanto cuesta el envio", "cuánto cuesta el envío", "precio del envio", "tarifa aerea", "tarifa aérea", "tarifa maritima", "tarifa marítima"]):
+        return (
+            "¡Con gusto! 📦\n\n"
+            "Aéreo: $2.90 por libra (peso real)\n\n"
+            "Marítimo: $12.00 por pie cúbico\n\n"
+            "¿Necesitas que te calcule un envío específico?"
+        )
+
+    if any(frase in texto for frase in ["direccion de miami", "dirección de miami", "cual es la direccion", "cuál es la dirección"]):
+        return (
+            "Esta es la dirección de tu casillero en Miami:\n\n"
+            "7854 NW 46TH ST SUITE 2\n"
+            "CUBICO STE2\n"
+            "Doral, FL 33195-6085"
+        )
+
+    if any(frase in texto for frase in ["como me registro", "cómo me registro", "como abro mi casillero", "cómo abro mi casillero"]):
+        return (
+            "Es bien fácil: te metes a la página web de Cúbico y te registras ahí directamente. "
+            "Al crear tu cuenta te asignan tu casillero con la dirección en Miami."
+        )
+
+    if any(frase in texto for frase in ["cual es el horario", "cuál es el horario", "que horario tienen", "qué horario tienen"]):
+        return (
+            "Nuestro horario de atención:\n\n"
+            "Lunes a viernes: 9:00 am - 5:00 pm\n"
+            "Sábados: 9:00 am - 1:00 pm\n"
+            "Domingos: cerrado"
+        )
+
+    return None
+
 
 def generar_respuesta(texto_cliente: str, telefono: str, codigo_cliente: str = None, historial: list = None) -> str:
+
     """
     Envía el mensaje del cliente a Claude, con el historial de la
     conversación. Claude decide libremente si necesita verificar
@@ -193,6 +233,9 @@ def generar_respuesta(texto_cliente: str, telefono: str, codigo_cliente: str = N
     antes de consultar datos personales.
     """
 
+    respuesta_fija = buscar_respuesta_fija(texto_cliente)
+    if respuesta_fija:
+        return respuesta_fija
     def _verificar_identidad(codigo_cliente, email):
         if verificar_cliente(codigo_cliente, email):
             actualizar_sesion(telefono, estado="verificado", codigo_cliente_verificado=codigo_cliente)
@@ -255,5 +298,4 @@ def generar_respuesta(texto_cliente: str, telefono: str, codigo_cliente: str = N
                     "tool_use_id": bloque.id,
                     "content": str(resultado),
                 })
-
         mensajes.append({"role": "user", "content": resultados_de_herramientas})

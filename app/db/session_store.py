@@ -63,7 +63,7 @@ def actualizar_sesion(telefono: str, **cambios):
         db.close()
 
 
-def agregar_al_historial(telefono: str, rol: str, contenido: str, max_mensajes: int = 20):
+def agregar_al_historial(telefono: str, rol: str, contenido: str, max_mensajes: int = 8):
     """
     Agrega un mensaje al historial de la conversación, y recorta
     el historial si supera max_mensajes (para no mandar contexto
