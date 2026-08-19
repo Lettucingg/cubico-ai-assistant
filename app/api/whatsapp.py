@@ -145,18 +145,24 @@ async def enviar_respuesta_natural(telefono_destino: str, texto_completo: str, m
     Envía la respuesta del bot simulando una escritura más humana:
     - Divide el texto en partes (por doble salto de línea, si existen;
       si no, lo manda completo como un solo mensaje).
+    - Si hay más de 2 partes, la primera se manda tal cual y el resto
+      se une en un solo segundo mensaje, para no mandar más de 2
+      mensajes de WhatsApp por respuesta.
     - Antes de cada parte, muestra el indicador de "escribiendo..."
       durante un tiempo proporcional al largo de esa parte.
     - Manda cada parte como un mensaje de WhatsApp separado.
 
     Esto hace que respuestas largas se sientan como una persona
-    escribiendo varios mensajes seguidos, en vez de un bloque de
-    texto instantáneo.
+    escribiendo uno o dos mensajes seguidos, en vez de un bloque de
+    texto instantáneo o una ráfaga de mensajes sueltos.
     """
     partes = [p.strip() for p in texto_completo.split("\n\n") if p.strip()]
 
     if not partes:
         partes = [texto_completo]
+
+    if len(partes) > 2:
+        partes = [partes[0], "\n\n".join(partes[1:])]
 
     for i, parte in enumerate(partes):
         # Simula tiempo de escritura: ~0.05 segundos por palabra,
