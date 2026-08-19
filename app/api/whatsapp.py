@@ -6,7 +6,7 @@ from fastapi import APIRouter, BackgroundTasks, Request, HTTPException
 
 from app.core.config import settings
 from app.ai.orchestrator import generar_respuesta
-from app.db.session_store import obtener_o_crear_sesion, agregar_al_historial
+from app.db.session_store import obtener_o_crear_sesion, agregar_al_historial, actualizar_sesion
 from app.tools.transcripcion import procesar_nota_de_voz
 
 router = APIRouter()
@@ -59,6 +59,27 @@ async def enviar_mensaje_whatsapp(telefono_destino: str, texto: str):
         print(f"Mensaje enviado a {telefono_destino}: {texto}")
 
     return respuesta
+
+
+NUMEROS_EQUIPO = ["50760348962", "50769837308"]
+
+
+async def notificar_equipo_escalamiento(telefono_cliente: str, texto_cliente: str, motivo: str):
+    """
+    Notifica a los números del equipo cuando una conversación necesita
+    atención humana.
+    """
+    mensaje = (
+        f"🚨 *Escalamiento a humano*\n\n"
+        f"Cliente: wa.me/{telefono_cliente}\n"
+        f"Motivo: {motivo}\n"
+        f"Último mensaje: \"{texto_cliente}\""
+    )
+    for numero in NUMEROS_EQUIPO:
+        try:
+            await enviar_mensaje_whatsapp(numero, mensaje)
+        except Exception as error:
+            print(f"Error notificando a {numero}: {error}")
 
 
 async def marcar_leido_y_escribiendo(message_id: str):
@@ -201,6 +222,14 @@ async def procesar_mensaje_en_segundo_plano(mensaje: dict):
         agregar_al_historial(sesion.telefono, "user", mensaje["texto"])
         agregar_al_historial(sesion.telefono, "assistant", texto_respuesta)
 
+        sesion_actualizada = obtener_o_crear_sesion(mensaje["telefono"])
+        if sesion_actualizada.necesita_atencion_humana:
+            await notificar_equipo_escalamiento(
+                mensaje["telefono"],
+                mensaje["texto"],
+                sesion_actualizada.motivo_escalamiento or "No especificado",
+            )
+
         await enviar_respuesta_natural(mensaje["telefono"], texto_respuesta, mensaje["message_id"])
 
     except Exception as error:
@@ -232,6 +261,17 @@ async def recibir_mensaje(request: Request, background_tasks: BackgroundTasks):
     if mensaje is None:
         print("Evento recibido, pero no es un mensaje de texto entrante (ignorado).")
         return {"status": "ignorado", "razon": "no es un mensaje de texto"}
+
+    if mensaje["tipo"] == "text" and mensaje["telefono"] in NUMEROS_EQUIPO:
+        partes_comando = mensaje["texto"].strip().split()
+        if len(partes_comando) == 2 and partes_comando[0] == "/resuelto":
+            numero_cliente = partes_comando[1]
+            actualizar_sesion(numero_cliente, necesita_atencion_humana=False, motivo_escalamiento=None)
+            await enviar_mensaje_whatsapp(
+                mensaje["telefono"],
+                f"✅ Marcado como resuelto para {numero_cliente}.",
+            )
+            return {"status": "comando_procesado"}
 
     background_tasks.add_task(procesar_mensaje_en_segundo_plano, mensaje)
 

@@ -1,6 +1,6 @@
 import json
 
-from sqlalchemy import create_engine, Column, Integer, String, DateTime, Text
+from sqlalchemy import create_engine, Column, Integer, String, DateTime, Text, Boolean
 from sqlalchemy.orm import sessionmaker, declarative_base
 from datetime import datetime
 
@@ -23,6 +23,8 @@ class Sesion(BaseSesiones):
     codigo_cliente_temporal = Column(String, nullable=True)
     codigo_cliente_verificado = Column(String, nullable=True)
     historial_json = Column(Text, default="[]")
+    necesita_atencion_humana = Column(Boolean, default=False)
+    motivo_escalamiento = Column(Text, nullable=True)
     actualizado_en = Column(DateTime, default=datetime.utcnow)
 
     def obtener_historial(self):

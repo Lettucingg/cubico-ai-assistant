@@ -182,6 +182,28 @@ HERRAMIENTAS = [
             "required": ["numero_tracking"],
         },
     },
+    {
+        "name": "escalar_a_humano",
+        "description": (
+            "Marca la conversación para que un asesor humano de Cúbico "
+            "intervenga. Úsala cuando: el cliente pide explícitamente "
+            "hablar con una persona, muestra frustración clara o "
+            "groserías repetidas, tiene una queja o reclamo formal "
+            "(paquete perdido, dañado, cobro incorrecto), o cuando no "
+            "tienes ninguna herramienta ni información para resolver "
+            "lo que pregunta."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "motivo": {
+                    "type": "string",
+                    "description": "Resumen breve de por qué se está escalando",
+                }
+            },
+            "required": ["motivo"],
+        },
+    },
 ]
 
 def buscar_respuesta_fija(texto_cliente: str) -> str | None:
@@ -242,12 +264,17 @@ def generar_respuesta(texto_cliente: str, telefono: str, codigo_cliente: str = N
             return {"verificado": True, "codigo_cliente": codigo_cliente}
         return {"verificado": False, "mensaje": "El código y correo no coinciden."}
 
+    def _escalar_a_humano(motivo):
+        actualizar_sesion(telefono, necesita_atencion_humana=True, motivo_escalamiento=motivo)
+        return {"escalado": True, "mensaje": "Un asesor será notificado y te contactará pronto."}
+
     funciones_disponibles = {
         "verificar_identidad_cliente": lambda codigo_cliente, email: _verificar_identidad(codigo_cliente, email),
         "consultar_paquetes_por_codigo": consultar_paquetes_por_codigo,
         "consultar_facturas_por_codigo": consultar_facturas_por_codigo,
         "calcular_costo_envio": calcular_costo_envio,
         "consultar_tracking": consultar_tracking,
+        "escalar_a_humano": _escalar_a_humano,
     }
 
     if codigo_cliente:
