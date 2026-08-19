@@ -26,3 +26,31 @@ def verificar_cliente(codigo: str, email: str) -> bool:
 
     finally:
         db.close()
+
+
+def obtener_nombre_completo_cliente(codigo_cliente: str) -> dict:
+    """
+    Busca un cliente por su código CBC y devuelve su nombre completo.
+    Se usa para personalizar mensajes (ej: la dirección de Miami) una
+    vez que el cliente ya fue verificado.
+    """
+    db = SessionLocal()
+    try:
+        cliente = (
+            db.query(ClienteCBC)
+            .filter(ClienteCBC.codigo == codigo_cliente.strip().upper())
+            .first()
+        )
+
+        if cliente is None:
+            return {
+                "encontrado": False,
+                "mensaje": f"No se encontró ningún cliente con el código {codigo_cliente}.",
+            }
+
+        return {
+            "encontrado": True,
+            "nombre_completo": f"{cliente.nombre} {cliente.apellido or ''}".strip(),
+        }
+    finally:
+        db.close()

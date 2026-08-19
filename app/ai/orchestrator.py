@@ -5,7 +5,7 @@ from app.tools.paquetes import consultar_paquetes_por_codigo
 from app.tools.facturas import consultar_facturas_por_codigo
 from app.tools.cotizador import calcular_costo_envio
 from app.tools.ptyfreight import consultar_tracking
-from app.tools.clientes import verificar_cliente
+from app.tools.clientes import verificar_cliente, obtener_nombre_completo_cliente
 from app.db.session_store import actualizar_sesion
 
 cliente_claude = Anthropic(api_key=settings.ANTHROPIC_API_KEY)
@@ -44,6 +44,13 @@ Dirección del casillero en Miami:
 7854 NW 46TH ST SUITE 2
 CUBICO STE2
 Doral, FL 33195-6085
+
+Si el cliente YA está verificado (tienes su código de cliente
+verificado en el contexto) y pide su dirección de Miami, NO le des la
+dirección genérica de arriba — usa la herramienta
+obtener_direccion_miami_personalizada con su código para darle la
+versión con su nombre y código CBC. Si NO está verificado, dale la
+dirección genérica de arriba tal cual, sin nombre ni código.
 
 Tarifas:
 - Envío aéreo: $2.90 por libra (peso real)
@@ -207,6 +214,27 @@ HERRAMIENTAS = [
         },
     },
     {
+        "name": "obtener_direccion_miami_personalizada",
+        "description": (
+            "Genera la dirección de casillero en Miami PERSONALIZADA con "
+            "el nombre completo y código CBC del cliente. Úsala SOLO "
+            "cuando el cliente YA está verificado (tienes su código de "
+            "cliente verificado en el contexto) y pide su dirección de "
+            "Miami. Para clientes no verificados, usa la dirección "
+            "genérica del prompt en vez de esta herramienta."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "codigo_cliente": {
+                    "type": "string",
+                    "description": "El código CBC verificado del cliente, ej: CBC-0001",
+                }
+            },
+            "required": ["codigo_cliente"],
+        },
+    },
+    {
         "name": "escalar_a_humano",
         "description": (
             "Marca la conversación para que un asesor humano de Cúbico "
@@ -235,7 +263,7 @@ HERRAMIENTAS = [
     },
 ]
 
-def buscar_respuesta_fija(texto_cliente: str) -> str | None:
+def buscar_respuesta_fija(texto_cliente: str, codigo_cliente: str = None) -> str | None:
     """
     Revisa si el mensaje coincide con una pregunta muy frecuente y
     genérica, para responder sin gastar tokens de la API de Claude.
@@ -251,6 +279,8 @@ def buscar_respuesta_fija(texto_cliente: str) -> str | None:
         )
 
     if any(frase in texto for frase in ["direccion de miami", "dirección de miami", "cual es la direccion", "cuál es la dirección"]):
+        if codigo_cliente:
+            return None
         return (
             "Esta es la dirección de tu casillero en Miami:\n\n"
             "7854 NW 46TH ST SUITE 2\n"
@@ -285,7 +315,7 @@ def generar_respuesta(texto_cliente: str, telefono: str, codigo_cliente: str = N
     antes de consultar datos personales.
     """
 
-    respuesta_fija = buscar_respuesta_fija(texto_cliente)
+    respuesta_fija = buscar_respuesta_fija(texto_cliente, codigo_cliente)
     if respuesta_fija:
         return respuesta_fija
     def _verificar_identidad(codigo_cliente, email):
@@ -299,6 +329,20 @@ def generar_respuesta(texto_cliente: str, telefono: str, codigo_cliente: str = N
         actualizar_sesion(telefono, necesita_atencion_humana=True, motivo_escalamiento=motivo)
         return {"escalado": True, "mensaje": "Un asesor será notificado y te contactará pronto."}
 
+    def _obtener_direccion_miami_personalizada(codigo_cliente):
+        resultado = obtener_nombre_completo_cliente(codigo_cliente)
+        if not resultado["encontrado"]:
+            return resultado
+
+        codigo_normalizado = codigo_cliente.strip().upper()
+        direccion = (
+            f"{resultado['nombre_completo']} {codigo_normalizado}\n"
+            f"7854 NW 46TH ST SUITE 2\n"
+            f"CUBICO {codigo_normalizado} STE2\n"
+            f"Doral, FL 33195-6085"
+        )
+        return {"encontrado": True, "direccion_personalizada": direccion}
+
     funciones_disponibles = {
         "verificar_identidad_cliente": _verificar_identidad,
         "consultar_paquetes_por_codigo": consultar_paquetes_por_codigo,
@@ -306,6 +350,7 @@ def generar_respuesta(texto_cliente: str, telefono: str, codigo_cliente: str = N
         "calcular_costo_envio": calcular_costo_envio,
         "consultar_tracking": consultar_tracking,
         "escalar_a_humano": _escalar_a_humano,
+        "obtener_direccion_miami_personalizada": _obtener_direccion_miami_personalizada,
     }
 
     if codigo_cliente:
