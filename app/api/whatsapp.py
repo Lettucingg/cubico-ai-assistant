@@ -5,7 +5,7 @@ import httpx
 from fastapi import APIRouter, BackgroundTasks, Request, HTTPException
 
 from app.core.config import settings
-from app.ai.orchestrator import generar_respuesta
+from app.ai.orchestrator import generar_respuesta, redactar_respuesta_de_asesor
 from app.db.session_store import obtener_o_crear_sesion, agregar_al_historial, actualizar_sesion
 from app.tools.transcripcion import procesar_nota_de_voz
 
@@ -245,6 +245,39 @@ async def procesar_mensaje_en_segundo_plano(mensaje: dict):
             print(f"Error enviando mensaje de respaldo a {mensaje['telefono']}: {error_envio}")
 
 
+async def procesar_respuesta_de_asesor(telefono_asesor: str, numero_cliente: str, solucion_del_asesor: str):
+    """
+    Toma la solución que un miembro del equipo escribió con el
+    comando /responder, la redacta con el tono normal de Bruno
+    (como si él mismo hubiera resuelto el caso) y se la envía al
+    cliente, cerrando el escalamiento.
+    """
+    try:
+        sesion_cliente = obtener_o_crear_sesion(numero_cliente)
+        historial = sesion_cliente.obtener_historial()
+
+        texto_cliente_original = next(
+            (m["content"] for m in reversed(historial) if m["role"] == "user"),
+            "el cliente escaló su caso a un asesor",
+        )
+
+        texto_redactado = redactar_respuesta_de_asesor(texto_cliente_original, solucion_del_asesor)
+
+        agregar_al_historial(numero_cliente, "assistant", texto_redactado)
+        await enviar_respuesta_natural(numero_cliente, texto_redactado, message_id="")
+
+        actualizar_sesion(numero_cliente, necesita_atencion_humana=False, motivo_escalamiento=None)
+
+        await enviar_mensaje_whatsapp(telefono_asesor, f"✅ Respuesta enviada a {numero_cliente}.")
+
+    except Exception as error:
+        print(f"Error procesando /responder para {numero_cliente}: {error}")
+        await enviar_mensaje_whatsapp(
+            telefono_asesor,
+            f"⚠️ No pude enviar la respuesta a {numero_cliente}, intenta de nuevo.",
+        )
+
+
 @router.post("/webhook")
 async def recibir_mensaje(request: Request, background_tasks: BackgroundTasks):
     """
@@ -272,6 +305,15 @@ async def recibir_mensaje(request: Request, background_tasks: BackgroundTasks):
             await enviar_mensaje_whatsapp(
                 mensaje["telefono"],
                 f"✅ Marcado como resuelto para {numero_cliente}.",
+            )
+            return {"status": "comando_procesado"}
+
+        partes_responder = mensaje["texto"].strip().split(maxsplit=2)
+        if len(partes_responder) == 3 and partes_responder[0] == "/responder":
+            numero_cliente = partes_responder[1]
+            solucion_del_asesor = partes_responder[2]
+            background_tasks.add_task(
+                procesar_respuesta_de_asesor, mensaje["telefono"], numero_cliente, solucion_del_asesor
             )
             return {"status": "comando_procesado"}
 

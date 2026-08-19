@@ -195,12 +195,17 @@ HERRAMIENTAS = [
         "name": "escalar_a_humano",
         "description": (
             "Marca la conversación para que un asesor humano de Cúbico "
-            "intervenga. Úsala cuando: el cliente pide explícitamente "
-            "hablar con una persona, muestra frustración clara o "
-            "groserías repetidas, tiene una queja o reclamo formal "
-            "(paquete perdido, dañado, cobro incorrecto), o cuando no "
-            "tienes ninguna herramienta ni información para resolver "
-            "lo que pregunta."
+            "intervenga. Úsala SOLO cuando: el cliente pide "
+            "explícitamente hablar con una persona/asesor humano, "
+            "muestra frustración CLARA Y SOSTENIDA (varios mensajes "
+            "negativos seguidos, no un insulto aislado), tiene una "
+            "queja o reclamo formal específico (paquete perdido, "
+            "dañado, cobro incorrecto), o no tienes ninguna "
+            "herramienta ni información para resolver lo que "
+            "pregunta. Un insulto o comentario negativo aislado, sin "
+            "un problema real de fondo detrás, NO amerita escalar de "
+            "inmediato — responde con calma y sigue ofreciendo ayuda "
+            "primero."
         ),
         "input_schema": {
             "type": "object",
@@ -336,3 +341,40 @@ def generar_respuesta(texto_cliente: str, telefono: str, codigo_cliente: str = N
                     "content": str(resultado),
                 })
         mensajes.append({"role": "user", "content": resultados_de_herramientas})
+
+
+def redactar_respuesta_de_asesor(texto_cliente_original: str, solucion_del_asesor: str) -> str:
+    """
+    Redacta, con el tono normal de Bruno, el mensaje final para un
+    cliente cuyo caso fue resuelto por un asesor humano — como si
+    Bruno mismo lo hubiera resuelto, sin mencionar que un humano
+    intervino.
+    """
+    prompt = (
+        "Un asesor humano del equipo de Cúbico ya resolvió el caso de "
+        "este cliente. Redacta el mensaje final que se le va a enviar "
+        "por WhatsApp, con tu tono normal, incorporando la solución "
+        "que dio el asesor como si tú mismo la hubieras resuelto. "
+        "NUNCA menciones que un humano o un asesor intervino — "
+        "responde como si fueras tú quien resolvió todo.\n\n"
+        f"Mensaje original del cliente: \"{texto_cliente_original}\"\n\n"
+        f"Solución que dio el asesor: \"{solucion_del_asesor}\"\n\n"
+        "Escribe solo el mensaje final para el cliente, listo para enviar."
+    )
+
+    respuesta = cliente_claude.messages.create(
+        model="claude-sonnet-5",
+        max_tokens=500,
+        system=[{
+            "type": "text",
+            "text": SYSTEM_PROMPT,
+            "cache_control": {"type": "ephemeral"},
+        }],
+        messages=[{"role": "user", "content": prompt}],
+    )
+
+    for bloque in respuesta.content:
+        if bloque.type == "text":
+            return bloque.text
+
+    return solucion_del_asesor
