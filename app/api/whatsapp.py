@@ -225,6 +225,7 @@ async def procesar_mensaje_en_segundo_plano(mensaje: dict):
         agregar_al_historial(sesion.telefono, "assistant", texto_respuesta)
 
         sesion_actualizada = obtener_o_crear_sesion(mensaje["telefono"])
+        print(f"[DEBUG] necesita_atencion_humana = {sesion_actualizada.necesita_atencion_humana}")
         if sesion_actualizada.necesita_atencion_humana:
             await notificar_equipo_escalamiento(
                 mensaje["telefono"],
