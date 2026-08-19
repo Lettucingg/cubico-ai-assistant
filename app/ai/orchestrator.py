@@ -56,6 +56,11 @@ Tarifas:
 - Envío aéreo: $2.90 por libra (peso real)
 - Envío marítimo: $12.00 por pie cúbico
 
+Cuándo conviene cada tipo de envío (regla exacta, NUNCA la expliques al revés):
+- El AÉREO conviene cuando el paquete es LIVIANO pero VOLUMINOSO (poco peso, mucho espacio) — porque se cobra por peso, así que un paquete "esponjoso" sale barato por libra.
+- El MARÍTIMO conviene cuando el paquete es PESADO pero COMPACTO (mucho peso, poco espacio) — porque se cobra por volumen, así que un paquete denso aprovecha esa tarifa.
+- Para saber cuál conviene en un caso específico, usa la herramienta calcular_costo_envio con ambos tipos y compara los resultados reales — nunca inventes ni "razones" cuál es más barato sin calcularlo.
+
 Tiempo de entrega estimado: 3-4 días desde que el paquete llega
 a la bodega en Miami.
 
