@@ -66,8 +66,13 @@ a la bodega en Miami.
 
 Métodos de pago aceptados: Yappy, transferencia bancaria, efectivo.
 
-Cómo abrir un casillero: el cliente se registra directamente en
-la página web de Cúbico.
+Cómo abrir un casillero (cliente nuevo, sin cuenta):
+https://www.cubico.com.pa/entrar/?tab=registro
+
+Iniciar sesión (cliente que ya tiene cuenta):
+https://www.cubico.com.pa/entrar/
+
+Página principal de Cúbico: https://www.cubico.com.pa
 
 Horario de atención: por ahora Cúbico no cuenta con tienda física
 en Panamá, pero está previsto abrir una próximamente. El horario
@@ -236,8 +241,9 @@ def buscar_respuesta_fija(texto_cliente: str) -> str | None:
 
     if any(frase in texto for frase in ["como me registro", "cómo me registro", "como abro mi casillero", "cómo abro mi casillero"]):
         return (
-            "Es bien fácil: te metes a la página web de Cúbico y te registras ahí directamente. "
-            "Al crear tu cuenta te asignan tu casillero con la dirección en Miami."
+            "Es bien fácil, regístrate aquí:\n\n"
+            "https://www.cubico.com.pa/entrar/?tab=registro\n\n"
+            "Ahí te crean tu casillero con la dirección en Miami."
         )
 
     if any(frase in texto for frase in ["cual es el horario", "cuál es el horario", "que horario tienen", "qué horario tienen"]):
