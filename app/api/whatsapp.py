@@ -64,6 +64,12 @@ async def enviar_mensaje_whatsapp(telefono_destino: str, texto: str):
 NUMEROS_EQUIPO = ["50760348962", "50769837308"]
 
 
+SEGUNDOS_ESPERA_BUFFER = 4.0
+
+buffer_mensajes: dict[str, dict] = {}
+tareas_pendientes: dict[str, asyncio.Task] = {}
+
+
 PALABRAS_CLAVE_ESCALAMIENTO = [
     "dañado", "dañada", "dañó", "roto", "rota", "se rompió",
     "perdido", "perdida", "extraviado", "extraviada", "se perdió",
@@ -221,28 +227,69 @@ def extraer_mensaje_entrante(payload: dict):
         return None
 
 
-async def procesar_mensaje_en_segundo_plano(mensaje: dict):
+async def _procesar_buffer_tras_espera(telefono: str):
     """
-    Hace todo el trabajo pesado de un mensaje entrante (transcripción
-    de audio si aplica, verificación, llamada a Claude, historial y
-    envío de la respuesta) fuera del ciclo de request/response del
-    webhook, para que Meta reciba un 200 inmediato y no reintente por
-    timeout.
+    Espera SEGUNDOS_ESPERA_BUFFER antes de procesar el buffer
+    acumulado de un número. Si llega un mensaje nuevo de ese mismo
+    número mientras espera, esta tarea se cancela desde
+    agregar_mensaje_a_buffer y una tarea nueva reinicia la espera.
+    """
+    try:
+        await asyncio.sleep(SEGUNDOS_ESPERA_BUFFER)
+    except asyncio.CancelledError:
+        return
+
+    mensaje_combinado = buffer_mensajes.pop(telefono, None)
+    tareas_pendientes.pop(telefono, None)
+
+    if mensaje_combinado is None:
+        return
+
+    await procesar_mensaje_en_segundo_plano(mensaje_combinado)
+
+
+async def agregar_mensaje_a_buffer(mensaje: dict):
+    """
+    Punto de entrada para cada mensaje entrante (texto o audio ya
+    transcrito). Lo acumula en el buffer del número y reinicia el
+    temporizador de espera, para agrupar ráfagas de mensajes seguidos
+    del mismo cliente en una sola respuesta.
     """
     if mensaje["tipo"] == "audio":
         try:
             texto_transcrito = await procesar_nota_de_voz(mensaje["media_id"])
             print(f"Transcripción de audio: {texto_transcrito}")
-            mensaje["texto"] = texto_transcrito
+            mensaje = {**mensaje, "texto": texto_transcrito, "tipo": "text"}
         except Exception as error:
             print(f"Error transcribiendo nota de voz de {mensaje['telefono']}: {error}")
-            texto_respaldo = (
-                "No pude escuchar bien tu nota de voz, ¿puedes escribirlo "
-                "o intentar de nuevo?"
+            await enviar_mensaje_whatsapp(
+                mensaje["telefono"],
+                "No pude escuchar bien tu nota de voz, ¿puedes escribirlo o intentar de nuevo?",
             )
-            await enviar_mensaje_whatsapp(mensaje["telefono"], texto_respaldo)
             return
 
+    telefono = mensaje["telefono"]
+
+    if telefono in buffer_mensajes:
+        buffer_mensajes[telefono]["texto"] += f"\n{mensaje['texto']}"
+        buffer_mensajes[telefono]["message_id"] = mensaje["message_id"]
+    else:
+        buffer_mensajes[telefono] = dict(mensaje)
+
+    tarea_anterior = tareas_pendientes.get(telefono)
+    if tarea_anterior and not tarea_anterior.done():
+        tarea_anterior.cancel()
+
+    tareas_pendientes[telefono] = asyncio.create_task(_procesar_buffer_tras_espera(telefono))
+
+
+async def procesar_mensaje_en_segundo_plano(mensaje: dict):
+    """
+    Hace todo el trabajo pesado de un mensaje ya combinado del buffer
+    (verificación, llamada a Claude, historial y envío de la
+    respuesta) fuera del ciclo de request/response del webhook, para
+    que Meta reciba un 200 inmediato y no reintente por timeout.
+    """
     print(f"Mensaje de {mensaje['telefono']}: {mensaje['texto']}")
 
     try:
@@ -373,6 +420,6 @@ async def recibir_mensaje(request: Request, background_tasks: BackgroundTasks):
             )
             return {"status": "comando_procesado"}
 
-    background_tasks.add_task(procesar_mensaje_en_segundo_plano, mensaje)
+    background_tasks.add_task(agregar_mensaje_a_buffer, mensaje)
 
     return {"status": "recibido"}
