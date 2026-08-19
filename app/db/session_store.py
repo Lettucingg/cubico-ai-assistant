@@ -52,7 +52,27 @@ def obtener_o_crear_sesion(telefono: str) -> Sesion:
         db.close()
 
 
-def actualizar_sesion(telefono: str, **cambios):
+def obtener_sesion_existente(telefono: str) -> Sesion | None:
+    """
+    Busca una sesión sin crearla si no existe. Devuelve None si el
+    teléfono no tiene ninguna conversación registrada.
+    """
+    db = SessionSesiones()
+    try:
+        sesion = db.query(Sesion).filter(Sesion.telefono == telefono).first()
+        if sesion:
+            db.expunge(sesion)
+        return sesion
+    finally:
+        db.close()
+
+
+def actualizar_sesion(telefono: str, **cambios) -> bool:
+    """
+    Actualiza los campos dados de una sesión existente. Devuelve
+    True si encontró la sesión y la actualizó, False si el teléfono
+    no tiene ninguna sesión registrada.
+    """
     db = SessionSesiones()
     try:
         sesion = db.query(Sesion).filter(Sesion.telefono == telefono).first()
@@ -61,6 +81,8 @@ def actualizar_sesion(telefono: str, **cambios):
                 setattr(sesion, campo, valor)
             sesion.actualizado_en = datetime.utcnow()
             db.commit()
+            return True
+        return False
     finally:
         db.close()
 

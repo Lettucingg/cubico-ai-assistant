@@ -6,7 +6,7 @@ from fastapi import APIRouter, BackgroundTasks, Request, HTTPException
 
 from app.core.config import settings
 from app.ai.orchestrator import generar_respuesta, redactar_respuesta_de_asesor
-from app.db.session_store import obtener_o_crear_sesion, agregar_al_historial, actualizar_sesion
+from app.db.session_store import obtener_o_crear_sesion, obtener_sesion_existente, agregar_al_historial, actualizar_sesion
 from app.tools.transcripcion import procesar_nota_de_voz
 
 router = APIRouter()
@@ -254,7 +254,15 @@ async def procesar_respuesta_de_asesor(telefono_asesor: str, numero_cliente: str
     cliente, cerrando el escalamiento.
     """
     try:
-        sesion_cliente = obtener_o_crear_sesion(numero_cliente)
+        sesion_cliente = obtener_sesion_existente(numero_cliente)
+
+        if sesion_cliente is None or not sesion_cliente.necesita_atencion_humana:
+            await enviar_mensaje_whatsapp(
+                telefono_asesor,
+                f"⚠️ {numero_cliente} no tiene un caso escalado activo. No se envió nada.",
+            )
+            return
+
         historial = sesion_cliente.obtener_historial()
 
         texto_cliente_original = next(
@@ -302,11 +310,17 @@ async def recibir_mensaje(request: Request, background_tasks: BackgroundTasks):
         partes_comando = mensaje["texto"].strip().split()
         if len(partes_comando) == 2 and partes_comando[0] == "/resuelto":
             numero_cliente = partes_comando[1]
-            actualizar_sesion(numero_cliente, necesita_atencion_humana=False, motivo_escalamiento=None)
-            await enviar_mensaje_whatsapp(
-                mensaje["telefono"],
-                f"✅ Marcado como resuelto para {numero_cliente}.",
-            )
+            encontrada = actualizar_sesion(numero_cliente, necesita_atencion_humana=False, motivo_escalamiento=None)
+            if encontrada:
+                await enviar_mensaje_whatsapp(
+                    mensaje["telefono"],
+                    f"✅ Marcado como resuelto para {numero_cliente}.",
+                )
+            else:
+                await enviar_mensaje_whatsapp(
+                    mensaje["telefono"],
+                    f"⚠️ No encontré una conversación con el número {numero_cliente}.",
+                )
             return {"status": "comando_procesado"}
 
         partes_responder = mensaje["texto"].strip().split(maxsplit=2)

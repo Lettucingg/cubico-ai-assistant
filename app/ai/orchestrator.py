@@ -281,11 +281,12 @@ def generar_respuesta(texto_cliente: str, telefono: str, codigo_cliente: str = N
         return {"verificado": False, "mensaje": "El código y correo no coinciden."}
 
     def _escalar_a_humano(motivo):
+        print(f"[DEBUG] _escalar_a_humano EJECUTADO — telefono={telefono}, motivo={motivo}")
         actualizar_sesion(telefono, necesita_atencion_humana=True, motivo_escalamiento=motivo)
         return {"escalado": True, "mensaje": "Un asesor será notificado y te contactará pronto."}
 
     funciones_disponibles = {
-        "verificar_identidad_cliente": lambda codigo_cliente, email: _verificar_identidad(codigo_cliente, email),
+        "verificar_identidad_cliente": _verificar_identidad,
         "consultar_paquetes_por_codigo": consultar_paquetes_por_codigo,
         "consultar_facturas_por_codigo": consultar_facturas_por_codigo,
         "calcular_costo_envio": calcular_costo_envio,
