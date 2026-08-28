@@ -87,6 +87,21 @@ def actualizar_sesion(telefono: str, **cambios) -> bool:
         db.close()
 
 
+def listar_sesiones_escaladas() -> list[Sesion]:
+    """
+    Devuelve todas las sesiones que actualmente tienen
+    necesita_atencion_humana=True (casos escalados sin resolver).
+    """
+    db = SessionSesiones()
+    try:
+        sesiones = db.query(Sesion).filter(Sesion.necesita_atencion_humana == True).all()  # noqa: E712
+        for sesion in sesiones:
+            db.expunge(sesion)
+        return sesiones
+    finally:
+        db.close()
+
+
 def agregar_al_historial(telefono: str, rol: str, contenido: str, max_mensajes: int = 8):
     """
     Agrega un mensaje al historial de la conversación, y recorta

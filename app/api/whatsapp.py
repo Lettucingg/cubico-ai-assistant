@@ -6,7 +6,13 @@ from fastapi import APIRouter, BackgroundTasks, Request, HTTPException
 
 from app.core.config import settings
 from app.ai.orchestrator import generar_respuesta, redactar_respuesta_de_asesor
-from app.db.session_store import obtener_o_crear_sesion, obtener_sesion_existente, agregar_al_historial, actualizar_sesion
+from app.db.session_store import (
+    obtener_o_crear_sesion,
+    obtener_sesion_existente,
+    agregar_al_historial,
+    actualizar_sesion,
+    listar_sesiones_escaladas,
+)
 from app.tools.transcripcion import procesar_nota_de_voz
 
 router = APIRouter()
@@ -415,6 +421,22 @@ async def recibir_mensaje(request: Request, background_tasks: BackgroundTasks):
                     )
                 return {"status": "comando_procesado"}
 
+            if len(partes_comando) == 1 and partes_comando[0] == "/pendientes":
+                pendientes = listar_sesiones_escaladas()
+                if not pendientes:
+                    await enviar_mensaje_whatsapp(
+                        mensaje["telefono"],
+                        "✅ No hay casos pendientes en este momento.",
+                    )
+                else:
+                    lineas = [
+                        f"{i}. wa.me/{s.telefono} - {s.motivo_escalamiento or 'No especificado'}"
+                        for i, s in enumerate(pendientes, start=1)
+                    ]
+                    texto = f"📋 Casos pendientes ({len(pendientes)}):\n\n" + "\n".join(lineas)
+                    await enviar_mensaje_whatsapp(mensaje["telefono"], texto)
+                return {"status": "comando_procesado"}
+
             partes_responder = mensaje["texto"].strip().split(maxsplit=2)
             if len(partes_responder) == 3 and partes_responder[0] == "/responder":
                 numero_cliente = partes_responder[1]
@@ -429,7 +451,7 @@ async def recibir_mensaje(request: Request, background_tasks: BackgroundTasks):
         # actualizar una Sesion, ni pasar por generar_respuesta/escalamiento.
         await enviar_mensaje_whatsapp(
             mensaje["telefono"],
-            "No reconozco ese comando. Usa /responder <numero> <mensaje> o /resuelto <numero>.",
+            "No reconozco ese comando. Usa /responder <numero> <mensaje>, /resuelto <numero> o /pendientes.",
         )
         return {"status": "comando_no_reconocido"}
 
