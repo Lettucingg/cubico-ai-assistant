@@ -68,6 +68,36 @@ async def enviar_mensaje_whatsapp(telefono_destino: str, texto: str):
     return respuesta
 
 
+async def enviar_imagen_whatsapp(telefono_destino: str, media_id: str, caption: str = None):
+    """
+    Reenvía una imagen ya existente en WhatsApp (por su media_id)
+    a otro número de teléfono.
+    """
+    url = f"https://graph.facebook.com/v21.0/{settings.WHATSAPP_PHONE_NUMBER_ID}/messages"
+    headers = {
+        "Authorization": f"Bearer {settings.WHATSAPP_TOKEN}",
+        "Content-Type": "application/json",
+    }
+    payload = {
+        "messaging_product": "whatsapp",
+        "to": telefono_destino,
+        "type": "image",
+        "image": {"id": media_id},
+    }
+    if caption:
+        payload["image"]["caption"] = caption
+
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        respuesta = await client.post(url, headers=headers, json=payload)
+
+    if respuesta.status_code != 200:
+        print(f"Error al enviar imagen a {telefono_destino}: {respuesta.text}")
+    else:
+        print(f"Imagen enviada a {telefono_destino}")
+
+    return respuesta
+
+
 # Números que pueden usar comandos de equipo (/responder, /resuelto,
 # /pendientes). Sus mensajes normales NO se procesan como cliente.
 NUMEROS_EQUIPO = ["50769837308"]
@@ -132,10 +162,11 @@ async def notificar_equipo_escalamiento(telefono_cliente: str, texto_cliente: st
             traceback.print_exc()
 
 
-async def notificar_equipo_comprobante(telefono_cliente: str, detalle_comprobante: str):
+async def notificar_equipo_comprobante(telefono_cliente: str, detalle_comprobante: str, media_id: str):
     """
     Notifica a los números del equipo cuando un cliente envía un
-    comprobante de pago, para que lo verifiquen y lo registren.
+    comprobante de pago: manda el detalle en texto y reenvía la
+    imagen real, para que lo verifiquen y lo registren.
     """
     mensaje = (
         f"🧾 *Comprobante de pago recibido*\n\n"
@@ -145,6 +176,7 @@ async def notificar_equipo_comprobante(telefono_cliente: str, detalle_comprobant
     for numero in NUMEROS_NOTIFICACION:
         try:
             await enviar_mensaje_whatsapp(numero, mensaje)
+            await enviar_imagen_whatsapp(numero, media_id, caption="📸 Comprobante recibido")
         except Exception as error:
             import traceback
             print(f"Error notificando comprobante a {numero}: {type(error).__name__}: {error}")
@@ -347,7 +379,9 @@ async def procesar_mensaje_en_segundo_plano(mensaje: dict):
             resultado = analizar_comprobante(imagen_bytes)
 
             if resultado["es_comprobante"]:
-                await notificar_equipo_comprobante(mensaje["telefono"], resultado["detalle_completo"])
+                await notificar_equipo_comprobante(
+                    mensaje["telefono"], resultado["detalle_completo"], mensaje["media_id"]
+                )
                 await enviar_mensaje_whatsapp(
                     mensaje["telefono"],
                     "Recibí tu comprobante, nuestro equipo lo va a verificar y registrar en breve.",
