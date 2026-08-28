@@ -71,3 +71,28 @@ def analizar_comprobante(imagen_bytes: bytes) -> dict:
         "es_comprobante": es_comprobante,
         "detalle_completo": texto_respuesta,
     }
+
+
+def extraer_campos_comprobante(detalle_completo: str) -> dict:
+    """
+    Parsea los campos MONTO/FECHA/REFERENCIA/METODO del texto que
+    devuelve analizar_comprobante, para mostrarlos por separado en la
+    notificación al equipo.
+    """
+    campos = {
+        "monto": "No especificado",
+        "fecha": "No especificado",
+        "referencia": "No especificado",
+        "metodo": "No especificado",
+    }
+    prefijos = {"MONTO": "monto", "FECHA": "fecha", "REFERENCIA": "referencia", "METODO": "metodo"}
+
+    for linea in detalle_completo.splitlines():
+        prefijo, separador, valor = linea.partition(":")
+        if not separador:
+            continue
+        clave = prefijos.get(prefijo.strip().upper())
+        if clave:
+            campos[clave] = valor.strip() or "No especificado"
+
+    return campos

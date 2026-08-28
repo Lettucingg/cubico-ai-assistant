@@ -14,7 +14,12 @@ from app.db.session_store import (
     listar_sesiones_escaladas,
 )
 from app.tools.transcripcion import procesar_nota_de_voz
-from app.tools.comprobantes import descargar_imagen_de_whatsapp, analizar_comprobante
+from app.tools.comprobantes import (
+    descargar_imagen_de_whatsapp,
+    analizar_comprobante,
+    extraer_campos_comprobante,
+)
+from app.tools.clientes import obtener_nombre_completo_cliente
 
 router = APIRouter()
 
@@ -165,13 +170,31 @@ async def notificar_equipo_escalamiento(telefono_cliente: str, texto_cliente: st
 async def notificar_equipo_comprobante(telefono_cliente: str, detalle_comprobante: str, media_id: str):
     """
     Notifica a los números del equipo cuando un cliente envía un
-    comprobante de pago: manda el detalle en texto y reenvía la
-    imagen real, para que lo verifiquen y lo registren.
+    comprobante de pago: identifica al cliente (si está verificado),
+    manda el detalle en texto y reenvía la imagen real, para que lo
+    verifiquen y lo registren.
     """
+    sesion = obtener_o_crear_sesion(telefono_cliente)
+
+    linea_cliente = f"⚠️ Cliente no identificado — verificar por wa.me/{telefono_cliente}"
+    if sesion.codigo_cliente_verificado:
+        resultado_cliente = obtener_nombre_completo_cliente(sesion.codigo_cliente_verificado)
+        if resultado_cliente["encontrado"]:
+            linea_cliente = (
+                f"Cliente: {resultado_cliente['nombre_completo']} "
+                f"({sesion.codigo_cliente_verificado})"
+            )
+
+    campos = extraer_campos_comprobante(detalle_comprobante)
+
     mensaje = (
-        f"🧾 *Comprobante de pago recibido*\n\n"
-        f"Cliente: wa.me/{telefono_cliente}\n"
-        f"Detalle:\n{detalle_comprobante}"
+        f"📸 *Comprobante de pago recibido*\n\n"
+        f"{linea_cliente}\n\n"
+        f"Monto: {campos['monto']}\n"
+        f"Fecha: {campos['fecha']}\n"
+        f"Referencia: {campos['referencia']}\n"
+        f"Método: {campos['metodo']}\n\n"
+        f"wa.me/{telefono_cliente}"
     )
     for numero in NUMEROS_NOTIFICACION:
         try:
