@@ -294,6 +294,7 @@ async def procesar_mensaje_en_segundo_plano(mensaje: dict):
 
     try:
         sesion = obtener_o_crear_sesion(mensaje["telefono"])
+        estaba_escalado_antes = sesion.necesita_atencion_humana
 
         if detectar_posible_queja(mensaje["texto"]):
             actualizar_sesion(
@@ -314,7 +315,7 @@ async def procesar_mensaje_en_segundo_plano(mensaje: dict):
 
         sesion_actualizada = obtener_o_crear_sesion(mensaje["telefono"])
         print(f"[DEBUG] necesita_atencion_humana = {sesion_actualizada.necesita_atencion_humana}")
-        if sesion_actualizada.necesita_atencion_humana:
+        if sesion_actualizada.necesita_atencion_humana and not estaba_escalado_antes:
             await notificar_equipo_escalamiento(
                 mensaje["telefono"],
                 mensaje["texto"],
@@ -394,31 +395,43 @@ async def recibir_mensaje(request: Request, background_tasks: BackgroundTasks):
         print("Evento recibido, pero no es un mensaje de texto entrante (ignorado).")
         return {"status": "ignorado", "razon": "no es un mensaje de texto"}
 
-    if mensaje["tipo"] == "text" and mensaje["telefono"] in NUMEROS_EQUIPO:
-        partes_comando = mensaje["texto"].strip().split()
-        if len(partes_comando) == 2 and partes_comando[0] == "/resuelto":
-            numero_cliente = partes_comando[1]
-            encontrada = actualizar_sesion(numero_cliente, necesita_atencion_humana=False, motivo_escalamiento=None)
-            if encontrada:
-                await enviar_mensaje_whatsapp(
-                    mensaje["telefono"],
-                    f"✅ Marcado como resuelto para {numero_cliente}.",
+    if mensaje["telefono"] in NUMEROS_EQUIPO:
+        if mensaje["tipo"] == "text":
+            partes_comando = mensaje["texto"].strip().split()
+            if len(partes_comando) == 2 and partes_comando[0] == "/resuelto":
+                numero_cliente = partes_comando[1]
+                encontrada = actualizar_sesion(
+                    numero_cliente, necesita_atencion_humana=False, motivo_escalamiento=None
                 )
-            else:
-                await enviar_mensaje_whatsapp(
-                    mensaje["telefono"],
-                    f"⚠️ No encontré una conversación con el número {numero_cliente}.",
-                )
-            return {"status": "comando_procesado"}
+                if encontrada:
+                    await enviar_mensaje_whatsapp(
+                        mensaje["telefono"],
+                        f"✅ Marcado como resuelto para {numero_cliente}.",
+                    )
+                else:
+                    await enviar_mensaje_whatsapp(
+                        mensaje["telefono"],
+                        f"⚠️ No encontré una conversación con el número {numero_cliente}.",
+                    )
+                return {"status": "comando_procesado"}
 
-        partes_responder = mensaje["texto"].strip().split(maxsplit=2)
-        if len(partes_responder) == 3 and partes_responder[0] == "/responder":
-            numero_cliente = partes_responder[1]
-            solucion_del_asesor = partes_responder[2]
-            background_tasks.add_task(
-                procesar_respuesta_de_asesor, mensaje["telefono"], numero_cliente, solucion_del_asesor
-            )
-            return {"status": "comando_procesado"}
+            partes_responder = mensaje["texto"].strip().split(maxsplit=2)
+            if len(partes_responder) == 3 and partes_responder[0] == "/responder":
+                numero_cliente = partes_responder[1]
+                solucion_del_asesor = partes_responder[2]
+                background_tasks.add_task(
+                    procesar_respuesta_de_asesor, mensaje["telefono"], numero_cliente, solucion_del_asesor
+                )
+                return {"status": "comando_procesado"}
+
+        # Un número del equipo escribiendo algo que no es un comando
+        # reconocido no debe tratarse como cliente: no debe crear ni
+        # actualizar una Sesion, ni pasar por generar_respuesta/escalamiento.
+        await enviar_mensaje_whatsapp(
+            mensaje["telefono"],
+            "No reconozco ese comando. Usa /responder <numero> <mensaje> o /resuelto <numero>.",
+        )
+        return {"status": "comando_no_reconocido"}
 
     background_tasks.add_task(agregar_mensaje_a_buffer, mensaje)
 
