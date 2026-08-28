@@ -68,9 +68,14 @@ async def enviar_mensaje_whatsapp(telefono_destino: str, texto: str):
     return respuesta
 
 
-# TEMPORAL: número de Alexander removido para poder probar el bot como cliente.
-# Reactivar agregando "50760348962" de vuelta a la lista cuando termine de probar.
+# Números que pueden usar comandos de equipo (/responder, /resuelto,
+# /pendientes). Sus mensajes normales NO se procesan como cliente.
 NUMEROS_EQUIPO = ["50769837308"]
+
+# Números que reciben notificaciones (escalamiento, comprobantes de
+# pago) pero que SÍ pueden seguir siendo tratados como cliente normal
+# en sus mensajes regulares.
+NUMEROS_NOTIFICACION = ["50760348962", "50769837308"]
 
 
 SEGUNDOS_ESPERA_BUFFER = 4.0
@@ -118,7 +123,7 @@ async def notificar_equipo_escalamiento(telefono_cliente: str, texto_cliente: st
         f"Motivo: {motivo}\n"
         f"Último mensaje: \"{texto_cliente}\""
     )
-    for numero in NUMEROS_EQUIPO:
+    for numero in NUMEROS_NOTIFICACION:
         try:
             await enviar_mensaje_whatsapp(numero, mensaje)
         except Exception as error:
@@ -137,7 +142,7 @@ async def notificar_equipo_comprobante(telefono_cliente: str, detalle_comprobant
         f"Cliente: wa.me/{telefono_cliente}\n"
         f"Detalle:\n{detalle_comprobante}"
     )
-    for numero in NUMEROS_EQUIPO:
+    for numero in NUMEROS_NOTIFICACION:
         try:
             await enviar_mensaje_whatsapp(numero, mensaje)
         except Exception as error:
