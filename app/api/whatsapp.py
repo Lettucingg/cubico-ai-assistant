@@ -14,6 +14,7 @@ from app.db.session_store import (
     listar_sesiones_escaladas,
 )
 from app.tools.transcripcion import procesar_nota_de_voz
+from app.tools.comprobantes import descargar_imagen_de_whatsapp, analizar_comprobante
 
 router = APIRouter()
 
@@ -124,6 +125,25 @@ async def notificar_equipo_escalamiento(telefono_cliente: str, texto_cliente: st
             traceback.print_exc()
 
 
+async def notificar_equipo_comprobante(telefono_cliente: str, detalle_comprobante: str):
+    """
+    Notifica a los números del equipo cuando un cliente envía un
+    comprobante de pago, para que lo verifiquen y lo registren.
+    """
+    mensaje = (
+        f"🧾 *Comprobante de pago recibido*\n\n"
+        f"Cliente: wa.me/{telefono_cliente}\n"
+        f"Detalle:\n{detalle_comprobante}"
+    )
+    for numero in NUMEROS_EQUIPO:
+        try:
+            await enviar_mensaje_whatsapp(numero, mensaje)
+        except Exception as error:
+            import traceback
+            print(f"Error notificando comprobante a {numero}: {type(error).__name__}: {error}")
+            traceback.print_exc()
+
+
 async def marcar_leido_y_escribiendo(message_id: str):
     """
     Marca el mensaje del cliente como leído y muestra el indicador
@@ -227,6 +247,15 @@ def extraer_mensaje_entrante(payload: dict):
                 "tipo": "audio",
             }
 
+        if mensaje.get("type") == "image":
+            return {
+                "telefono": mensaje["from"],
+                "texto": None,
+                "media_id": mensaje["image"]["id"],
+                "message_id": mensaje["id"],
+                "tipo": "image",
+            }
+
         return None
 
     except (KeyError, IndexError, TypeError):
@@ -276,10 +305,17 @@ async def agregar_mensaje_a_buffer(mensaje: dict):
 
     telefono = mensaje["telefono"]
 
-    if telefono in buffer_mensajes:
-        buffer_mensajes[telefono]["texto"] += f"\n{mensaje['texto']}"
-        buffer_mensajes[telefono]["message_id"] = mensaje["message_id"]
+    mensaje_en_buffer = buffer_mensajes.get(telefono)
+    if mensaje_en_buffer and mensaje_en_buffer["tipo"] == "text" and mensaje["tipo"] == "text":
+        # Ambos son texto: se concatenan para agrupar la ráfaga en un
+        # solo mensaje combinado.
+        mensaje_en_buffer["texto"] += f"\n{mensaje['texto']}"
+        mensaje_en_buffer["message_id"] = mensaje["message_id"]
     else:
+        # Tipos mezclados (texto/imagen/audio) o buffer vacío: no hay
+        # forma segura de concatenar (texto podría ser None), así que
+        # el mensaje nuevo reemplaza al buffer y se procesa por su
+        # cuenta, priorizando el último tipo recibido.
         buffer_mensajes[telefono] = dict(mensaje)
 
     tarea_anterior = tareas_pendientes.get(telefono)
@@ -299,6 +335,23 @@ async def procesar_mensaje_en_segundo_plano(mensaje: dict):
     print(f"Mensaje de {mensaje['telefono']}: {mensaje['texto']}")
 
     try:
+        if mensaje["tipo"] == "image":
+            imagen_bytes = await descargar_imagen_de_whatsapp(mensaje["media_id"])
+            resultado = analizar_comprobante(imagen_bytes)
+
+            if resultado["es_comprobante"]:
+                await notificar_equipo_comprobante(mensaje["telefono"], resultado["detalle_completo"])
+                await enviar_mensaje_whatsapp(
+                    mensaje["telefono"],
+                    "Recibí tu comprobante, nuestro equipo lo va a verificar y registrar en breve.",
+                )
+            else:
+                await enviar_mensaje_whatsapp(
+                    mensaje["telefono"],
+                    "Recibí tu imagen, pero no parece ser un comprobante de pago. ¿En qué te puedo ayudar?",
+                )
+            return
+
         sesion = obtener_o_crear_sesion(mensaje["telefono"])
         estaba_escalado_antes = sesion.necesita_atencion_humana
 
