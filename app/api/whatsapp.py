@@ -68,7 +68,9 @@ async def enviar_mensaje_whatsapp(telefono_destino: str, texto: str):
     return respuesta
 
 
-NUMEROS_EQUIPO = ["50760348962", "50769837308"]
+# TEMPORAL: número de Alexander removido para poder probar el bot como cliente.
+# Reactivar agregando "50760348962" de vuelta a la lista cuando termine de probar.
+NUMEROS_EQUIPO = ["50769837308"]
 
 
 SEGUNDOS_ESPERA_BUFFER = 4.0
