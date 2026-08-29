@@ -279,6 +279,25 @@ HERRAMIENTAS = [
             "required": ["motivo"],
         },
     },
+    {
+        "name": "avisar_retiro_paquete",
+        "description": (
+            "Notifica al equipo que un cliente verificado va a pasar "
+            "a retirar su paquete. Úsala cuando el cliente diga algo "
+            "como 'voy a pasar a recoger mi paquete', 'voy a retirar', "
+            "o similar, y ya esté verificado."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "codigo_cliente": {
+                    "type": "string",
+                    "description": "El código CBC del cliente verificado",
+                }
+            },
+            "required": ["codigo_cliente"],
+        },
+    },
 ]
 
 def buscar_respuesta_fija(texto_cliente: str, codigo_cliente: str = None) -> str | None:
@@ -361,6 +380,17 @@ def generar_respuesta(texto_cliente: str, telefono: str, codigo_cliente: str = N
         )
         return {"encontrado": True, "direccion_personalizada": direccion}
 
+    def _avisar_retiro(codigo_cliente):
+        resultado_paquetes = consultar_paquetes_por_codigo(codigo_cliente)
+        paquetes_listos = [
+            p for p in resultado_paquetes.get("paquetes", []) if p.get("estado_cargo") == "notificado"
+        ]
+        if not paquetes_listos:
+            return {"avisado": False, "mensaje": "Todavía no tienes paquetes listos para retirar."}
+
+        actualizar_sesion(telefono, aviso_retiro_pendiente=True)
+        return {"avisado": True, "mensaje": "Perfecto, le avisamos al equipo que vas a pasar a retirar tus paquetes."}
+
     funciones_disponibles = {
         "verificar_identidad_cliente": _verificar_identidad,
         "consultar_paquetes_por_codigo": consultar_paquetes_por_codigo,
@@ -369,6 +399,7 @@ def generar_respuesta(texto_cliente: str, telefono: str, codigo_cliente: str = N
         "consultar_tracking": consultar_tracking,
         "escalar_a_humano": _escalar_a_humano,
         "obtener_direccion_miami_personalizada": _obtener_direccion_miami_personalizada,
+        "avisar_retiro_paquete": _avisar_retiro,
     }
 
     if codigo_cliente:

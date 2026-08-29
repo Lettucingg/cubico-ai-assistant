@@ -25,6 +25,7 @@ class Sesion(BaseSesiones):
     historial_json = Column(Text, default="[]")
     necesita_atencion_humana = Column(Boolean, default=False)
     motivo_escalamiento = Column(Text, nullable=True)
+    aviso_retiro_pendiente = Column(Boolean, default=False)
     actualizado_en = Column(DateTime, default=datetime.utcnow)
 
     def obtener_historial(self):

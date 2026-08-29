@@ -20,6 +20,7 @@ from app.tools.comprobantes import (
     extraer_campos_comprobante,
 )
 from app.tools.clientes import obtener_nombre_completo_cliente
+from app.tools.paquetes import consultar_paquetes_por_codigo
 
 router = APIRouter()
 
@@ -204,6 +205,35 @@ async def notificar_equipo_comprobante(telefono_cliente: str, detalle_comprobant
             import traceback
             print(f"Error notificando comprobante a {numero}: {type(error).__name__}: {error}")
             traceback.print_exc()
+
+
+async def notificar_equipo_retiro(telefono_cliente: str, codigo_cliente: str):
+    """
+    Notifica a NUMEROS_NOTIFICACION que un cliente verificado va a
+    pasar a retirar sus paquetes listos (estado_cargo == "notificado").
+    A diferencia del escalamiento, este aviso es puntual: se limpia
+    solo después de notificar, no queda como un caso abierto.
+    """
+    resultado = consultar_paquetes_por_codigo(codigo_cliente)
+    nombre = resultado.get("cliente", "Cliente")
+    trackings = [
+        p["tracking"] for p in resultado.get("paquetes", []) if p.get("estado_cargo") == "notificado"
+    ]
+    lista_tracking = ", ".join(trackings) if trackings else "sin tracking disponible"
+
+    mensaje = (
+        f"📦 Aviso de retiro: {nombre} ({codigo_cliente}) va a pasar "
+        f"a retirar sus paquetes: {lista_tracking}."
+    )
+    for numero in NUMEROS_NOTIFICACION:
+        try:
+            await enviar_mensaje_whatsapp(numero, mensaje)
+        except Exception as error:
+            import traceback
+            print(f"Error notificando retiro a {numero}: {type(error).__name__}: {error}")
+            traceback.print_exc()
+
+    actualizar_sesion(telefono_cliente, aviso_retiro_pendiente=False)
 
 
 async def marcar_leido_y_escribiendo(message_id: str):
@@ -418,6 +448,7 @@ async def procesar_mensaje_en_segundo_plano(mensaje: dict):
 
         sesion = obtener_o_crear_sesion(mensaje["telefono"])
         estaba_escalado_antes = sesion.necesita_atencion_humana
+        tenia_aviso_retiro_antes = sesion.aviso_retiro_pendiente
 
         if detectar_posible_queja(mensaje["texto"]):
             actualizar_sesion(
@@ -444,6 +475,9 @@ async def procesar_mensaje_en_segundo_plano(mensaje: dict):
                 mensaje["texto"],
                 sesion_actualizada.motivo_escalamiento or "No especificado",
             )
+
+        if sesion_actualizada.aviso_retiro_pendiente and not tenia_aviso_retiro_antes:
+            await notificar_equipo_retiro(mensaje["telefono"], sesion_actualizada.codigo_cliente_verificado)
 
         await enviar_respuesta_natural(mensaje["telefono"], texto_respuesta, mensaje["message_id"])
 
