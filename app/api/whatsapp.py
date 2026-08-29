@@ -12,6 +12,7 @@ from app.db.session_store import (
     agregar_al_historial,
     actualizar_sesion,
     listar_sesiones_escaladas,
+    listar_sesiones_con_retiro_pendiente,
 )
 from app.tools.transcripcion import procesar_nota_de_voz
 from app.tools.comprobantes import (
@@ -211,8 +212,8 @@ async def notificar_equipo_retiro(telefono_cliente: str, codigo_cliente: str):
     """
     Notifica a NUMEROS_NOTIFICACION que un cliente verificado va a
     pasar a retirar sus paquetes listos (estado_cargo == "notificado").
-    A diferencia del escalamiento, este aviso es puntual: se limpia
-    solo después de notificar, no queda como un caso abierto.
+    Queda como un caso abierto (aviso_retiro_pendiente=True) hasta que
+    el equipo lo cierre con /entregado.
     """
     resultado = consultar_paquetes_por_codigo(codigo_cliente)
     nombre = resultado.get("cliente", "Cliente")
@@ -232,8 +233,6 @@ async def notificar_equipo_retiro(telefono_cliente: str, codigo_cliente: str):
             import traceback
             print(f"Error notificando retiro a {numero}: {type(error).__name__}: {error}")
             traceback.print_exc()
-
-    actualizar_sesion(telefono_cliente, aviso_retiro_pendiente=False)
 
 
 async def marcar_leido_y_escribiendo(message_id: str):
@@ -572,6 +571,23 @@ async def recibir_mensaje(request: Request, background_tasks: BackgroundTasks):
                     )
                 return {"status": "comando_procesado"}
 
+            if len(partes_comando) == 2 and partes_comando[0] == "/entregado":
+                numero_cliente = partes_comando[1]
+                encontrada = actualizar_sesion(
+                    numero_cliente, aviso_retiro_pendiente=False, paquetes_a_retirar=None
+                )
+                if encontrada:
+                    await enviar_mensaje_whatsapp(
+                        mensaje["telefono"],
+                        f"✅ Retiro marcado como entregado para {numero_cliente}.",
+                    )
+                else:
+                    await enviar_mensaje_whatsapp(
+                        mensaje["telefono"],
+                        f"⚠️ No encontré una conversación con el número {numero_cliente}.",
+                    )
+                return {"status": "comando_procesado"}
+
             if len(partes_comando) == 1 and partes_comando[0] == "/pendientes":
                 pendientes = listar_sesiones_escaladas()
                 if not pendientes:
@@ -585,6 +601,28 @@ async def recibir_mensaje(request: Request, background_tasks: BackgroundTasks):
                         for i, s in enumerate(pendientes, start=1)
                     ]
                     texto = f"📋 Casos pendientes ({len(pendientes)}):\n\n" + "\n".join(lineas)
+                    await enviar_mensaje_whatsapp(mensaje["telefono"], texto)
+                return {"status": "comando_procesado"}
+
+            if len(partes_comando) == 1 and partes_comando[0] == "/retiros":
+                retiros = listar_sesiones_con_retiro_pendiente()
+                if not retiros:
+                    await enviar_mensaje_whatsapp(
+                        mensaje["telefono"],
+                        "✅ No hay retiros pendientes en este momento.",
+                    )
+                else:
+                    lineas = []
+                    for i, s in enumerate(retiros, start=1):
+                        nombre = "Cliente no identificado"
+                        codigo = s.codigo_cliente_verificado or "sin código"
+                        if s.codigo_cliente_verificado:
+                            resultado_cliente = obtener_nombre_completo_cliente(s.codigo_cliente_verificado)
+                            if resultado_cliente["encontrado"]:
+                                nombre = resultado_cliente["nombre_completo"]
+                        paquetes = s.paquetes_a_retirar or "sin tracking"
+                        lineas.append(f"{i}. {nombre} ({codigo}) - wa.me/{s.telefono} - {paquetes}")
+                    texto = f"📦 Retiros pendientes ({len(retiros)}):\n\n" + "\n".join(lineas)
                     await enviar_mensaje_whatsapp(mensaje["telefono"], texto)
                 return {"status": "comando_procesado"}
 
@@ -602,7 +640,8 @@ async def recibir_mensaje(request: Request, background_tasks: BackgroundTasks):
         # actualizar una Sesion, ni pasar por generar_respuesta/escalamiento.
         await enviar_mensaje_whatsapp(
             mensaje["telefono"],
-            "No reconozco ese comando. Usa /responder <numero> <mensaje>, /resuelto <numero> o /pendientes.",
+            "No reconozco ese comando. Usa /responder <numero> <mensaje>, /resuelto <numero>, "
+            "/pendientes, /retiros o /entregado <numero>.",
         )
         return {"status": "comando_no_reconocido"}
 

@@ -26,6 +26,7 @@ class Sesion(BaseSesiones):
     necesita_atencion_humana = Column(Boolean, default=False)
     motivo_escalamiento = Column(Text, nullable=True)
     aviso_retiro_pendiente = Column(Boolean, default=False)
+    paquetes_a_retirar = Column(Text, nullable=True)
     actualizado_en = Column(DateTime, default=datetime.utcnow)
 
     def obtener_historial(self):
@@ -96,6 +97,21 @@ def listar_sesiones_escaladas() -> list[Sesion]:
     db = SessionSesiones()
     try:
         sesiones = db.query(Sesion).filter(Sesion.necesita_atencion_humana == True).all()  # noqa: E712
+        for sesion in sesiones:
+            db.expunge(sesion)
+        return sesiones
+    finally:
+        db.close()
+
+
+def listar_sesiones_con_retiro_pendiente() -> list[Sesion]:
+    """
+    Devuelve todas las sesiones que actualmente tienen
+    aviso_retiro_pendiente=True (retiros avisados sin entregar todavía).
+    """
+    db = SessionSesiones()
+    try:
+        sesiones = db.query(Sesion).filter(Sesion.aviso_retiro_pendiente == True).all()  # noqa: E712
         for sesion in sesiones:
             db.expunge(sesion)
         return sesiones

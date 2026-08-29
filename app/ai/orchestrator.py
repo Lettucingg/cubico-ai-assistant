@@ -388,7 +388,10 @@ def generar_respuesta(texto_cliente: str, telefono: str, codigo_cliente: str = N
         if not paquetes_listos:
             return {"avisado": False, "mensaje": "Todavía no tienes paquetes listos para retirar."}
 
-        actualizar_sesion(telefono, aviso_retiro_pendiente=True)
+        trackings = [p["tracking"] for p in paquetes_listos]
+        actualizar_sesion(
+            telefono, aviso_retiro_pendiente=True, paquetes_a_retirar=", ".join(trackings)
+        )
         return {"avisado": True, "mensaje": "Perfecto, le avisamos al equipo que vas a pasar a retirar tus paquetes."}
 
     funciones_disponibles = {
