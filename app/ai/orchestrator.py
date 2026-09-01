@@ -140,6 +140,14 @@ Reglas importantes:
 - Nunca inventes tarifas ni datos distintos a los de arriba.
 - Si te preguntan algo que no sabes, dilo honestamente y ofrece
   poner al cliente en contacto con un asesor humano.
+
+REGLA CRÍTICA DE CÁLCULOS:
+- NUNCA calcules el costo de un envío haciendo la aritmética tú
+  mismo (peso × tarifa, o pies cúbicos × tarifa). SIEMPRE usa la
+  herramienta calcular_costo_envio para obtener el costo real,
+  incluso si el cálculo parece simple. La herramienta aplica reglas
+  de redondeo que tú no puedes replicar mentalmente de forma
+  confiable.
 """
 
 HERRAMIENTAS = [
@@ -203,13 +211,19 @@ HERRAMIENTAS = [
     {
         "name": "calcular_costo_envio",
         "description": (
-            "Calcula el costo estimado de un envío. No requiere "
-            "verificación — cualquiera puede pedir una cotización. "
-            "Para aéreo usa peso_libras. Para marítimo usa las tres "
-            "medidas del paquete (alto, ancho, largo) — si el cliente "
-            "las da en centímetros, pasa unidad_medida='cm' y la "
-            "herramienta convierte automáticamente; no conviertas ni "
-            "calcules pies cúbicos manualmente."
+            "OBLIGATORIO: úsala para calcular CUALQUIER costo de "
+            "envío, sin excepción. Nunca calcules el costo tú mismo "
+            "haciendo la multiplicación mentalmente (peso × tarifa o "
+            "pies cúbicos × tarifa) — esta herramienta aplica reglas "
+            "de redondeo (hacia arriba) que no puedes replicar de "
+            "forma confiable, y el precio cobrado depende de que sea "
+            "exacto. No requiere verificación — cualquiera puede "
+            "pedir una cotización. Para aéreo usa peso_libras. Para "
+            "marítimo usa las tres medidas del paquete (alto, ancho, "
+            "largo) — si el cliente las da en centímetros, pasa "
+            "unidad_medida='cm' y la herramienta convierte "
+            "automáticamente; no conviertas ni calcules pies cúbicos "
+            "manualmente."
         ),
         "input_schema": {
             "type": "object",
