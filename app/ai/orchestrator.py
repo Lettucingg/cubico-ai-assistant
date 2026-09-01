@@ -60,6 +60,7 @@ Cuándo conviene cada tipo de envío (regla exacta, NUNCA la expliques al revés
 - El AÉREO conviene cuando el paquete es LIVIANO pero VOLUMINOSO (poco peso, mucho espacio) — porque se cobra por peso, así que un paquete "esponjoso" sale barato por libra.
 - El MARÍTIMO conviene cuando el paquete es PESADO pero COMPACTO (mucho peso, poco espacio) — porque se cobra por volumen, así que un paquete denso aprovecha esa tarifa.
 - Para saber cuál conviene en un caso específico, usa la herramienta calcular_costo_envio con ambos tipos y compara los resultados reales — nunca inventes ni "razones" cuál es más barato sin calcularlo.
+- Para cotizar envío marítimo necesitas SIEMPRE las tres medidas del paquete (alto, ancho y largo) — pregúntaselas al cliente si no las ha dado. Pueden venir en pulgadas o centímetros; pregunta en qué unidad las tiene si no lo dice, y pásalas tal cual a la herramienta calcular_costo_envio (con unidad_medida='cm' si aplica) — nunca conviertas ni calcules los pies cúbicos tú mismo.
 
 Tiempo de entrega estimado: 3-4 días desde que el paquete llega
 a la bodega en Miami.
@@ -203,14 +204,25 @@ HERRAMIENTAS = [
         "name": "calcular_costo_envio",
         "description": (
             "Calcula el costo estimado de un envío. No requiere "
-            "verificación — cualquiera puede pedir una cotización."
+            "verificación — cualquiera puede pedir una cotización. "
+            "Para aéreo usa peso_libras. Para marítimo usa las tres "
+            "medidas del paquete (alto, ancho, largo) — si el cliente "
+            "las da en centímetros, pasa unidad_medida='cm' y la "
+            "herramienta convierte automáticamente; no conviertas ni "
+            "calcules pies cúbicos manualmente."
         ),
         "input_schema": {
             "type": "object",
             "properties": {
                 "tipo_envio": {"type": "string", "description": "'aereo' o 'maritimo'"},
                 "peso_libras": {"type": "number", "description": "Peso en libras (aéreo)"},
-                "pies_cubicos": {"type": "number", "description": "Pies cúbicos (marítimo)"},
+                "alto": {"type": "number", "description": "Alto del paquete (marítimo)"},
+                "ancho": {"type": "number", "description": "Ancho del paquete (marítimo)"},
+                "largo": {"type": "number", "description": "Largo del paquete (marítimo)"},
+                "unidad_medida": {
+                    "type": "string",
+                    "description": "Unidad de alto/ancho/largo: 'pulgadas' (default) o 'cm'",
+                },
             },
             "required": ["tipo_envio"],
         },
