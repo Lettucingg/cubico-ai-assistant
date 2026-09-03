@@ -494,7 +494,12 @@ async def procesar_mensaje_en_segundo_plano(mensaje: dict):
         await enviar_respuesta_natural(mensaje["telefono"], texto_respuesta, mensaje["message_id"])
 
     except Exception as error:
-        print(f"Error procesando mensaje de {mensaje['telefono']}: {error}")
+        import traceback
+        print(
+            f"Error procesando mensaje de {mensaje['telefono']}: "
+            f"{type(error).__name__}: {error}"
+        )
+        traceback.print_exc()
         try:
             await enviar_mensaje_whatsapp(
                 mensaje["telefono"],
