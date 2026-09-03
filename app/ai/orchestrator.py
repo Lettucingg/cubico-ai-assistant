@@ -1160,8 +1160,8 @@ def generar_respuesta(
     # de tener suficiente información para responder.
     max_iteraciones_herramientas = 8
 
-    for _ in range(max_iteraciones_herramientas):
-        respuesta = cliente_claude.messages.create(
+    def _llamar_claude():
+        return cliente_claude.messages.create(
             model="claude-sonnet-5",
             max_tokens=500,
             system=[
@@ -1175,16 +1175,36 @@ def generar_respuesta(
             messages=mensajes,
         )
 
+    def _extraer_texto(respuesta) -> str | None:
+        textos = [
+            bloque.text.strip()
+            for bloque in respuesta.content
+            if bloque.type == "text"
+        ]
+        return "\n".join(textos).strip() if textos else None
+
+    for _ in range(max_iteraciones_herramientas):
+        respuesta = _llamar_claude()
+
         # Si Claude ya terminó de usar herramientas, devolvemos su texto.
         if respuesta.stop_reason != "tool_use":
-            textos = []
+            texto = _extraer_texto(respuesta)
 
-            for bloque in respuesta.content:
-                if bloque.type == "text":
-                    textos.append(bloque.text.strip())
+            if texto:
+                return texto
 
-            if textos:
-                return "\n".join(textos).strip()
+            # Claude terminó su turno sin ningún bloque de texto. En vez
+            # de rendirnos de inmediato, reintentamos una vez más con los
+            # mismos mensajes antes de mostrar el mensaje de respaldo.
+            print(
+                f"[WARNING] Claude no devolvió texto en el primer intento "
+                f"para telefono={telefono}, reintentando..."
+            )
+
+            texto_reintento = _extraer_texto(_llamar_claude())
+
+            if texto_reintento:
+                return texto_reintento
 
             return (
                 "No pude completar la consulta en este momento. "
