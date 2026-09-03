@@ -456,6 +456,19 @@ async def procesar_mensaje_en_segundo_plano(mensaje: dict):
                 motivo_escalamiento="Posible queja detectada automaticamente",
             )
 
+            # Notificamos aquí mismo, antes de llamar a generar_respuesta:
+            # si esa llamada falla más abajo, la sesión ya quedaría
+            # marcada como escalada en la base de datos, y el chequeo
+            # posterior (que compara contra estaba_escalado_antes) ya
+            # no dispararía el aviso al equipo.
+            if not estaba_escalado_antes:
+                await notificar_equipo_escalamiento(
+                    mensaje["telefono"],
+                    mensaje["texto"],
+                    "Posible queja detectada automaticamente",
+                )
+                estaba_escalado_antes = True
+
         texto_respuesta = generar_respuesta(
             mensaje["texto"],
             telefono=mensaje["telefono"],
