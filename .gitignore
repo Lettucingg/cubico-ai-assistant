@@ -29,3 +29,7 @@ build/
 dist/
 *.egg-info/
 sesiones.db
+
+# Salidas del envio masivo (logs y CSV de resultados)
+logs_envios/
+*.xlsx
