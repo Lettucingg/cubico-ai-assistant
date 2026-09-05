@@ -698,7 +698,13 @@ async def recibir_mensaje(request: Request, background_tasks: BackgroundTasks):
     if mensaje["telefono"] in NUMEROS_EQUIPO:
         if mensaje["tipo"] == "text":
             partes_comando = mensaje["texto"].strip().split()
-            if len(partes_comando) == 2 and partes_comando[0] == "/resuelto":
+            # Normalizamos solo la palabra de comando (partes_comando[0]) a
+            # minúsculas antes de comparar: el teclado del celular a veces
+            # autocapitaliza la primera letra del mensaje (ej. "/Entregado"),
+            # lo que rompía la comparación exacta. Los argumentos (números,
+            # direcciones, mensajes de /responder) NO se tocan.
+            comando = partes_comando[0].lower() if partes_comando else ""
+            if len(partes_comando) == 2 and comando == "/resuelto":
                 numero_cliente = partes_comando[1]
                 encontrada = actualizar_sesion(
                     numero_cliente, necesita_atencion_humana=False, motivo_escalamiento=None
@@ -715,7 +721,7 @@ async def recibir_mensaje(request: Request, background_tasks: BackgroundTasks):
                     )
                 return {"status": "comando_procesado"}
 
-            if len(partes_comando) == 2 and partes_comando[0] == "/entregado":
+            if len(partes_comando) == 2 and comando == "/entregado":
                 marcados, fallidos = _resolver_comando_entregado(
                     partes_comando[1],
                     _ultima_lista_retiros.get(mensaje["telefono"], {}),
@@ -731,7 +737,7 @@ async def recibir_mensaje(request: Request, background_tasks: BackgroundTasks):
                     await enviar_mensaje_whatsapp(mensaje["telefono"], texto)
                 return {"status": "comando_procesado"}
 
-            if len(partes_comando) == 2 and partes_comando[0] == "/entregado_domicilio":
+            if len(partes_comando) == 2 and comando == "/entregado_domicilio":
                 marcados, fallidos = _resolver_comando_entregado(
                     partes_comando[1],
                     _ultima_lista_domicilios.get(mensaje["telefono"], {}),
@@ -751,7 +757,7 @@ async def recibir_mensaje(request: Request, background_tasks: BackgroundTasks):
                     await enviar_mensaje_whatsapp(mensaje["telefono"], texto)
                 return {"status": "comando_procesado"}
 
-            if len(partes_comando) == 1 and partes_comando[0] == "/pendientes":
+            if len(partes_comando) == 1 and comando == "/pendientes":
                 pendientes = listar_sesiones_escaladas()
                 if not pendientes:
                     await enviar_mensaje_whatsapp(
@@ -767,7 +773,7 @@ async def recibir_mensaje(request: Request, background_tasks: BackgroundTasks):
                     await enviar_mensaje_whatsapp(mensaje["telefono"], texto)
                 return {"status": "comando_procesado"}
 
-            if len(partes_comando) == 1 and partes_comando[0] == "/retiros":
+            if len(partes_comando) == 1 and comando == "/retiros":
                 retiros = listar_sesiones_con_retiro_pendiente()
                 if not retiros:
                     await enviar_mensaje_whatsapp(
@@ -792,7 +798,7 @@ async def recibir_mensaje(request: Request, background_tasks: BackgroundTasks):
                     await enviar_mensaje_whatsapp(mensaje["telefono"], texto)
                 return {"status": "comando_procesado"}
 
-            if len(partes_comando) == 1 and partes_comando[0] == "/domicilios":
+            if len(partes_comando) == 1 and comando == "/domicilios":
                 domicilios = listar_sesiones_con_domicilio_pendiente()
                 if not domicilios:
                     await enviar_mensaje_whatsapp(
@@ -821,7 +827,8 @@ async def recibir_mensaje(request: Request, background_tasks: BackgroundTasks):
                 return {"status": "comando_procesado"}
 
             partes_responder = mensaje["texto"].strip().split(maxsplit=2)
-            if len(partes_responder) == 3 and partes_responder[0] == "/responder":
+            comando_responder = partes_responder[0].lower() if partes_responder else ""
+            if len(partes_responder) == 3 and comando_responder == "/responder":
                 numero_cliente = partes_responder[1]
                 solucion_del_asesor = partes_responder[2]
                 background_tasks.add_task(
@@ -832,6 +839,10 @@ async def recibir_mensaje(request: Request, background_tasks: BackgroundTasks):
         # Un número del equipo escribiendo algo que no es un comando
         # reconocido no debe tratarse como cliente: no debe crear ni
         # actualizar una Sesion, ni pasar por generar_respuesta/escalamiento.
+        print(
+            f"[DEBUG] Comando de equipo no reconocido — "
+            f"telefono={mensaje['telefono']}, texto_original={mensaje.get('texto')!r}"
+        )
         await enviar_mensaje_whatsapp(
             mensaje["telefono"],
             "No reconozco ese comando. Usa /responder <numero> <mensaje>, /resuelto <numero>, "
