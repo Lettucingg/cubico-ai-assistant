@@ -332,8 +332,10 @@ async def notificar_equipo_domicilio(telefono_cliente: str, codigo_cliente: str,
 
     mensaje = (
         f"🏠 Solicitud de entrega a domicilio: {nombre} ({codigo_cliente})\n"
+        f"Teléfono del cliente: {telefono_cliente}\n"
         f"Dirección: {direccion}\n"
         f"Paquetes: {lista_tracking}\n\n"
+        f"wa.me/{telefono_cliente}\n\n"
         f"Evalúen si la dirección está dentro de la zona de ruta (gratis) "
         f"o requiere cobro adicional por ser exprés/fuera de zona."
     )
