@@ -31,6 +31,7 @@ class Sesion(BaseSesiones):
     direccion_domicilio = Column(Text, nullable=True)
     paquetes_a_domicilio = Column(Text, nullable=True)
     factura_pendiente_notificacion = Column(String, nullable=True)
+    tipo_seguimiento_pago = Column(String, nullable=True)  # general | domicilio
     actualizado_en = Column(DateTime, default=datetime.utcnow)
 
     def obtener_historial(self):

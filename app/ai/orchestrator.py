@@ -10,7 +10,7 @@ from app.tools.clientes import (
     obtener_nombre_completo_cliente,
     verificar_correo_registrado,
 )
-from app.db.session_store import actualizar_sesion
+from app.db.session_store import actualizar_sesion, obtener_sesion_existente
 
 
 cliente_claude = Anthropic(api_key=settings.ANTHROPIC_API_KEY)
@@ -1231,15 +1231,39 @@ def generar_respuesta(
             return resultado_facturas
 
         if resultado_facturas.get("saldo_pendiente_total", 0) > 0:
+            factura_pendiente = next(
+                (
+                    f for f in resultado_facturas.get("facturas", [])
+                    if f.get("saldo_pendiente", 0) > 0
+                ),
+                None,
+            )
+
+            cambios_sesion = {"tipo_seguimiento_pago": "domicilio"}
+            if factura_pendiente:
+                cambios_sesion["factura_pendiente_notificacion"] = factura_pendiente["codigo"]
+            if direccion and direccion.strip():
+                cambios_sesion["direccion_domicilio"] = direccion.strip()
+            actualizar_sesion(telefono, **cambios_sesion)
+
             return {
                 "solicitado": False,
                 "pago_pendiente": True,
                 "mensaje": (
                     "El cliente tiene saldo pendiente de pago. Debe "
                     "completarse el pago antes de solicitar la entrega "
-                    "a domicilio."
+                    "a domicilio. Quedó guardado para avisarle "
+                    "automáticamente en cuanto se confirme el pago."
                 ),
             }
+
+        sesion_actual = obtener_sesion_existente(telefono)
+        if sesion_actual and sesion_actual.tipo_seguimiento_pago == "domicilio":
+            # Seguimiento de pago pendiente para domicilio de un intento
+            # anterior bloqueado: ya cumplió su propósito.
+            actualizar_sesion(
+                telefono, tipo_seguimiento_pago=None, factura_pendiente_notificacion=None
+            )
 
         if not direccion or not direccion.strip():
             return {
@@ -1290,6 +1314,7 @@ def generar_respuesta(
         actualizar_sesion(
             telefono,
             factura_pendiente_notificacion=codigo_factura.strip().upper(),
+            tipo_seguimiento_pago="general",
         )
 
         return {
