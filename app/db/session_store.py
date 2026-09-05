@@ -161,6 +161,28 @@ def listar_sesiones_con_domicilio_pendiente() -> list[Sesion]:
         db.close()
 
 
+def listar_todas_sesiones(limite: int = 50) -> list[Sesion]:
+    """
+    Devuelve las sesiones más recientemente actualizadas, sin filtrar
+    por estado. Se usa para el panel de administración (vista general
+    de conversaciones). Ordenadas por actualizado_en descendente y
+    limitadas a `limite` para no devolver toda la tabla de una vez.
+    """
+    db = SessionSesiones()
+    try:
+        sesiones = (
+            db.query(Sesion)
+            .order_by(Sesion.actualizado_en.desc())
+            .limit(limite)
+            .all()
+        )
+        for sesion in sesiones:
+            db.expunge(sesion)
+        return sesiones
+    finally:
+        db.close()
+
+
 def listar_sesiones_con_factura_pendiente() -> list[Sesion]:
     """
     Devuelve las sesiones con una factura pendiente de confirmación de

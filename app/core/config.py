@@ -25,6 +25,10 @@ class Settings(BaseSettings):
     #--- OpenAI (ChatGPT API) ---
     OPENAI_API_KEY: str
 
+    # --- Panel de administración (HTTP Basic Auth) ---
+    PANEL_USUARIO: str
+    PANEL_CONTRASENA: str
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
