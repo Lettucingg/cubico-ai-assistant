@@ -443,10 +443,18 @@ Desde China: el tiempo estimado es de aproximadamente 10 a 15 días, aunque pued
 
 MÉTODOS DE PAGO
 
-Cúbico acepta:
-- Yappy
-- transferencia bancaria
-- efectivo
+Transferencia bancaria (ACH):
+Banco General
+Cuenta de ahorro
+Beneficiario: Cúbico
+Número de cuenta: 04-72-97-202288-7
+
+Yappy:
+60705727
+
+Efectivo también disponible.
+
+Si el cliente pregunta cómo pagar, comparte estos datos con naturalidad. No hace falta verificación de identidad para esto — cualquiera puede preguntar cómo pagar.
 
 
 REGISTRO
@@ -614,6 +622,23 @@ Si un cliente verificado dice que pasará a retirar sus paquetes, utiliza avisar
 Después utiliza el resultado real de la herramienta.
 
 No digas que avisaste al equipo antes de ejecutar la herramienta.
+
+
+ENTREGA A DOMICILIO
+
+Si un cliente verificado pide que le entreguen su paquete a domicilio, utiliza solicitar_entrega_domicilio.
+
+Si el cliente ya dio la dirección exacta en su mensaje, inclúyela en el parámetro direccion. Si no la ha dado, no inventes una dirección: llama la herramienta sin ese parámetro.
+
+Usa el resultado real de la herramienta para decidir cómo continuar:
+
+Si el resultado indica pago_pendiente, informa al cliente con naturalidad que debe completarse el pago antes de coordinar la entrega a domicilio. No confirmes la solicitud.
+
+Si el resultado indica requiere_direccion, pide la dirección exacta de entrega. Cuando el cliente la dé, vuelve a utilizar solicitar_entrega_domicilio con esa dirección.
+
+Si el resultado confirma que quedó solicitado, avísale al cliente con naturalidad que el equipo quedó notificado y coordinará la entrega.
+
+No digas que la solicitud quedó registrada o notificada antes de ejecutar la herramienta con éxito.
 
 
 CONFIRMACIÓN DE ENVÍOS Y PAGOS
@@ -887,6 +912,36 @@ HERRAMIENTAS = [
                     "type": "string",
                     "description": "Código CBC del cliente verificado",
                 }
+            },
+            "required": ["codigo_cliente"],
+        },
+    },
+    {
+        "name": "solicitar_entrega_domicilio",
+        "description": (
+            "Gestiona la solicitud de un cliente verificado para que le "
+            "entreguen su paquete a domicilio. Primero revisa internamente "
+            "el estado de pago (regla de no confirmar sin pago verificado): "
+            "si hay saldo pendiente, el resultado lo indica y no continúa. "
+            "Si el pago está al día pero falta la dirección, el resultado "
+            "lo indica para que la pidas y vuelvas a llamar la herramienta "
+            "con ella. Si todo está en orden, guarda la solicitud y "
+            "notifica al equipo."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "codigo_cliente": {
+                    "type": "string",
+                    "description": "Código CBC del cliente verificado",
+                },
+                "direccion": {
+                    "type": "string",
+                    "description": (
+                        "Dirección exacta de entrega a domicilio, solo si "
+                        "el cliente ya la proporcionó en su mensaje."
+                    ),
+                },
             },
             "required": ["codigo_cliente"],
         },
@@ -1167,6 +1222,70 @@ def generar_respuesta(
             ),
         }
 
+    def _solicitar_entrega_domicilio(codigo_cliente: str, direccion: str = None):
+        codigo_normalizado = codigo_cliente.strip().upper()
+
+        resultado_facturas = consultar_facturas_por_codigo(codigo_normalizado)
+
+        if not resultado_facturas.get("encontrado"):
+            return resultado_facturas
+
+        if resultado_facturas.get("saldo_pendiente_total", 0) > 0:
+            return {
+                "solicitado": False,
+                "pago_pendiente": True,
+                "mensaje": (
+                    "El cliente tiene saldo pendiente de pago. Debe "
+                    "completarse el pago antes de solicitar la entrega "
+                    "a domicilio."
+                ),
+            }
+
+        if not direccion or not direccion.strip():
+            return {
+                "solicitado": False,
+                "requiere_direccion": True,
+                "mensaje": "Falta la dirección exacta de entrega a domicilio.",
+            }
+
+        resultado_paquetes = consultar_paquetes_por_codigo(codigo_normalizado)
+
+        paquetes_listos = [
+            paquete
+            for paquete in resultado_paquetes.get("paquetes", [])
+            if paquete.get("estado_cargo") == "notificado"
+        ]
+
+        if not paquetes_listos:
+            return {
+                "solicitado": False,
+                "mensaje": (
+                    "Todavía no hay paquetes listos para entregar a domicilio."
+                ),
+            }
+
+        trackings = [
+            paquete["tracking"]
+            for paquete in paquetes_listos
+            if paquete.get("tracking")
+        ]
+
+        actualizar_sesion(
+            telefono,
+            solicitud_domicilio_pendiente=True,
+            direccion_domicilio=direccion.strip(),
+            paquetes_a_domicilio=", ".join(trackings),
+        )
+
+        return {
+            "solicitado": True,
+            "trackings": trackings,
+            "mensaje": (
+                "El equipo quedó notificado de la solicitud de entrega "
+                "a domicilio."
+            ),
+        }
+
     def _marcar_pago_pendiente_seguimiento(codigo_cliente: str, codigo_factura: str):
         actualizar_sesion(
             telefono,
@@ -1196,6 +1315,7 @@ def generar_respuesta(
             _obtener_direccion_china_personalizada
         ),
         "avisar_retiro_paquete": _avisar_retiro,
+        "solicitar_entrega_domicilio": _solicitar_entrega_domicilio,
         "marcar_pago_pendiente_seguimiento": _marcar_pago_pendiente_seguimiento,
     }
 

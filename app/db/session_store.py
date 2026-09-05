@@ -27,6 +27,9 @@ class Sesion(BaseSesiones):
     motivo_escalamiento = Column(Text, nullable=True)
     aviso_retiro_pendiente = Column(Boolean, default=False)
     paquetes_a_retirar = Column(Text, nullable=True)
+    solicitud_domicilio_pendiente = Column(Boolean, default=False)
+    direccion_domicilio = Column(Text, nullable=True)
+    paquetes_a_domicilio = Column(Text, nullable=True)
     factura_pendiente_notificacion = Column(String, nullable=True)
     actualizado_en = Column(DateTime, default=datetime.utcnow)
 
@@ -134,6 +137,22 @@ def listar_sesiones_con_retiro_pendiente() -> list[Sesion]:
     db = SessionSesiones()
     try:
         sesiones = db.query(Sesion).filter(Sesion.aviso_retiro_pendiente == True).all()  # noqa: E712
+        for sesion in sesiones:
+            db.expunge(sesion)
+        return sesiones
+    finally:
+        db.close()
+
+
+def listar_sesiones_con_domicilio_pendiente() -> list[Sesion]:
+    """
+    Devuelve todas las sesiones que actualmente tienen
+    solicitud_domicilio_pendiente=True (entregas a domicilio
+    solicitadas sin completar todavía).
+    """
+    db = SessionSesiones()
+    try:
+        sesiones = db.query(Sesion).filter(Sesion.solicitud_domicilio_pendiente == True).all()  # noqa: E712
         for sesion in sesiones:
             db.expunge(sesion)
         return sesiones

@@ -13,6 +13,7 @@ from app.db.session_store import (
     actualizar_sesion,
     listar_sesiones_escaladas,
     listar_sesiones_con_retiro_pendiente,
+    listar_sesiones_con_domicilio_pendiente,
 )
 from app.tools.transcripcion import procesar_nota_de_voz
 from app.tools.comprobantes import (
@@ -109,11 +110,85 @@ async def enviar_imagen_whatsapp(telefono_destino: str, media_id: str, caption: 
 # /pendientes). Sus mensajes normales NO se procesan como cliente.
 NUMEROS_EQUIPO = ["50769837308"]
 
-# Última lista de /retiros consultada por cada miembro del equipo, para
-# poder resolver "el número 2 de la lista" a un teléfono cuando llegue
-# /entregado. Es solo una conveniencia en memoria: no persiste entre
-# reinicios ni necesita hacerlo.
+# Última lista de /retiros y /domicilios consultada por cada miembro del
+# equipo, para poder resolver "el número 2 de la lista" a un teléfono
+# cuando llegue /entregado o /entregado_domicilio. Es solo una
+# conveniencia en memoria: no persiste entre reinicios ni necesita
+# hacerlo.
 _ultima_lista_retiros: dict[str, dict[int, str]] = {}
+_ultima_lista_domicilios: dict[str, dict[int, str]] = {}
+
+
+def _resolver_comando_entregado(
+    argumento: str, mapa_lista: dict[int, str], campos_a_limpiar: dict
+) -> tuple[list, list]:
+    """
+    Resuelve cada token de `argumento` (números de lista separados por
+    coma, ej. "1,2,3", o un teléfono completo) contra `mapa_lista`, y
+    aplica actualizar_sesion(**campos_a_limpiar) al teléfono resuelto.
+
+    Devuelve (marcados, fallidos), cada uno una lista de tuplas
+    (token, es_numero_de_lista). Usada tanto por /entregado como por
+    /entregado_domicilio.
+    """
+    tokens = [t for t in argumento.split(",") if t]
+    marcados = []
+    fallidos = []
+
+    for token in tokens:
+        es_numero_de_lista = token.isdigit() and len(token) <= 3
+        if es_numero_de_lista:
+            telefono_objetivo = mapa_lista.get(int(token))
+            if telefono_objetivo is None:
+                fallidos.append((token, True))
+                continue
+        else:
+            telefono_objetivo = token
+
+        encontrada = actualizar_sesion(telefono_objetivo, **campos_a_limpiar)
+        if encontrada:
+            marcados.append((token, es_numero_de_lista))
+        else:
+            fallidos.append((token, es_numero_de_lista))
+
+    return marcados, fallidos
+
+
+def _componer_respuesta_entregado(
+    marcados: list, fallidos: list, mensaje_singular_lista: str, mensaje_singular_telefono: str
+) -> str:
+    """
+    Compone el mensaje de confirmación/aviso para /entregado y
+    /entregado_domicilio a partir de los resultados de
+    _resolver_comando_entregado.
+    """
+    lineas_respuesta = []
+    if len(marcados) == 1:
+        token, es_numero_de_lista = marcados[0]
+        if es_numero_de_lista:
+            lineas_respuesta.append(mensaje_singular_lista.format(token=token))
+        else:
+            lineas_respuesta.append(mensaje_singular_telefono.format(token=token))
+    elif len(marcados) > 1:
+        tokens_marcados = ", ".join(token for token, _ in marcados)
+        lineas_respuesta.append(
+            f"✅ Marcados como entregados: {len(marcados)} casos ({tokens_marcados})."
+        )
+
+    for token, es_numero_de_lista in fallidos:
+        if es_numero_de_lista:
+            lineas_respuesta.append(
+                f"⚠️ El número {token} ya no corresponde a ningún caso activo."
+            )
+        else:
+            lineas_respuesta.append(
+                f"⚠️ No encontré una conversación con el número {token}."
+            )
+
+    if marcados and fallidos:
+        lineas_respuesta.append("Se procesaron los demás.")
+
+    return "\n".join(lineas_respuesta)
 
 # Números que reciben notificaciones (escalamiento, comprobantes de
 # pago) pero que SÍ pueden seguir siendo tratados como cliente normal
@@ -238,6 +313,36 @@ async def notificar_equipo_retiro(telefono_cliente: str, codigo_cliente: str):
         except Exception as error:
             import traceback
             print(f"Error notificando retiro a {numero}: {type(error).__name__}: {error}")
+            traceback.print_exc()
+
+
+async def notificar_equipo_domicilio(telefono_cliente: str, codigo_cliente: str, direccion: str):
+    """
+    Notifica a NUMEROS_NOTIFICACION que un cliente verificado solicitó
+    que le entreguen su paquete a domicilio. Queda como un caso abierto
+    (solicitud_domicilio_pendiente=True) hasta que el equipo lo cierre
+    con /entregado_domicilio.
+    """
+    resultado = consultar_paquetes_por_codigo(codigo_cliente)
+    nombre = resultado.get("cliente", "Cliente")
+    trackings = [
+        p["tracking"] for p in resultado.get("paquetes", []) if p.get("estado_cargo") == "notificado"
+    ]
+    lista_tracking = ", ".join(trackings) if trackings else "sin tracking disponible"
+
+    mensaje = (
+        f"🏠 Solicitud de entrega a domicilio: {nombre} ({codigo_cliente})\n"
+        f"Dirección: {direccion}\n"
+        f"Paquetes: {lista_tracking}\n\n"
+        f"Evalúen si la dirección está dentro de la zona de ruta (gratis) "
+        f"o requiere cobro adicional por ser exprés/fuera de zona."
+    )
+    for numero in NUMEROS_NOTIFICACION:
+        try:
+            await enviar_mensaje_whatsapp(numero, mensaje)
+        except Exception as error:
+            import traceback
+            print(f"Error notificando domicilio a {numero}: {type(error).__name__}: {error}")
             traceback.print_exc()
 
 
@@ -453,6 +558,7 @@ async def procesar_mensaje_en_segundo_plano(mensaje: dict):
             sesion.motivo_escalamiento if sesion.necesita_atencion_humana else None
         )
         tenia_aviso_retiro_antes = sesion.aviso_retiro_pendiente
+        tenia_solicitud_domicilio_antes = sesion.solicitud_domicilio_pendiente
         ya_se_notifico_en_este_mensaje = False
 
         if detectar_posible_queja(mensaje["texto"]):
@@ -503,6 +609,13 @@ async def procesar_mensaje_en_segundo_plano(mensaje: dict):
 
         if sesion_actualizada.aviso_retiro_pendiente and not tenia_aviso_retiro_antes:
             await notificar_equipo_retiro(mensaje["telefono"], sesion_actualizada.codigo_cliente_verificado)
+
+        if sesion_actualizada.solicitud_domicilio_pendiente and not tenia_solicitud_domicilio_antes:
+            await notificar_equipo_domicilio(
+                mensaje["telefono"],
+                sesion_actualizada.codigo_cliente_verificado,
+                sesion_actualizada.direccion_domicilio,
+            )
 
         await enviar_respuesta_natural(mensaje["telefono"], texto_respuesta, mensaje["message_id"])
 
@@ -603,58 +716,39 @@ async def recibir_mensaje(request: Request, background_tasks: BackgroundTasks):
                 return {"status": "comando_procesado"}
 
             if len(partes_comando) == 2 and partes_comando[0] == "/entregado":
-                mapa_lista = _ultima_lista_retiros.get(mensaje["telefono"], {})
-                tokens = [t for t in partes_comando[1].split(",") if t]
+                marcados, fallidos = _resolver_comando_entregado(
+                    partes_comando[1],
+                    _ultima_lista_retiros.get(mensaje["telefono"], {}),
+                    {"aviso_retiro_pendiente": False, "paquetes_a_retirar": None},
+                )
+                texto = _componer_respuesta_entregado(
+                    marcados,
+                    fallidos,
+                    "✅ Retiro marcado como entregado (caso {token}).",
+                    "✅ Retiro marcado como entregado para {token}.",
+                )
+                if texto:
+                    await enviar_mensaje_whatsapp(mensaje["telefono"], texto)
+                return {"status": "comando_procesado"}
 
-                marcados = []  # tuplas (token, es_numero_de_lista)
-                fallidos = []
-
-                for token in tokens:
-                    es_numero_de_lista = token.isdigit() and len(token) <= 3
-                    if es_numero_de_lista:
-                        telefono_objetivo = mapa_lista.get(int(token))
-                        if telefono_objetivo is None:
-                            fallidos.append((token, True))
-                            continue
-                    else:
-                        telefono_objetivo = token
-
-                    encontrada = actualizar_sesion(
-                        telefono_objetivo, aviso_retiro_pendiente=False, paquetes_a_retirar=None
-                    )
-                    if encontrada:
-                        marcados.append((token, es_numero_de_lista))
-                    else:
-                        fallidos.append((token, es_numero_de_lista))
-
-                lineas_respuesta = []
-                if len(marcados) == 1:
-                    token, es_numero_de_lista = marcados[0]
-                    if es_numero_de_lista:
-                        lineas_respuesta.append(f"✅ Retiro marcado como entregado (caso {token}).")
-                    else:
-                        lineas_respuesta.append(f"✅ Retiro marcado como entregado para {token}.")
-                elif len(marcados) > 1:
-                    tokens_marcados = ", ".join(token for token, _ in marcados)
-                    lineas_respuesta.append(
-                        f"✅ Marcados como entregados: {len(marcados)} casos ({tokens_marcados})."
-                    )
-
-                for token, es_numero_de_lista in fallidos:
-                    if es_numero_de_lista:
-                        lineas_respuesta.append(
-                            f"⚠️ El número {token} ya no corresponde a ningún caso activo."
-                        )
-                    else:
-                        lineas_respuesta.append(
-                            f"⚠️ No encontré una conversación con el número {token}."
-                        )
-
-                if marcados and fallidos:
-                    lineas_respuesta.append("Se procesaron los demás.")
-
-                if lineas_respuesta:
-                    await enviar_mensaje_whatsapp(mensaje["telefono"], "\n".join(lineas_respuesta))
+            if len(partes_comando) == 2 and partes_comando[0] == "/entregado_domicilio":
+                marcados, fallidos = _resolver_comando_entregado(
+                    partes_comando[1],
+                    _ultima_lista_domicilios.get(mensaje["telefono"], {}),
+                    {
+                        "solicitud_domicilio_pendiente": False,
+                        "direccion_domicilio": None,
+                        "paquetes_a_domicilio": None,
+                    },
+                )
+                texto = _componer_respuesta_entregado(
+                    marcados,
+                    fallidos,
+                    "✅ Entrega a domicilio marcada como completada (caso {token}).",
+                    "✅ Entrega a domicilio marcada como completada para {token}.",
+                )
+                if texto:
+                    await enviar_mensaje_whatsapp(mensaje["telefono"], texto)
                 return {"status": "comando_procesado"}
 
             if len(partes_comando) == 1 and partes_comando[0] == "/pendientes":
@@ -698,6 +792,34 @@ async def recibir_mensaje(request: Request, background_tasks: BackgroundTasks):
                     await enviar_mensaje_whatsapp(mensaje["telefono"], texto)
                 return {"status": "comando_procesado"}
 
+            if len(partes_comando) == 1 and partes_comando[0] == "/domicilios":
+                domicilios = listar_sesiones_con_domicilio_pendiente()
+                if not domicilios:
+                    await enviar_mensaje_whatsapp(
+                        mensaje["telefono"],
+                        "✅ No hay solicitudes de entrega a domicilio pendientes en este momento.",
+                    )
+                else:
+                    lineas = []
+                    for i, s in enumerate(domicilios, start=1):
+                        nombre = "Cliente no identificado"
+                        codigo = s.codigo_cliente_verificado or "sin código"
+                        if s.codigo_cliente_verificado:
+                            resultado_cliente = obtener_nombre_completo_cliente(s.codigo_cliente_verificado)
+                            if resultado_cliente["encontrado"]:
+                                nombre = resultado_cliente["nombre_completo"]
+                        direccion = s.direccion_domicilio or "sin dirección"
+                        paquetes = s.paquetes_a_domicilio or "sin tracking"
+                        lineas.append(
+                            f"{i}. {nombre} ({codigo}) - wa.me/{s.telefono} - {direccion} - {paquetes}"
+                        )
+                    _ultima_lista_domicilios[mensaje["telefono"]] = {
+                        i: s.telefono for i, s in enumerate(domicilios, start=1)
+                    }
+                    texto = f"🏠 Entregas a domicilio pendientes ({len(domicilios)}):\n\n" + "\n".join(lineas)
+                    await enviar_mensaje_whatsapp(mensaje["telefono"], texto)
+                return {"status": "comando_procesado"}
+
             partes_responder = mensaje["texto"].strip().split(maxsplit=2)
             if len(partes_responder) == 3 and partes_responder[0] == "/responder":
                 numero_cliente = partes_responder[1]
@@ -713,7 +835,8 @@ async def recibir_mensaje(request: Request, background_tasks: BackgroundTasks):
         await enviar_mensaje_whatsapp(
             mensaje["telefono"],
             "No reconozco ese comando. Usa /responder <numero> <mensaje>, /resuelto <numero>, "
-            "/pendientes, /retiros o /entregado <numero_de_lista[,numero_de_lista...]|telefono>.",
+            "/pendientes, /retiros, /entregado <numero_de_lista[,numero_de_lista...]|telefono>, "
+            "/domicilios o /entregado_domicilio <numero_de_lista[,numero_de_lista...]|telefono>.",
         )
         return {"status": "comando_no_reconocido"}
 
