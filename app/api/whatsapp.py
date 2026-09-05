@@ -446,28 +446,37 @@ async def procesar_mensaje_en_segundo_plano(mensaje: dict):
             return
 
         sesion = obtener_o_crear_sesion(mensaje["telefono"])
-        estaba_escalado_antes = sesion.necesita_atencion_humana
+        # Motivo bajo el cual el equipo ya fue notificado (None si no había
+        # ningún caso activo). Comparamos MOTIVOS, no un booleano: así un
+        # problema nuevo y distinto sí genera aviso, aunque el caso anterior
+        # nunca se haya cerrado con /resuelto.
+        motivo_escalamiento_previo = (
+            sesion.motivo_escalamiento if sesion.necesita_atencion_humana else None
+        )
         tenia_aviso_retiro_antes = sesion.aviso_retiro_pendiente
+        ya_se_notifico_en_este_mensaje = False
 
         if detectar_posible_queja(mensaje["texto"]):
+            motivo_automatico = "Posible queja detectada automaticamente"
             actualizar_sesion(
                 mensaje["telefono"],
                 necesita_atencion_humana=True,
-                motivo_escalamiento="Posible queja detectada automaticamente",
+                motivo_escalamiento=motivo_automatico,
             )
 
             # Notificamos aquí mismo, antes de llamar a generar_respuesta:
             # si esa llamada falla más abajo, la sesión ya quedaría
             # marcada como escalada en la base de datos, y el chequeo
-            # posterior (que compara contra estaba_escalado_antes) ya
+            # posterior (que compara contra motivo_escalamiento_previo) ya
             # no dispararía el aviso al equipo.
-            if not estaba_escalado_antes:
+            if motivo_automatico != motivo_escalamiento_previo:
                 await notificar_equipo_escalamiento(
                     mensaje["telefono"],
                     mensaje["texto"],
-                    "Posible queja detectada automaticamente",
+                    motivo_automatico,
                 )
-                estaba_escalado_antes = True
+                motivo_escalamiento_previo = motivo_automatico
+                ya_se_notifico_en_este_mensaje = True
 
         texto_respuesta = generar_respuesta(
             mensaje["texto"],
@@ -481,11 +490,16 @@ async def procesar_mensaje_en_segundo_plano(mensaje: dict):
 
         sesion_actualizada = obtener_o_crear_sesion(mensaje["telefono"])
         print(f"[DEBUG] necesita_atencion_humana = {sesion_actualizada.necesita_atencion_humana}")
-        if sesion_actualizada.necesita_atencion_humana and not estaba_escalado_antes:
+        motivo_actual = sesion_actualizada.motivo_escalamiento
+        if (
+            sesion_actualizada.necesita_atencion_humana
+            and motivo_actual != motivo_escalamiento_previo
+            and not ya_se_notifico_en_este_mensaje
+        ):
             await notificar_equipo_escalamiento(
                 mensaje["telefono"],
                 mensaje["texto"],
-                sesion_actualizada.motivo_escalamiento or "No especificado",
+                motivo_actual or "No especificado",
             )
 
         if sesion_actualizada.aviso_retiro_pendiente and not tenia_aviso_retiro_antes:
