@@ -109,6 +109,12 @@ async def enviar_imagen_whatsapp(telefono_destino: str, media_id: str, caption: 
 # /pendientes). Sus mensajes normales NO se procesan como cliente.
 NUMEROS_EQUIPO = ["50769837308"]
 
+# Última lista de /retiros consultada por cada miembro del equipo, para
+# poder resolver "el número 2 de la lista" a un teléfono cuando llegue
+# /entregado. Es solo una conveniencia en memoria: no persiste entre
+# reinicios ni necesita hacerlo.
+_ultima_lista_retiros: dict[str, dict[int, str]] = {}
+
 # Números que reciben notificaciones (escalamiento, comprobantes de
 # pago) pero que SÍ pueden seguir siendo tratados como cliente normal
 # en sus mensajes regulares.
@@ -597,20 +603,58 @@ async def recibir_mensaje(request: Request, background_tasks: BackgroundTasks):
                 return {"status": "comando_procesado"}
 
             if len(partes_comando) == 2 and partes_comando[0] == "/entregado":
-                numero_cliente = partes_comando[1]
-                encontrada = actualizar_sesion(
-                    numero_cliente, aviso_retiro_pendiente=False, paquetes_a_retirar=None
-                )
-                if encontrada:
-                    await enviar_mensaje_whatsapp(
-                        mensaje["telefono"],
-                        f"✅ Retiro marcado como entregado para {numero_cliente}.",
+                mapa_lista = _ultima_lista_retiros.get(mensaje["telefono"], {})
+                tokens = [t for t in partes_comando[1].split(",") if t]
+
+                marcados = []  # tuplas (token, es_numero_de_lista)
+                fallidos = []
+
+                for token in tokens:
+                    es_numero_de_lista = token.isdigit() and len(token) <= 3
+                    if es_numero_de_lista:
+                        telefono_objetivo = mapa_lista.get(int(token))
+                        if telefono_objetivo is None:
+                            fallidos.append((token, True))
+                            continue
+                    else:
+                        telefono_objetivo = token
+
+                    encontrada = actualizar_sesion(
+                        telefono_objetivo, aviso_retiro_pendiente=False, paquetes_a_retirar=None
                     )
-                else:
-                    await enviar_mensaje_whatsapp(
-                        mensaje["telefono"],
-                        f"⚠️ No encontré una conversación con el número {numero_cliente}.",
+                    if encontrada:
+                        marcados.append((token, es_numero_de_lista))
+                    else:
+                        fallidos.append((token, es_numero_de_lista))
+
+                lineas_respuesta = []
+                if len(marcados) == 1:
+                    token, es_numero_de_lista = marcados[0]
+                    if es_numero_de_lista:
+                        lineas_respuesta.append(f"✅ Retiro marcado como entregado (caso {token}).")
+                    else:
+                        lineas_respuesta.append(f"✅ Retiro marcado como entregado para {token}.")
+                elif len(marcados) > 1:
+                    tokens_marcados = ", ".join(token for token, _ in marcados)
+                    lineas_respuesta.append(
+                        f"✅ Marcados como entregados: {len(marcados)} casos ({tokens_marcados})."
                     )
+
+                for token, es_numero_de_lista in fallidos:
+                    if es_numero_de_lista:
+                        lineas_respuesta.append(
+                            f"⚠️ El número {token} ya no corresponde a ningún caso activo."
+                        )
+                    else:
+                        lineas_respuesta.append(
+                            f"⚠️ No encontré una conversación con el número {token}."
+                        )
+
+                if marcados and fallidos:
+                    lineas_respuesta.append("Se procesaron los demás.")
+
+                if lineas_respuesta:
+                    await enviar_mensaje_whatsapp(mensaje["telefono"], "\n".join(lineas_respuesta))
                 return {"status": "comando_procesado"}
 
             if len(partes_comando) == 1 and partes_comando[0] == "/pendientes":
@@ -647,6 +691,9 @@ async def recibir_mensaje(request: Request, background_tasks: BackgroundTasks):
                                 nombre = resultado_cliente["nombre_completo"]
                         paquetes = s.paquetes_a_retirar or "sin tracking"
                         lineas.append(f"{i}. {nombre} ({codigo}) - wa.me/{s.telefono} - {paquetes}")
+                    _ultima_lista_retiros[mensaje["telefono"]] = {
+                        i: s.telefono for i, s in enumerate(retiros, start=1)
+                    }
                     texto = f"📦 Retiros pendientes ({len(retiros)}):\n\n" + "\n".join(lineas)
                     await enviar_mensaje_whatsapp(mensaje["telefono"], texto)
                 return {"status": "comando_procesado"}
@@ -666,7 +713,7 @@ async def recibir_mensaje(request: Request, background_tasks: BackgroundTasks):
         await enviar_mensaje_whatsapp(
             mensaje["telefono"],
             "No reconozco ese comando. Usa /responder <numero> <mensaje>, /resuelto <numero>, "
-            "/pendientes, /retiros o /entregado <numero>.",
+            "/pendientes, /retiros o /entregado <numero_de_lista[,numero_de_lista...]|telefono>.",
         )
         return {"status": "comando_no_reconocido"}
 
