@@ -4,6 +4,7 @@ import httpx
 from anthropic import Anthropic
 
 from app.core.config import settings
+from app.ai.orchestrator import SYSTEM_PROMPT
 
 cliente_claude = Anthropic(api_key=settings.ANTHROPIC_API_KEY)
 
@@ -24,16 +25,58 @@ async def descargar_imagen_de_whatsapp(media_id: str) -> bytes:
         return respuesta_imagen.content
 
 
-def analizar_comprobante(imagen_bytes: bytes) -> dict:
+def analizar_imagen_cliente(imagen_bytes: bytes, texto_cliente: str | None = None) -> dict:
     """
-    Usa Claude (que sí puede ver imagenes) para analizar si la imagen
-    es un comprobante de pago, y si lo es, extraer los datos visibles.
+    Analiza en una sola llamada a Claude una imagen enviada por un
+    cliente: determina si es un comprobante de pago y, si lo es,
+    extrae sus datos; si no lo es, genera directamente la respuesta
+    natural que Bruno le da al cliente sobre lo que ve, considerando
+    también el texto que haya escrito junto con la imagen.
+
+    Evita la doble llamada (una para clasificar, otra para responder)
+    que se hacía antes.
     """
     imagen_base64 = base64.b64encode(imagen_bytes).decode("utf-8")
+
+    if texto_cliente:
+        contexto_texto = f'junto con este mensaje: "{texto_cliente}"'
+    else:
+        contexto_texto = "sin ningún mensaje de texto adicional"
+
+    instrucciones = f"""
+Un cliente de Cúbico te mandó esta imagen por WhatsApp, {contexto_texto}.
+
+Primero decide si es un comprobante de pago (transferencia, Yappy, o similar).
+
+Si SÍ es un comprobante de pago, responde EXACTAMENTE en este formato:
+
+ES_COMPROBANTE: si
+MONTO: [monto si es visible, o "no visible"]
+FECHA: [fecha si es visible, o "no visible"]
+REFERENCIA: [número de referencia si es visible, o "no visible"]
+METODO: [Yappy, transferencia, u otro si se puede identificar]
+===RESPUESTA===
+[el mensaje que le confirmarías al cliente que recibiste su comprobante, con tu tono normal]
+
+Si NO es un comprobante de pago, responde EXACTAMENTE en este formato:
+
+ES_COMPROBANTE: no
+===RESPUESTA===
+[tu respuesta natural sobre lo que ves en la imagen, tomando en cuenta el mensaje del cliente si mandó uno. Si es una captura de una tienda o de algo donde te está pidiendo ayuda, ayúdalo directamente con eso. Si no tiene nada que ver con Cúbico, dile con naturalidad qué ves y pregúntale en qué le puedes ayudar.]
+
+No escribas nada antes de "ES_COMPROBANTE:" ni nada después del texto de la sección RESPUESTA. Esa sección debe quedar lista para mandarse tal cual al cliente por WhatsApp.
+"""
 
     respuesta = cliente_claude.messages.create(
         model="claude-sonnet-5",
         max_tokens=500,
+        system=[
+            {
+                "type": "text",
+                "text": SYSTEM_PROMPT,
+                "cache_control": {"type": "ephemeral"},
+            }
+        ],
         messages=[{
             "role": "user",
             "content": [
@@ -47,29 +90,27 @@ def analizar_comprobante(imagen_bytes: bytes) -> dict:
                 },
                 {
                     "type": "text",
-                    "text": (
-                        "Analiza esta imagen. ¿Es un comprobante de pago "
-                        "(como una transferencia, Yappy, o similar)? "
-                        "Si lo es, responde EXACTAMENTE en este formato:\n"
-                        "ES_COMPROBANTE: si\n"
-                        "MONTO: [monto si es visible, o 'no visible']\n"
-                        "FECHA: [fecha si es visible, o 'no visible']\n"
-                        "REFERENCIA: [numero de referencia si es visible, o 'no visible']\n"
-                        "METODO: [Yappy, transferencia, u otro si se puede identificar]\n\n"
-                        "Si NO es un comprobante de pago, responde solo:\n"
-                        "ES_COMPROBANTE: no"
-                    ),
+                    "text": instrucciones,
                 },
             ],
         }],
     )
 
-    texto_respuesta = respuesta.content[0].text
-    es_comprobante = "es_comprobante: si" in texto_respuesta.lower()
+    texto_completo = "\n".join(
+        bloque.text for bloque in respuesta.content if bloque.type == "text"
+    ).strip()
+
+    encabezado, separador, texto_para_cliente = texto_completo.partition("===RESPUESTA===")
+    es_comprobante = "es_comprobante: si" in encabezado.lower()
 
     return {
         "es_comprobante": es_comprobante,
-        "detalle_completo": texto_respuesta,
+        "detalle_completo": encabezado.strip() if es_comprobante else None,
+        "texto_respuesta": (
+            texto_para_cliente.strip()
+            if separador
+            else "Recibí tu imagen, pero no pude identificar bien de qué se trata. ¿En qué te puedo ayudar?"
+        ),
     }
 
 

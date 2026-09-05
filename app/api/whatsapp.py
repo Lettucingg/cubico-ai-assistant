@@ -17,7 +17,7 @@ from app.db.session_store import (
 from app.tools.transcripcion import procesar_nota_de_voz
 from app.tools.comprobantes import (
     descargar_imagen_de_whatsapp,
-    analizar_comprobante,
+    analizar_imagen_cliente,
     extraer_campos_comprobante,
 )
 from app.tools.clientes import obtener_nombre_completo_cliente
@@ -341,7 +341,7 @@ def extraer_mensaje_entrante(payload: dict):
         if mensaje.get("type") == "image":
             return {
                 "telefono": mensaje["from"],
-                "texto": None,
+                "texto": mensaje["image"].get("caption"),
                 "media_id": mensaje["image"]["id"],
                 "message_id": mensaje["id"],
                 "tipo": "image",
@@ -428,21 +428,14 @@ async def procesar_mensaje_en_segundo_plano(mensaje: dict):
     try:
         if mensaje["tipo"] == "image":
             imagen_bytes = await descargar_imagen_de_whatsapp(mensaje["media_id"])
-            resultado = analizar_comprobante(imagen_bytes)
+            resultado = analizar_imagen_cliente(imagen_bytes, texto_cliente=mensaje["texto"])
 
             if resultado["es_comprobante"]:
                 await notificar_equipo_comprobante(
                     mensaje["telefono"], resultado["detalle_completo"], mensaje["media_id"]
                 )
-                await enviar_mensaje_whatsapp(
-                    mensaje["telefono"],
-                    "Recibí tu comprobante, nuestro equipo lo va a verificar y registrar en breve.",
-                )
-            else:
-                await enviar_mensaje_whatsapp(
-                    mensaje["telefono"],
-                    "Recibí tu imagen, pero no parece ser un comprobante de pago. ¿En qué te puedo ayudar?",
-                )
+
+            await enviar_mensaje_whatsapp(mensaje["telefono"], resultado["texto_respuesta"])
             return
 
         sesion = obtener_o_crear_sesion(mensaje["telefono"])
