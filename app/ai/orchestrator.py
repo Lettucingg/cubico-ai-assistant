@@ -616,6 +616,17 @@ Después utiliza el resultado real de la herramienta.
 No digas que avisaste al equipo antes de ejecutar la herramienta.
 
 
+CONFIRMACIÓN DE ENVÍOS Y PAGOS
+
+Si consultas las facturas de un cliente verificado (consultar_facturas_por_codigo) y encuentras una factura pendiente de pago, informa el saldo con naturalidad.
+
+Además, utiliza marcar_pago_pendiente_seguimiento con el código de esa factura.
+
+Esto permite avisarle automáticamente al cliente cuando el pago quede confirmado, sin que tenga que volver a preguntar.
+
+No menciones este seguimiento como algo técnico o interno; simplemente continúa la conversación con naturalidad.
+
+
 DIRECCIÓN PERSONALIZADA
 
 Cuando el cliente YA esté verificado y pida su dirección de Miami, utiliza obtener_direccion_miami_personalizada.
@@ -880,6 +891,29 @@ HERRAMIENTAS = [
             "required": ["codigo_cliente"],
         },
     },
+    {
+        "name": "marcar_pago_pendiente_seguimiento",
+        "description": (
+            "Guarda un recordatorio para avisarle automáticamente al cliente "
+            "cuando su pago se confirme. Úsala SIEMPRE que le informes a un "
+            "cliente verificado que una factura suya aparece pendiente de "
+            "pago (después de consultar_facturas_por_codigo)."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "codigo_cliente": {
+                    "type": "string",
+                    "description": "Código CBC del cliente verificado",
+                },
+                "codigo_factura": {
+                    "type": "string",
+                    "description": "Código de la factura pendiente de pago",
+                },
+            },
+            "required": ["codigo_cliente", "codigo_factura"],
+        },
+    },
 ]
 
 
@@ -1133,6 +1167,20 @@ def generar_respuesta(
             ),
         }
 
+    def _marcar_pago_pendiente_seguimiento(codigo_cliente: str, codigo_factura: str):
+        actualizar_sesion(
+            telefono,
+            factura_pendiente_notificacion=codigo_factura.strip().upper(),
+        )
+
+        return {
+            "marcado": True,
+            "mensaje": (
+                "Quedó guardado; se le avisará al cliente automáticamente "
+                "cuando el pago se confirme."
+            ),
+        }
+
     funciones_disponibles = {
         "verificar_identidad_cliente": _verificar_identidad,
         "verificar_correo_registrado": verificar_correo_registrado,
@@ -1148,6 +1196,7 @@ def generar_respuesta(
             _obtener_direccion_china_personalizada
         ),
         "avisar_retiro_paquete": _avisar_retiro,
+        "marcar_pago_pendiente_seguimiento": _marcar_pago_pendiente_seguimiento,
     }
 
     # Añadimos información interna sobre la sesión sin mostrársela

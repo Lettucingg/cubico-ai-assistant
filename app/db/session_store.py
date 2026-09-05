@@ -1,6 +1,6 @@
 import json
 
-from sqlalchemy import create_engine, Column, Integer, String, DateTime, Text, Boolean
+from sqlalchemy import create_engine, Column, Integer, String, DateTime, Text, Boolean, inspect, text
 from sqlalchemy.orm import sessionmaker, declarative_base
 from datetime import datetime
 
@@ -27,6 +27,7 @@ class Sesion(BaseSesiones):
     motivo_escalamiento = Column(Text, nullable=True)
     aviso_retiro_pendiente = Column(Boolean, default=False)
     paquetes_a_retirar = Column(Text, nullable=True)
+    factura_pendiente_notificacion = Column(String, nullable=True)
     actualizado_en = Column(DateTime, default=datetime.utcnow)
 
     def obtener_historial(self):
@@ -35,6 +36,27 @@ class Sesion(BaseSesiones):
 
 
 BaseSesiones.metadata.create_all(engine_sesiones)
+
+
+def _migrar_columnas_faltantes():
+    """
+    create_all() no agrega columnas nuevas a una tabla que ya existe.
+    Si sesiones.db viene de una versión anterior del modelo, esto agrega
+    cualquier columna que falte sin tocar los datos existentes.
+    """
+    columnas_existentes = {
+        col["name"] for col in inspect(engine_sesiones).get_columns("sesiones")
+    }
+    faltantes = [c for c in Sesion.__table__.columns if c.name not in columnas_existentes]
+    if not faltantes:
+        return
+    with engine_sesiones.begin() as conexion:
+        for columna in faltantes:
+            tipo_sql = columna.type.compile(engine_sesiones.dialect)
+            conexion.execute(text(f"ALTER TABLE sesiones ADD COLUMN {columna.name} {tipo_sql}"))
+
+
+_migrar_columnas_faltantes()
 
 
 def obtener_o_crear_sesion(telefono: str) -> Sesion:
@@ -112,6 +134,25 @@ def listar_sesiones_con_retiro_pendiente() -> list[Sesion]:
     db = SessionSesiones()
     try:
         sesiones = db.query(Sesion).filter(Sesion.aviso_retiro_pendiente == True).all()  # noqa: E712
+        for sesion in sesiones:
+            db.expunge(sesion)
+        return sesiones
+    finally:
+        db.close()
+
+
+def listar_sesiones_con_factura_pendiente() -> list[Sesion]:
+    """
+    Devuelve las sesiones con una factura pendiente de confirmación de
+    pago guardada (factura_pendiente_notificacion no vacío).
+    """
+    db = SessionSesiones()
+    try:
+        sesiones = (
+            db.query(Sesion)
+            .filter(Sesion.factura_pendiente_notificacion.isnot(None))
+            .all()
+        )
         for sesion in sesiones:
             db.expunge(sesion)
         return sesiones
