@@ -668,14 +668,16 @@ async def procesar_respuesta_de_asesor(telefono_asesor: str, numero_cliente: str
 
         actualizar_sesion(numero_cliente, necesita_atencion_humana=False, motivo_escalamiento=None)
 
-        await enviar_mensaje_whatsapp(telefono_asesor, f"✅ Respuesta enviada a {numero_cliente}.")
+        if telefono_asesor != "panel":
+            await enviar_mensaje_whatsapp(telefono_asesor, f"✅ Respuesta enviada a {numero_cliente}.")
 
     except Exception as error:
         print(f"Error procesando /responder para {numero_cliente}: {error}")
-        await enviar_mensaje_whatsapp(
-            telefono_asesor,
-            f"⚠️ No pude enviar la respuesta a {numero_cliente}, intenta de nuevo.",
-        )
+        if telefono_asesor != "panel":
+            await enviar_mensaje_whatsapp(
+                telefono_asesor,
+                f"⚠️ No pude enviar la respuesta a {numero_cliente}, intenta de nuevo.",
+            )
 
 
 @router.post("/webhook")

@@ -72,3 +72,34 @@ def obtener_conversacion(telefono: str, usuario: str = Depends(verificar_credenc
         "telefono": sesion.telefono,
         "historial": sesion.obtener_historial(),
     }
+
+
+from app.api.whatsapp import procesar_respuesta_de_asesor
+from app.db.session_store import actualizar_sesion
+import asyncio
+
+@router.post("/responder/{telefono}")
+async def responder_cliente(
+    telefono: str,
+    body: dict,
+    usuario: str = Depends(verificar_credenciales_panel)
+):
+    """Envía una respuesta al cliente pasando por el flujo de Bruno."""
+    mensaje = body.get("mensaje", "").strip()
+    if not mensaje:
+        raise HTTPException(status_code=400, detail="Mensaje vacío")
+    await procesar_respuesta_de_asesor(
+        telefono_asesor="panel",
+        numero_cliente=telefono,
+        solucion_del_asesor=mensaje
+    )
+    return {"status": "enviado"}
+
+@router.post("/atender/{telefono}")
+def marcar_atendido(
+    telefono: str,
+    usuario: str = Depends(verificar_credenciales_panel)
+):
+    """Marca una conversación como atendida (baja la alerta)."""
+    actualizar_sesion(telefono, necesita_atencion_humana=False)
+    return {"status": "atendido"}
