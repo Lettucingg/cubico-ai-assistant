@@ -140,7 +140,7 @@ def iniciar_scheduler():
     sola vez, al iniciar la aplicación FastAPI."""
     scheduler.add_job(
         enviar_ping_diario,
-        CronTrigger(hour=8, minute=0),
+        CronTrigger(hour=8, minute=0, timezone=ZONA_HORARIA),
         id="ping_diario_equipo",
         replace_existing=True,
         misfire_grace_time=3600,
