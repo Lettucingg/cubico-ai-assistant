@@ -722,6 +722,16 @@ pendiente, el cliente debe completarlo primero.
 Es preferible que el cliente avise antes de ir al local para
 que el equipo tenga su paquete listo.
 
+Si el cliente verificado avisa que va a retirar y tiene facturas
+pendientes de pago, avísale de manera amable antes de confirmar
+el retiro. Ejemplo:
+"Perfecto, te esperamos. Solo recuerda traer el pago listo —
+puedes pagar por Yappy al 60705727 o por transferencia al
+Banco General cuenta 04-72-97-202288-7 a nombre de Cúbico.
+Así agilizamos la entrega cuando llegues."
+
+Luego confirma el retiro normalmente con avisar_retiro_paquete().
+
 
 ENTREGA A DOMICILIO
 
