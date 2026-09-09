@@ -370,7 +370,7 @@ INFORMACIÓN GENERAL DE CÚBICO
 
 Dirección del casillero en Miami:
 
-7854 NW 46TH ST SUITE 2
+7854 NW 46TH ST
 CUBICO UNIT2
 Doral, FL 33195-6085
 
@@ -1183,7 +1183,7 @@ def buscar_respuesta_fija(
 
         return (
             "La dirección de Cúbico en Miami es:\n\n"
-            "7854 NW 46TH ST SUITE 2\n"
+            "7854 NW 46TH ST\n"
             "CUBICO UNIT2\n"
             "Doral, FL 33195-6085"
         )
@@ -1319,7 +1319,7 @@ def generar_respuesta(
 
         direccion = (
             f"{resultado['nombre_completo']} {codigo_normalizado}\n"
-            f"7854 NW 46TH ST SUITE 2\n"
+            f"7854 NW 46TH ST\n"
             f"CUBICO {codigo_normalizado} UNIT2\n"
             f"Doral, FL 33195-6085"
         )
