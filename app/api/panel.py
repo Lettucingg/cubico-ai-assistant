@@ -103,3 +103,23 @@ def marcar_atendido(
     """Marca una conversación como atendida (baja la alerta)."""
     actualizar_sesion(telefono, necesita_atencion_humana=False)
     return {"status": "atendido"}
+
+
+@router.post("/retiro/{telefono}")
+def marcar_retiro_listo(
+    telefono: str,
+    usuario: str = Depends(verificar_credenciales_panel)
+):
+    """Marca como resuelto el aviso de retiro de paquetes en el local."""
+    actualizar_sesion(telefono, aviso_retiro_pendiente=False)
+    return {"status": "retiro_resuelto"}
+
+
+@router.post("/domicilio/{telefono}")
+def marcar_domicilio_coordinado(
+    telefono: str,
+    usuario: str = Depends(verificar_credenciales_panel)
+):
+    """Marca como resuelta la solicitud de entrega a domicilio."""
+    actualizar_sesion(telefono, solicitud_domicilio_pendiente=False)
+    return {"status": "domicilio_resuelto"}
