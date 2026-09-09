@@ -1181,7 +1181,7 @@ def buscar_respuesta_fija(
     ):
         return (
             "Estamos de lunes a viernes de 9:00 am a 5:00 pm "
-            "y los sábados de 9:00 am a 1:00 pm. Los domingos cerramos."
+            "y los sábados de 9:00 am a 12:00 pm (mediodía). Los domingos cerramos."
         )
 
     return None
