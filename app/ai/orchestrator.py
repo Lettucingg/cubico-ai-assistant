@@ -1,3 +1,7 @@
+import random
+from datetime import datetime
+from zoneinfo import ZoneInfo
+
 from anthropic import Anthropic
 
 from app.core.config import settings
@@ -987,9 +991,89 @@ HERRAMIENTAS = [
 ]
 
 
+TIMEZONE_PANAMA = ZoneInfo("America/Panama")
+
+SALUDOS_RECONOCIDOS = {
+    "hola",
+    "holaa",
+    "holaaa",
+    "hola bruno",
+    "hey",
+    "hey bruno",
+    "buenas",
+    "buen dia",
+    "buen día",
+    "buenos dias",
+    "buenos días",
+    "buenas tardes",
+    "buenas noches",
+    "que tal",
+    "qué tal",
+    "saludos",
+}
+
+
+def _saludos_manana(nombre_cliente: str = None) -> list[str]:
+    if nombre_cliente:
+        return [
+            f"Hola {nombre_cliente}, buenos días, ¿en qué te puedo ayudar?",
+            f"Buenos días {nombre_cliente}, cuéntame, ¿qué necesitas?",
+            f"{nombre_cliente}, buenos días. ¿En qué te ayudo?",
+            f"Buen día {nombre_cliente}, dime en qué te ayudo.",
+            f"Hola {nombre_cliente}, buen día. ¿En qué te puedo ayudar?",
+        ]
+
+    return [
+        "Buenos días, ¿en qué te puedo ayudar?",
+        "Buenos días, cuéntame, ¿qué necesitas?",
+        "Hola, buenos días. ¿En qué te ayudo?",
+        "Buen día, dime en qué te puedo ayudar.",
+        "Buenos días, ¿qué necesitas hoy?",
+    ]
+
+
+def _saludos_tarde(nombre_cliente: str = None) -> list[str]:
+    if nombre_cliente:
+        return [
+            f"Buenas tardes {nombre_cliente}, con gusto te atiendo.",
+            f"Hola {nombre_cliente}, buenas tardes. ¿En qué te ayudo?",
+            f"{nombre_cliente}, buenas tardes, cuéntame qué necesitas.",
+            f"Buenas tardes {nombre_cliente}, dime en qué te ayudo.",
+            f"Holaa {nombre_cliente}, cuéntame, ¿en qué te ayudo?",
+        ]
+
+    return [
+        "Buenas tardes, ¿en qué te puedo ayudar?",
+        "Buenas tardes, cuéntame, ¿qué necesitas?",
+        "Hola, buenas tardes. ¿En qué te ayudo?",
+        "Buenas tardes, dime en qué te puedo ayudar.",
+        "Buenas, ¿en qué te puedo ayudar?",
+    ]
+
+
+def _saludos_noche(nombre_cliente: str = None) -> list[str]:
+    if nombre_cliente:
+        return [
+            f"Hola {nombre_cliente}, buenas noches. ¿En qué te ayudo?",
+            f"Buenas noches {nombre_cliente}, cuéntame qué necesitas.",
+            f"{nombre_cliente}, buenas noches, dime en qué te ayudo.",
+            f"Buenas noches {nombre_cliente}, con gusto te atiendo.",
+            f"Hola {nombre_cliente}, ¿en qué te puedo ayudar esta noche?",
+        ]
+
+    return [
+        "Buenas noches, ¿en qué te puedo ayudar?",
+        "Hola, buenas noches. ¿Qué necesitas?",
+        "Buenas noches, cuéntame en qué te ayudo.",
+        "Buenas, ¿en qué te puedo ayudar?",
+        "Buenas noches, dime qué necesitas.",
+    ]
+
+
 def buscar_respuesta_fija(
     texto_cliente: str,
     codigo_cliente: str = None,
+    nombre_cliente: str = None,
 ) -> str | None:
     """
     Respuestas simples para algunas preguntas generales muy frecuentes.
@@ -1001,6 +1085,23 @@ def buscar_respuesta_fija(
     """
 
     texto = texto_cliente.lower().strip()
+
+    # Saludo simple: usamos coincidencia exacta (no substring) para no
+    # capturar mensajes como "hola, cuánto cuesta el envío", que deben
+    # resolverse en los bloques siguientes o pasar a Claude.
+    texto_sin_signos = texto.strip(" ¡!¿?.,")
+
+    if texto_sin_signos in SALUDOS_RECONOCIDOS:
+        hora_actual = datetime.now(TIMEZONE_PANAMA).hour
+
+        if 5 <= hora_actual < 12:
+            variantes = _saludos_manana(nombre_cliente)
+        elif 12 <= hora_actual < 19:
+            variantes = _saludos_tarde(nombre_cliente)
+        else:
+            variantes = _saludos_noche(nombre_cliente)
+
+        return random.choice(variantes)
 
     if any(
         frase in texto
@@ -1100,9 +1201,33 @@ def generar_respuesta(
     verificar la identidad del cliente.
     """
 
+    nombre_cliente = None
+
+    if codigo_cliente:
+        try:
+            resultado_nombre = obtener_nombre_completo_cliente(
+                codigo_cliente.strip().upper()
+            )
+
+            if resultado_nombre.get("encontrado"):
+                nombre_completo = (
+                    resultado_nombre.get("nombre_completo") or ""
+                ).strip()
+
+                if nombre_completo:
+                    nombre_cliente = nombre_completo.split()[0]
+        except Exception as error:
+            print(
+                f"[ERROR] No se pudo obtener el nombre del cliente para "
+                f"el saludo personalizado — telefono={telefono}: "
+                f"{type(error).__name__}: {error}"
+            )
+            nombre_cliente = None
+
     respuesta_fija = buscar_respuesta_fija(
         texto_cliente=texto_cliente,
         codigo_cliente=codigo_cliente,
+        nombre_cliente=nombre_cliente,
     )
 
     if respuesta_fija:
