@@ -1019,8 +1019,13 @@ def buscar_respuesta_fija(
         ]
     ):
         return (
-            "El aéreo está en $2.90 por libra y el marítimo "
-            "en $12 por pie cúbico."
+            "Manejamos dos rutas y dos modalidades:\n\n"
+            "*Miami aéreo:* $2.90 por libra\n"
+            "*Miami marítimo:* $12.00 por pie cúbico\n\n"
+            "*China aéreo:* $12.00 por libra\n"
+            "*China marítimo:* $325.00 por CBM (mínimo $45.00)\n\n"
+            "Recuerda que siempre redondeamos hacia arriba. "
+            "¿Quieres que te calcule el costo de tu paquete?"
         )
 
     if any(
