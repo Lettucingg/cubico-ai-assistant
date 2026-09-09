@@ -657,10 +657,11 @@ async def procesar_respuesta_de_asesor(telefono_asesor: str, numero_cliente: str
         sesion_cliente = obtener_sesion_existente(numero_cliente)
 
         if sesion_cliente is None or not sesion_cliente.necesita_atencion_humana:
-            await enviar_mensaje_whatsapp(
-                telefono_asesor,
-                f"⚠️ {numero_cliente} no tiene un caso escalado activo. No se envió nada.",
-            )
+            if telefono_asesor != "panel":
+                await enviar_mensaje_whatsapp(
+                    telefono_asesor,
+                    f"⚠️ {numero_cliente} no tiene un caso escalado activo. No se envió nada.",
+                )
             return
 
         historial = sesion_cliente.obtener_historial()

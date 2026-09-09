@@ -74,8 +74,9 @@ def obtener_conversacion(telefono: str, usuario: str = Depends(verificar_credenc
     }
 
 
-from app.api.whatsapp import procesar_respuesta_de_asesor
-from app.db.session_store import actualizar_sesion
+from app.ai.orchestrator import redactar_respuesta_de_asesor
+from app.db.session_store import actualizar_sesion, agregar_al_historial
+from app.api.whatsapp import enviar_respuesta_natural
 import asyncio
 
 @router.post("/responder/{telefono}")
@@ -84,15 +85,35 @@ async def responder_cliente(
     body: dict,
     usuario: str = Depends(verificar_credenciales_panel)
 ):
-    """Envía una respuesta al cliente pasando por el flujo de Bruno."""
+    """
+    Envía una respuesta al cliente pasando por el flujo de Bruno,
+    redactando el mensaje del asesor con su tono natural.
+
+    A diferencia del flujo de /responder por WhatsApp (que requiere un
+    caso escalado activo), el panel puede responder a cualquier
+    conversación existente, esté o no escalada.
+    """
     mensaje = body.get("mensaje", "").strip()
     if not mensaje:
         raise HTTPException(status_code=400, detail="Mensaje vacío")
-    await procesar_respuesta_de_asesor(
-        telefono_asesor="panel",
-        numero_cliente=telefono,
-        solucion_del_asesor=mensaje
+
+    sesion_cliente = obtener_sesion_existente(telefono)
+    if sesion_cliente is None:
+        raise HTTPException(status_code=404, detail="No existe ninguna conversación con ese teléfono")
+
+    historial = sesion_cliente.obtener_historial()
+    texto_cliente_original = next(
+        (m["content"] for m in reversed(historial) if m["role"] == "user"),
+        "el cliente escribió por WhatsApp",
     )
+
+    texto_redactado = redactar_respuesta_de_asesor(texto_cliente_original, mensaje)
+
+    agregar_al_historial(telefono, "assistant", texto_redactado)
+    await enviar_respuesta_natural(telefono, texto_redactado, message_id="")
+
+    actualizar_sesion(telefono, necesita_atencion_humana=False, motivo_escalamiento=None)
+
     return {"status": "enviado"}
 
 @router.post("/atender/{telefono}")
