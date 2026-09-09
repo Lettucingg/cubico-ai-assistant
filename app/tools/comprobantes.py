@@ -109,7 +109,7 @@ No escribas nada antes de "ES_COMPROBANTE:" ni nada después del texto de la sec
         "texto_respuesta": (
             texto_para_cliente.strip()
             if separador
-            else "Recibí tu imagen, pero no pude identificar bien de qué se trata. ¿En qué te puedo ayudar?"
+            else "No pude ver bien la imagen. Cuéntame qué producto es y te calculo el costo de traerlo sin problema."
         ),
     }
 
