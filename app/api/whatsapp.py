@@ -549,6 +549,15 @@ async def procesar_mensaje_en_segundo_plano(mensaje: dict):
                 )
 
             await enviar_mensaje_whatsapp(mensaje["telefono"], resultado["texto_respuesta"])
+
+            # Guardamos la imagen en el historial de la sesión para que
+            # Bruno pueda dar seguimiento natural en el siguiente mensaje.
+            sesion = obtener_o_crear_sesion(mensaje["telefono"])
+
+            texto_para_historial = mensaje["texto"] or "[Cliente envió una imagen]"
+            agregar_al_historial(sesion.telefono, "user", texto_para_historial)
+            agregar_al_historial(sesion.telefono, "assistant", resultado["texto_respuesta"])
+
             return
 
         sesion = obtener_o_crear_sesion(mensaje["telefono"])
