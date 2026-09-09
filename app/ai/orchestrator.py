@@ -38,7 +38,7 @@ Tu nombre es Bruno y formas parte de la atención de Cúbico.
 
 En una conversación nueva puedes presentarte simplemente como:
 
-"Hola, soy Bruno de Cúbico. ¿Qué necesitas?"
+"Hola, soy Bruno de Cúbico. ¿En qué te puedo ayudar?"
 
 Pero NO es obligatorio presentarte si el cliente ya hizo una pregunta concreta.
 
@@ -290,7 +290,7 @@ Cliente:
 "hola"
 
 Respuesta posible:
-"Hola, soy Bruno de Cúbico. ¿Qué necesitas?"
+"Hola, soy Bruno de Cúbico. ¿En qué te puedo ayudar?"
 
 Cliente:
 "gracias"
@@ -1178,12 +1178,36 @@ SALUDOS_RECONOCIDOS = {
     "saludos",
 }
 
+DESPEDIDAS_RECONOCIDAS = {
+    "gracias",
+    "ok gracias",
+    "muchas gracias",
+    "hasta luego",
+    "bye",
+    "chao",
+    "chau",
+    "todo bien",
+    "listo gracias",
+    "perfecto gracias",
+    "entendido gracias",
+}
+
+VARIANTES_DESPEDIDA = [
+    "Con gusto. Que estés bien.",
+    "Claro que sí. Hasta luego.",
+    "Con mucho gusto. Cuídate.",
+    "Dale, para lo que necesites estamos aquí.",
+    "Perfecto. Que te vaya bien.",
+    "Con gusto. Cualquier cosa nos avisas.",
+    "Encantado de ayudarte. Hasta luego.",
+]
+
 
 def _saludos_manana(nombre_cliente: str = None) -> list[str]:
     if nombre_cliente:
         return [
             f"Hola {nombre_cliente}, buenos días, ¿en qué te puedo ayudar?",
-            f"Buenos días {nombre_cliente}, cuéntame, ¿qué necesitas?",
+            f"Buenos días {nombre_cliente}, cuéntame, ¿en qué te ayudo?",
             f"{nombre_cliente}, buenos días. ¿En qué te ayudo?",
             f"Buen día {nombre_cliente}, dime en qué te ayudo.",
             f"Hola {nombre_cliente}, buen día. ¿En qué te puedo ayudar?",
@@ -1191,10 +1215,10 @@ def _saludos_manana(nombre_cliente: str = None) -> list[str]:
 
     return [
         "Buenos días, ¿en qué te puedo ayudar?",
-        "Buenos días, cuéntame, ¿qué necesitas?",
+        "Buenos días, bienvenido a Cúbico, ¿en qué te puedo ayudar?",
         "Hola, buenos días. ¿En qué te ayudo?",
         "Buen día, dime en qué te puedo ayudar.",
-        "Buenos días, ¿qué necesitas hoy?",
+        "Buenos días, ¿en qué te puedo ayudar hoy?",
     ]
 
 
@@ -1203,14 +1227,14 @@ def _saludos_tarde(nombre_cliente: str = None) -> list[str]:
         return [
             f"Buenas tardes {nombre_cliente}, con gusto te atiendo.",
             f"Hola {nombre_cliente}, buenas tardes. ¿En qué te ayudo?",
-            f"{nombre_cliente}, buenas tardes, cuéntame qué necesitas.",
+            f"{nombre_cliente}, buenas tardes, cuéntame en qué te ayudo.",
             f"Buenas tardes {nombre_cliente}, dime en qué te ayudo.",
             f"Holaa {nombre_cliente}, cuéntame, ¿en qué te ayudo?",
         ]
 
     return [
         "Buenas tardes, ¿en qué te puedo ayudar?",
-        "Buenas tardes, cuéntame, ¿qué necesitas?",
+        "Buenas tardes, con gusto te atiendo.",
         "Hola, buenas tardes. ¿En qué te ayudo?",
         "Buenas tardes, dime en qué te puedo ayudar.",
         "Buenas, ¿en qué te puedo ayudar?",
@@ -1221,7 +1245,7 @@ def _saludos_noche(nombre_cliente: str = None) -> list[str]:
     if nombre_cliente:
         return [
             f"Hola {nombre_cliente}, buenas noches. ¿En qué te ayudo?",
-            f"Buenas noches {nombre_cliente}, cuéntame qué necesitas.",
+            f"Buenas noches {nombre_cliente}, cuéntame en qué te ayudo.",
             f"{nombre_cliente}, buenas noches, dime en qué te ayudo.",
             f"Buenas noches {nombre_cliente}, con gusto te atiendo.",
             f"Hola {nombre_cliente}, ¿en qué te puedo ayudar esta noche?",
@@ -1229,10 +1253,10 @@ def _saludos_noche(nombre_cliente: str = None) -> list[str]:
 
     return [
         "Buenas noches, ¿en qué te puedo ayudar?",
-        "Hola, buenas noches. ¿Qué necesitas?",
+        "Hola, buenas noches. ¿En qué te puedo ayudar?",
         "Buenas noches, cuéntame en qué te ayudo.",
         "Buenas, ¿en qué te puedo ayudar?",
-        "Buenas noches, dime qué necesitas.",
+        "Buenas noches, dime en qué te ayudo.",
     ]
 
 
@@ -1268,6 +1292,12 @@ def buscar_respuesta_fija(
             variantes = _saludos_noche(nombre_cliente)
 
         return random.choice(variantes)
+
+    # Despedida simple: misma lógica de coincidencia exacta que el
+    # saludo, para no capturar mensajes como "gracias, pero también
+    # necesito otra cosa", que deben seguir su flujo normal.
+    if texto_sin_signos in DESPEDIDAS_RECONOCIDAS:
+        return random.choice(VARIANTES_DESPEDIDA)
 
     if any(
         frase in texto
