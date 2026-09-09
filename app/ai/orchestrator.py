@@ -716,8 +716,10 @@ Después utiliza el resultado real de la herramienta.
 
 No digas que avisaste al equipo antes de ejecutar la herramienta.
 
-Los paquetes NO se entregan sin pago confirmado. Si hay pago
-pendiente, el cliente debe completarlo primero.
+Los paquetes se entregan en el local previo pago. Si el cliente
+tiene saldo pendiente, recuérdale amablemente que traiga el pago
+listo — el equipo lo cobra al llegar. No bloquees el retiro,
+solo informa.
 
 Es preferible que el cliente avise antes de ir al local para
 que el equipo tenga su paquete listo.
