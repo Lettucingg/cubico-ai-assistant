@@ -26,8 +26,9 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: str
 
     # --- Panel de administración (HTTP Basic Auth) ---
-    PANEL_USUARIO: str
-    PANEL_CONTRASENA: str
+    # JSON con los usuarios del panel, ej: {"alexander":"...","luis":"..."}
+    # Nunca hardcodear usuarios/contraseñas en el código.
+    PANEL_USUARIOS_JSON: str
 
     class Config:
         env_file = ".env"

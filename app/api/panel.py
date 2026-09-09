@@ -1,3 +1,4 @@
+import json
 import secrets
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -11,15 +12,24 @@ router = APIRouter(prefix="/panel", tags=["panel"])
 
 security = HTTPBasic()
 
+# Usuarios del panel: se cargan desde la variable de entorno
+# PANEL_USUARIOS_JSON (un objeto JSON usuario -> contraseña). Nunca
+# hardcodear usuarios/contraseñas reales aquí en el código.
+USUARIOS_PANEL: dict[str, str] = json.loads(settings.PANEL_USUARIOS_JSON)
+
 
 def verificar_credenciales_panel(credenciales: HTTPBasicCredentials = Depends(security)) -> str:
     """
-    Compara usuario y contraseña con secrets.compare_digest para evitar
+    Busca al usuario en USUARIOS_PANEL (cargado desde PANEL_USUARIOS_JSON)
+    y compara su contraseña con secrets.compare_digest para evitar
     timing attacks, en vez de una comparación directa con ==.
     """
-    usuario_correcto = secrets.compare_digest(credenciales.username, settings.PANEL_USUARIO)
-    contrasena_correcta = secrets.compare_digest(credenciales.password, settings.PANEL_CONTRASENA)
-    if not (usuario_correcto and contrasena_correcta):
+    contrasena_esperada = USUARIOS_PANEL.get(credenciales.username)
+    usuario_existe = contrasena_esperada is not None
+    contrasena_correcta = secrets.compare_digest(
+        credenciales.password, contrasena_esperada or ""
+    )
+    if not (usuario_existe and contrasena_correcta):
         raise HTTPException(
             status_code=401,
             detail="Credenciales inválidas",
