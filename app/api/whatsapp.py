@@ -1,4 +1,5 @@
 import asyncio
+from datetime import datetime, timezone
 
 import httpx
 
@@ -440,6 +441,7 @@ def extraer_mensaje_entrante(payload: dict):
                 "media_id": None,
                 "message_id": mensaje["id"],
                 "tipo": "text",
+                "timestamp": mensaje.get("timestamp"),
             }
 
         if mensaje.get("type") == "audio":
@@ -449,6 +451,7 @@ def extraer_mensaje_entrante(payload: dict):
                 "media_id": mensaje["audio"]["id"],
                 "message_id": mensaje["id"],
                 "tipo": "audio",
+                "timestamp": mensaje.get("timestamp"),
             }
 
         if mensaje.get("type") == "image":
@@ -458,6 +461,7 @@ def extraer_mensaje_entrante(payload: dict):
                 "media_id": mensaje["image"]["id"],
                 "message_id": mensaje["id"],
                 "tipo": "image",
+                "timestamp": mensaje.get("timestamp"),
             }
 
         return None
@@ -708,6 +712,12 @@ async def recibir_mensaje(request: Request, background_tasks: BackgroundTasks):
     if mensaje is None:
         print("Evento recibido, pero no es un mensaje de texto entrante (ignorado).")
         return {"status": "ignorado", "razon": "no es un mensaje de texto"}
+
+    timestamp_mensaje = int(mensaje.get("timestamp") or 0)
+    ahora = int(datetime.now(timezone.utc).timestamp())
+    if ahora - timestamp_mensaje > 600:  # 10 minutos
+        print(f"Mensaje ignorado: demasiado antiguo ({ahora - timestamp_mensaje}s)")
+        return {"status": "ignored_old_message"}
 
     if mensaje["telefono"] in NUMEROS_EQUIPO:
         if mensaje["tipo"] == "text":
