@@ -426,6 +426,28 @@ $12.00 por libra (redondear hacia arriba).
 China Marítimo:
 $325.00 por CBM (metro cúbico). Mínimo $45.00.
 
+
+PESO VOLUMÉTRICO — CHINA AÉREO
+
+Para China aéreo se cobra el mayor entre:
+- Peso real en libras
+- Peso volumétrico: largo × ancho × alto en cm dividido entre 5000, multiplicado por 2.205
+
+
+REGLA RÁPIDA CHINA
+
+- Menos de 4 libras y urgente → aéreo
+- Todo lo demás → marítimo
+- Cajas grandes y livianas salen muy caras por aéreo
+
+
+RESTRICCIONES AÉREO CHINA
+
+El aéreo tiene controles aduaneros estrictos.
+Productos con marcas registradas, réplicas o imitaciones y mercancía comercial pueden ser retenidos.
+Para ese tipo de carga la vía correcta es marítimo.
+
+
 Cualquier persona puede preguntar las tarifas. No requiere verificación.
 
 
@@ -500,7 +522,11 @@ Miami a Panamá, envío aéreo: 3-4 días.
 
 Miami a Panamá, envío marítimo: 10-13 días.
 
-Desde China: el tiempo estimado es de aproximadamente 10 a 15 días, aunque puede variar según el pedido y la ruta. Si el cliente pregunta, dale ese rango aproximado con tranquilidad, aclarando que es un estimado general y que se confirma el tiempo exacto cuando el paquete esté en camino.
+Desde China aéreo: 3-7 días aproximadamente.
+
+Desde China marítimo: 25-35 días aproximadamente.
+
+Estos tiempos son aproximados y pueden variar según el pedido y la ruta. Si el cliente pregunta, dale ese rango con tranquilidad, aclarando que es un estimado general y que se confirma el tiempo exacto cuando el paquete esté en camino.
 
 
 MÉTODOS DE PAGO
@@ -539,8 +565,17 @@ Miami Marítimo:
 CUBICO OCEAN CBC-XXXX UNIT2
 Doral, FL 33195-6085
 
-Para las direcciones de China, el cliente debe verificarse primero
-y usar obtener_direccion_china_personalizada.
+China Aéreo:
+SHIPPING MARK: CUBICO-CBC-XXXX (6P0006)
+广州市荔湾区东联路40号L栋 6P0006 (CUBICO-CBC-XXXX)
+Buscar: "OSC奥冉达仓库"
+Teléfono: 13610061191 / 36082779
+
+China Marítimo: misma dirección que aéreo.
+
+Donde XXXX es el código CBC del cliente. Para la dirección
+personalizada con su código exacto, el cliente debe verificarse
+primero y usar obtener_direccion_china_personalizada.
 
 
 INICIAR SESIÓN
@@ -1545,13 +1580,12 @@ def generar_respuesta(
         if not resultado["encontrado"]:
             return resultado
 
-        etiqueta = "AEREO" if tipo_normalizado == "aereo" else "OCEAN"
-
+        # China aéreo y marítimo comparten la misma bodega.
         direccion = (
-            f"SHIPPING MARK CBC-{codigo_normalizado} {etiqueta}\n"
-            f"广州市白云区园夏碑记街36号B栋一楼1号仓\n"
-            f"源琪达货运 (CBC-{codigo_normalizado}){etiqueta}\n"
-            f"Teléfono: 18620677313"
+            f"SHIPPING MARK: CUBICO-{codigo_normalizado} (6P0006)\n"
+            f"广州市荔湾区东联路40号L栋 6P0006 (CUBICO-{codigo_normalizado})\n"
+            f"Buscar: \"OSC奥冉达仓库\"\n"
+            f"Teléfono: 13610061191 / 36082779"
         )
 
         return {
