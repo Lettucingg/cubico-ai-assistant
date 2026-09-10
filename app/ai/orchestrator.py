@@ -1357,12 +1357,8 @@ def buscar_respuesta_fija(
         ]
     ):
         return (
-            "Manejamos dos rutas y dos modalidades:\n\n"
-            "*Miami aéreo:* $2.90 por libra\n"
-            "*Miami marítimo:* $12.00 por pie cúbico\n\n"
-            "*China aéreo:* $12.00 por libra\n"
-            "*China marítimo:* $325.00 por CBM (mínimo $45.00)\n\n"
-            "Recuerda que siempre redondeamos hacia arriba. "
+            "Manejamos estas tarifas — Miami Aéreo: $2.90/lb · Miami Marítimo: $12.00/ft³ · "
+            "China Aéreo: $12.00/lb · China Marítimo: $325.00/CBM (mínimo $45). "
             "¿Quieres que te calcule el costo de tu paquete?"
         )
 
