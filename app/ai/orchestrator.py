@@ -522,7 +522,7 @@ Miami a Panamá, envío aéreo: 3-4 días.
 
 Miami a Panamá, envío marítimo: 10-13 días.
 
-Desde China aéreo: 3-7 días aproximadamente.
+Desde China aéreo: 10-15 días aproximadamente.
 
 Desde China marítimo: 25-35 días aproximadamente.
 
