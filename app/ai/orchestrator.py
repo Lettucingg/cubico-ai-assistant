@@ -1756,7 +1756,7 @@ def generar_respuesta(
     else:
         texto_para_claude = f"{prefijo_razonamiento}\n\n{texto_cliente}"
 
-    mensajes = list(historial) if historial else []
+    mensajes = list(historial[-20:]) if historial else []
 
     mensajes.append(
         {
