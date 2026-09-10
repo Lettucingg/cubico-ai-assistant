@@ -1726,12 +1726,25 @@ def generar_respuesta(
         "marcar_pago_pendiente_seguimiento": _marcar_pago_pendiente_seguimiento,
     }
 
+    # Prefijo interno de razonamiento: nunca se muestra al cliente ni se
+    # guarda en el historial (el historial persiste texto_cliente, no
+    # texto_para_claude); solo viaja en el mensaje que recibe Claude.
+    prefijo_razonamiento = (
+        "[Antes de responder, piensa:\n"
+        "1. ¿Qué está pidiendo realmente el cliente?\n"
+        "2. ¿Ya le respondí esto antes en esta conversación?\n"
+        "3. ¿Puedo resolver esto en UN SOLO mensaje natural?\n"
+        "4. ¿Mi respuesta suena como una persona real o como un bot?\n"
+        "Solo entonces redacta tu respuesta.]"
+    )
+
     # Añadimos información interna sobre la sesión sin mostrársela
     # directamente al cliente.
     if codigo_cliente:
         codigo_normalizado = codigo_cliente.strip().upper()
 
         texto_para_claude = (
+            f"{prefijo_razonamiento}\n\n"
             "[CONTEXTO INTERNO — NO mencionar al cliente: "
             "este cliente ya fue verificado correctamente. "
             f"Su código es {codigo_normalizado}. "
@@ -1741,7 +1754,7 @@ def generar_respuesta(
             f"{texto_cliente}"
         )
     else:
-        texto_para_claude = texto_cliente
+        texto_para_claude = f"{prefijo_razonamiento}\n\n{texto_cliente}"
 
     mensajes = list(historial) if historial else []
 
