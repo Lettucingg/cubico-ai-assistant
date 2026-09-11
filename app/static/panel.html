@@ -97,6 +97,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);displ
 .ba{background:var(--alerta-bg);color:var(--alerta)}
 .bw{background:var(--warn-bg);color:var(--warn)}
 .bg{background:var(--ok-bg);color:var(--ok)}
+.be{background:#f0f0ff;color:#6366f1;border:1px solid #c7d2fe}
 .citem-phone{font-size:10px;color:var(--text3);font-family:monospace;margin-bottom:5px}
 .citem-preview{font-size:12px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .citem-preview.bot{color:var(--gold2)}
@@ -302,6 +303,9 @@ function renderLista(data){
       c.necesita_atencion_humana?'<span class="badge ba">Atención</span>':'',
       c.solicitud_domicilio_pendiente?'<span class="badge bw">Domicilio</span>':'',
       c.aviso_retiro_pendiente?'<span class="badge bw">Retiro</span>':'',
+      (c.motivo_escalamiento?.toLowerCase().includes('empresarial') ||
+       c.motivo_escalamiento?.toLowerCase().includes('tarifa')) ?
+       '<span class="badge be">🏢 Empresarial</span>' : '',
     ].filter(Boolean).join('');
     return`<div class="citem${c.telefono===telActivo?' on':''}" onclick="abrirChat('${c.telefono}')">
       <div class="citem-top"><span class="citem-name">${esc(nom)}</span><div class="citem-badges">${badges}</div></div>
@@ -351,6 +355,9 @@ function renderChatShell(tel,conv,historial){
         </div>
       </div>
       <div class="chatheader-badges">${alertBadges}</div>
+      ${conv?.motivo_escalamiento ?
+        '<div style="font-size:11px;color:var(--text2);margin-top:6px">Motivo: '+esc(conv.motivo_escalamiento)+'</div>'
+        : ''}
       ${acciones?`<div class="action-btns">${acciones}</div>`:''}
     </div>
     <div class="msgs" id="msgs">

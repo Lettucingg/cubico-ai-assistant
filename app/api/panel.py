@@ -66,6 +66,7 @@ def listar_conversaciones(usuario: str = Depends(verificar_credenciales_panel)):
             "necesita_atencion_humana": sesion.necesita_atencion_humana,
             "aviso_retiro_pendiente": sesion.aviso_retiro_pendiente,
             "solicitud_domicilio_pendiente": sesion.solicitud_domicilio_pendiente,
+            "motivo_escalamiento": sesion.motivo_escalamiento or None,
             "ultimo_mensaje": ultimo_mensaje,
         })
     return resultado
