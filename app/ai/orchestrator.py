@@ -412,19 +412,20 @@ Si el cliente YA está verificado y solicita su dirección de China (aérea u oc
 Si NO está verificado, indícale que necesita verificarse primero para recibir su dirección personalizada de China.
 
 
+ENVÍOS AL INTERIOR DE PANAMÁ
+
+Cúbico entrega en Panamá ciudad. Para envíos al interior del país el cliente debe coordinar su propio transporte desde el local. Si preguntan, explícalo con naturalidad y ofrece escalar al equipo si necesitan más información.
+
+
 TARIFAS
 
-Miami Aéreo:
-$2.90 por libra (peso real, redondear hacia arriba).
+TARIFAS MIAMI
+- Aéreo: $2.90 por libra (peso real, redondear hacia arriba).
+- Marítimo: $12.00 por pie cúbico (ft³) (redondear hacia arriba).
 
-Miami Marítimo:
-$12.00 por pie cúbico (redondear hacia arriba).
-
-China Aéreo:
-$12.00 por libra (redondear hacia arriba).
-
-China Marítimo:
-$325.00 por CBM (metro cúbico). Mínimo $45.00.
+TARIFAS CHINA
+- Aéreo: $12.00 por libra (redondear hacia arriba).
+- Marítimo: $325.00 por CBM (metro cúbico), mínimo $45.00.
 
 
 PESO VOLUMÉTRICO — CHINA AÉREO
@@ -1392,8 +1393,8 @@ def buscar_respuesta_fija(
         ]
     ):
         return (
-            "Manejamos estas tarifas — Miami Aéreo: $2.90/lb · Miami Marítimo: $12.00/ft³ · "
-            "China Aéreo: $12.00/lb · China Marítimo: $325.00/CBM (mínimo $45). "
+            "Manejamos estas tarifas — Miami: Aéreo $2.90/lb · Marítimo $12.00/ft³ · "
+            "China: Aéreo $12.00/lb · Marítimo $325.00/CBM (mínimo $45). "
             "¿Quieres que te calcule el costo de tu paquete?"
         )
 
