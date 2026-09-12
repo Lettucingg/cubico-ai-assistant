@@ -332,9 +332,21 @@ async function abrirChat(tel){
     const data=await r.json();
     renderMsgs(data.historial);
   }catch(e){renderMsgs([])}
-  try{
-    await fetch(`/panel/marcar-leido/${tel}`,{method:'POST',headers:{'Authorization':'Basic '+creds}});
-  }catch(e){}
+  try {
+    const r = await fetch(`/panel/marcar-leido/${tel}`, {
+      method: 'POST',
+      headers: {'Authorization': 'Basic ' + creds}
+    });
+    if (r.ok) {
+      // Actualizar el estado local inmediatamente
+      const conv = convs.find(c => c.telefono === tel);
+      if (conv) conv.tiene_no_leidos = false;
+      // Refrescar la lista para quitar el punto
+      renderLista(convs);
+    }
+  } catch(e) {
+    console.error('Error marcando como leído:', e);
+  }
 }
 
 function renderChatShell(tel,conv,historial){
