@@ -91,7 +91,9 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);displ
 .citem:active{background:var(--gold-light)}
 .citem.on{background:var(--gold-bg);border-left:3px solid var(--gold)}
 .citem-top{display:flex;align-items:flex-start;justify-content:space-between;gap:6px;margin-bottom:4px}
-.citem-name{font-size:14px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1}
+.citem-name{font-size:14px;font-weight:600;color:var(--text);display:flex;align-items:center;gap:6px;min-width:0;flex:1}
+.citem-name span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.unread-dot{width:8px;height:8px;border-radius:50%;background:#c9a84c;flex-shrink:0}
 .citem-badges{display:flex;gap:3px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end}
 .badge{font-size:9px;font-weight:600;padding:2px 7px;border-radius:20px;letter-spacing:.3px}
 .ba{background:var(--alerta-bg);color:var(--alerta)}
@@ -307,8 +309,9 @@ function renderLista(data){
        c.motivo_escalamiento?.toLowerCase().includes('tarifa')) ?
        '<span class="badge be">🏢 Empresarial</span>' : '',
     ].filter(Boolean).join('');
+    const puntoNoLeido=c.tiene_no_leidos?'<span class="unread-dot"></span>':'';
     return`<div class="citem${c.telefono===telActivo?' on':''}" onclick="abrirChat('${c.telefono}')">
-      <div class="citem-top"><span class="citem-name">${esc(nom)}</span><div class="citem-badges">${badges}</div></div>
+      <div class="citem-top"><span class="citem-name">${puntoNoLeido}<span>${esc(nom)}</span></span><div class="citem-badges">${badges}</div></div>
       <div class="citem-phone">${c.telefono}</div>
       <div class="citem-preview${esBot?' bot':''}">${esc(prev)}</div>
     </div>`;
@@ -329,6 +332,9 @@ async function abrirChat(tel){
     const data=await r.json();
     renderMsgs(data.historial);
   }catch(e){renderMsgs([])}
+  try{
+    await fetch(`/panel/marcar-leido/${tel}`,{method:'POST',headers:{'Authorization':'Basic '+creds}});
+  }catch(e){}
 }
 
 function renderChatShell(tel,conv,historial){

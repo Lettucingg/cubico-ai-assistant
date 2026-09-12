@@ -1,5 +1,6 @@
 import json
 import secrets
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
@@ -68,6 +69,10 @@ def listar_conversaciones(usuario: str = Depends(verificar_credenciales_panel)):
             "solicitud_domicilio_pendiente": sesion.solicitud_domicilio_pendiente,
             "motivo_escalamiento": sesion.motivo_escalamiento or None,
             "ultimo_mensaje": ultimo_mensaje,
+            "tiene_no_leidos": (
+                sesion.actualizado_en > sesion.ultimo_leido_panel
+                if sesion.ultimo_leido_panel else True
+            ),
         })
     return resultado
 
@@ -135,6 +140,16 @@ def marcar_atendido(
     """Marca una conversación como atendida (baja la alerta)."""
     actualizar_sesion(telefono, necesita_atencion_humana=False)
     return {"status": "atendido"}
+
+
+@router.post("/marcar-leido/{telefono}")
+def marcar_leido(
+    telefono: str,
+    usuario: str = Depends(verificar_credenciales_panel)
+):
+    """Marca la conversación como leída por el trabajador en el panel."""
+    actualizar_sesion(telefono, ultimo_leido_panel=datetime.utcnow())
+    return {"status": "leido"}
 
 
 @router.post("/retiro/{telefono}")
