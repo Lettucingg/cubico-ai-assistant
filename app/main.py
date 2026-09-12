@@ -4,6 +4,7 @@ from fastapi.responses import FileResponse
 from pathlib import Path
 from app.api.whatsapp import router as whatsapp_router
 from app.api.panel import router as panel_router
+from app.api.notificaciones import router as notificaciones_router
 from app.scheduler import iniciar_scheduler, scheduler
 
 app = FastAPI(title="Cúbico AI Assistant")
@@ -13,6 +14,7 @@ app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 app.include_router(whatsapp_router)
 app.include_router(panel_router)
+app.include_router(notificaciones_router)
 
 @app.get("/admin")
 def panel_admin():

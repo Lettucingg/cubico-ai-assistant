@@ -30,6 +30,10 @@ class Settings(BaseSettings):
     # Nunca hardcodear usuarios/contraseñas en el código.
     PANEL_USUARIOS_JSON: str
 
+    # --- Notificaciones internas (POST /notificar/carga-llegada) ---
+    # Clave compartida esperada en el header X-Cubico-Key.
+    CUBICO_NOTIFY_KEY: str
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
