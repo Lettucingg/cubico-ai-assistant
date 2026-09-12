@@ -399,8 +399,9 @@ Dirección del casillero en Miami:
 7854 NW 46TH ST
 CUBICO UNIT2
 Doral, FL 33195-6085
+Tel: (786)6221058
 
-Si el cliente YA está verificado y solicita su dirección de Miami, utiliza obtener_direccion_miami_personalizada.
+Si el cliente YA está verificado y solicita su dirección de Miami, utiliza obtener_direccion_miami_personalizada, indicando el tipo_envio correspondiente ("aereo" u "ocean").
 
 Si NO está verificado, proporciona la dirección genérica anterior.
 
@@ -559,20 +560,26 @@ Miami Aéreo:
 7854 NW 46TH ST
 CUBICO CBC-XXXX UNIT2
 Doral, FL 33195-6085
+Tel: (786)6221058
 
 Miami Marítimo:
 [Nombre Cliente] OCEAN CBC-XXXX
 7854 NW 46TH ST
 CUBICO OCEAN CBC-XXXX UNIT2
 Doral, FL 33195-6085
+Tel: (786)6221058
 
 China Aéreo:
+SHIPPING MARK: CUBICO-CBC-XXXX AÉREO
+广州市白云区园夏碑记街36号B栋一楼1号仓
+源琪达货运 (CUBICO-CBC-XXXX)
+Teléfono: 13631330475
+
+China Marítimo:
 SHIPPING MARK: CUBICO-CBC-XXXX (6P0006)
 广州市荔湾区东联路40号L栋 6P0006 (CUBICO-CBC-XXXX)
 Buscar: "OSC奥冉达仓库"
 Teléfono: 13610061191 / 36082779
-
-China Marítimo: misma dirección que aéreo.
 
 Donde XXXX es el código CBC del cliente. Para la dirección
 personalizada con su código exacto, el cliente debe verificarse
@@ -809,9 +816,9 @@ No menciones este seguimiento como algo técnico o interno; simplemente continú
 
 DIRECCIÓN PERSONALIZADA
 
-Cuando el cliente YA esté verificado y pida su dirección de Miami, utiliza obtener_direccion_miami_personalizada.
+Cuando el cliente YA esté verificado y pida su dirección de Miami, utiliza obtener_direccion_miami_personalizada, indicando el tipo_envio correspondiente ("aereo" u "ocean").
 
-Cuando el cliente YA esté verificado y pida su dirección de China (aérea u ocean), utiliza obtener_direccion_china_personalizada.
+Cuando el cliente YA esté verificado y pida su dirección de China (aérea u ocean), utiliza obtener_direccion_china_personalizada, indicando el tipo_envio correspondiente ("aereo" u "ocean").
 
 No inventes nombres ni códigos CBC.
 
@@ -1102,7 +1109,8 @@ HERRAMIENTAS = [
         "description": (
             "Genera la dirección de Miami personalizada con nombre completo "
             "y código CBC del cliente. Úsala SOLO cuando el cliente ya "
-            "está verificado y solicita su dirección de Miami."
+            "está verificado y solicita su dirección de Miami, indicando "
+            "el tipo_envio correspondiente ('aereo' u 'ocean')."
         ),
         "input_schema": {
             "type": "object",
@@ -1110,9 +1118,13 @@ HERRAMIENTAS = [
                 "codigo_cliente": {
                     "type": "string",
                     "description": "Código CBC verificado del cliente",
-                }
+                },
+                "tipo_envio": {
+                    "type": "string",
+                    "description": "'aereo' u 'ocean'",
+                },
             },
-            "required": ["codigo_cliente"],
+            "required": ["codigo_cliente", "tipo_envio"],
         },
     },
     {
@@ -1418,7 +1430,8 @@ def buscar_respuesta_fija(
             "La dirección de Cúbico en Miami es:\n\n"
             "7854 NW 46TH ST\n"
             "CUBICO UNIT2\n"
-            "Doral, FL 33195-6085"
+            "Doral, FL 33195-6085\n"
+            "Tel: (786)6221058"
         )
 
     if any(
@@ -1542,20 +1555,41 @@ def generar_respuesta(
             ),
         }
 
-    def _obtener_direccion_miami_personalizada(codigo_cliente: str):
+    def _obtener_direccion_miami_personalizada(
+        codigo_cliente: str, tipo_envio: str
+    ):
         codigo_normalizado = codigo_cliente.strip().upper()
+        tipo_normalizado = tipo_envio.strip().lower()
+
+        if tipo_normalizado not in ("aereo", "ocean"):
+            return {
+                "encontrado": False,
+                "mensaje": (
+                    "tipo_envio debe ser 'aereo' u 'ocean'."
+                ),
+            }
 
         resultado = obtener_nombre_completo_cliente(codigo_normalizado)
 
         if not resultado["encontrado"]:
             return resultado
 
-        direccion = (
-            f"{resultado['nombre_completo']} {codigo_normalizado}\n"
-            f"7854 NW 46TH ST\n"
-            f"CUBICO {codigo_normalizado} UNIT2\n"
-            f"Doral, FL 33195-6085"
-        )
+        if tipo_normalizado == "ocean":
+            direccion = (
+                f"{resultado['nombre_completo']} OCEAN {codigo_normalizado}\n"
+                f"7854 NW 46TH ST\n"
+                f"CUBICO OCEAN {codigo_normalizado} UNIT2\n"
+                f"Doral, FL 33195-6085\n"
+                f"Tel: (786)6221058"
+            )
+        else:
+            direccion = (
+                f"{resultado['nombre_completo']} {codigo_normalizado}\n"
+                f"7854 NW 46TH ST\n"
+                f"CUBICO {codigo_normalizado} UNIT2\n"
+                f"Doral, FL 33195-6085\n"
+                f"Tel: (786)6221058"
+            )
 
         return {
             "encontrado": True,
@@ -1581,13 +1615,20 @@ def generar_respuesta(
         if not resultado["encontrado"]:
             return resultado
 
-        # China aéreo y marítimo comparten la misma bodega.
-        direccion = (
-            f"SHIPPING MARK: CUBICO-{codigo_normalizado} (6P0006)\n"
-            f"广州市荔湾区东联路40号L栋 6P0006 (CUBICO-{codigo_normalizado})\n"
-            f"Buscar: \"OSC奥冉达仓库\"\n"
-            f"Teléfono: 13610061191 / 36082779"
-        )
+        if tipo_normalizado == "aereo":
+            direccion = (
+                f"SHIPPING MARK: CUBICO-{codigo_normalizado} AÉREO\n"
+                f"广州市白云区园夏碑记街36号B栋一楼1号仓\n"
+                f"源琪达货运 (CUBICO-{codigo_normalizado})\n"
+                f"Teléfono: 13631330475"
+            )
+        else:
+            direccion = (
+                f"SHIPPING MARK: CUBICO-{codigo_normalizado} (6P0006)\n"
+                f"广州市荔湾区东联路40号L栋 6P0006 (CUBICO-{codigo_normalizado})\n"
+                f"Buscar: \"OSC奥冉达仓库\"\n"
+                f"Teléfono: 13610061191 / 36082779"
+            )
 
         return {
             "encontrado": True,
