@@ -10,7 +10,7 @@ from app.core.config import settings
 
 router = APIRouter(prefix="/notificar", tags=["notificaciones"])
 
-# Idioma con el que está aprobada la plantilla "carga_llegada" en
+# Idioma con el que está aprobada la plantilla "notificacion_cubico" en
 # Meta Business Manager. Si no coincide, Meta rechaza el envío con
 # el error 132001 (mismo criterio que envio_masivo.py).
 IDIOMA_PLANTILLA = "es"
@@ -64,7 +64,7 @@ def _construir_payload_carga_llegada(body: CargaLlegadaBody) -> dict:
         "to": body.telefono,
         "type": "template",
         "template": {
-            "name": "carga_llegada",
+            "name": "notificacion_cubico",
             "language": {"code": IDIOMA_PLANTILLA},
             "components": [
                 {
