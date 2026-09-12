@@ -565,6 +565,14 @@ async def procesar_mensaje_en_segundo_plano(mensaje: dict):
             return
 
         sesion = obtener_o_crear_sesion(mensaje["telefono"])
+
+        if sesion.atencion_humana_directa:
+            # Un trabajador tomó control de la conversación desde el panel:
+            # seguimos guardando el mensaje del cliente para que se vea en
+            # el historial, pero Bruno no genera ni envía ninguna respuesta.
+            agregar_al_historial(sesion.telefono, "user", mensaje["texto"])
+            return
+
         # Motivo bajo el cual el equipo ya fue notificado (None si no había
         # ningún caso activo). Comparamos MOTIVOS, no un booleano: así un
         # problema nuevo y distinto sí genera aviso, aunque el caso anterior

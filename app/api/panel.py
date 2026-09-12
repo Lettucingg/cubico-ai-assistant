@@ -170,3 +170,32 @@ def marcar_domicilio_coordinado(
     """Marca como resuelta la solicitud de entrega a domicilio."""
     actualizar_sesion(telefono, solicitud_domicilio_pendiente=False)
     return {"status": "domicilio_resuelto"}
+
+
+@router.post("/control/{telefono}")
+async def tomar_control(
+    telefono: str,
+    body: dict,
+    usuario: str = Depends(verificar_credenciales_panel)
+):
+    from app.db.session_store import obtener_sesion_existente, actualizar_sesion
+    accion = body.get("accion", "tomar")
+    sesion = obtener_sesion_existente(telefono)
+    if sesion:
+        actualizar_sesion(telefono, atencion_humana_directa=(accion == "tomar"))
+    return {"status": "ok", "control": accion == "tomar"}
+
+@router.post("/enviar-directo/{telefono}")
+async def enviar_directo(
+    telefono: str,
+    body: dict,
+    usuario: str = Depends(verificar_credenciales_panel)
+):
+    from app.api.whatsapp import enviar_mensaje_whatsapp
+    from app.db.session_store import agregar_al_historial
+    mensaje = body.get("mensaje", "").strip()
+    if not mensaje:
+        raise HTTPException(status_code=400, detail="Mensaje vacío")
+    await enviar_mensaje_whatsapp(telefono, mensaje)
+    agregar_al_historial(telefono, "humano", mensaje)
+    return {"status": "enviado"}

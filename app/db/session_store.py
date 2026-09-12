@@ -34,6 +34,7 @@ class Sesion(BaseSesiones):
     tipo_seguimiento_pago = Column(String, nullable=True)  # general | domicilio
     actualizado_en = Column(DateTime, default=datetime.utcnow)
     ultimo_leido_panel = Column(DateTime, nullable=True)
+    atencion_humana_directa = Column(Boolean, default=False)
 
     def obtener_historial(self):
         """Convierte el historial guardado (texto JSON) en una lista de Python."""
