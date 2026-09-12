@@ -53,6 +53,7 @@ class CargaLlegadaBody(BaseModel):
     telefono: str
     nombre: str
     codigo: str
+    tracking: str
     factura: str
     monto: str
     paquetes: str
@@ -71,7 +72,7 @@ def _construir_payload_carga_llegada(body: CargaLlegadaBody) -> dict:
                     "type": "body",
                     "parameters": [
                         {"type": "text", "text": body.nombre},
-                        {"type": "text", "text": body.codigo},
+                        {"type": "text", "text": body.tracking},
                         {"type": "text", "text": body.factura},
                         {"type": "text", "text": body.monto},
                     ],
