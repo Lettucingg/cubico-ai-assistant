@@ -19,11 +19,13 @@ from app.db.session_store import (
 )
 from app.tools.clientes import obtener_nombre_completo_cliente
 from app.tools.comprobantes import descargar_imagen_de_whatsapp
+from app.tools.transcripcion import descargar_audio_de_whatsapp
 from app.tools.facturas import consultar_facturas_por_codigo
 from app.ai.orchestrator import redactar_respuesta_de_asesor
 from app.api.whatsapp import (
     enviar_audio_whatsapp,
     enviar_respuesta_natural,
+    extraer_id_mensaje_meta,
     subir_audio_whatsapp,
 )
 
@@ -274,6 +276,39 @@ def obtener_conversacion(telefono: str, usuario: str = Depends(verificar_credenc
     }
 
 
+@router.get("/audio/{telefono}/{media_id}")
+async def obtener_audio_panel(
+    telefono: str,
+    media_id: str,
+    usuario: str = Depends(verificar_credenciales_panel),
+):
+    """Sirve un audio del historial sin exponer el token privado de Meta."""
+    sesion = obtener_sesion_existente(telefono)
+    if sesion is None:
+        raise HTTPException(status_code=404, detail="No existe esa conversación")
+    mensaje = next(
+        (
+            item for item in sesion.obtener_historial()
+            if item.get("tipo") == "audio" and item.get("media_id") == media_id
+        ),
+        None,
+    )
+    if mensaje is None:
+        raise HTTPException(status_code=404, detail="Ese audio no pertenece a la conversación")
+    try:
+        contenido = await descargar_audio_de_whatsapp(media_id)
+    except Exception as error:
+        raise HTTPException(
+            status_code=502,
+            detail="Meta ya no permitió descargar este audio",
+        ) from error
+    return Response(
+        content=contenido,
+        media_type=mensaje.get("mime_type") or "audio/ogg",
+        headers={"Cache-Control": "private, max-age=60"},
+    )
+
+
 @router.post("/responder/{telefono}")
 async def responder_cliente(
     telefono: str,
@@ -309,7 +344,13 @@ async def responder_cliente(
     respuesta_meta = await enviar_respuesta_natural(telefono, texto_redactado, message_id="")
     if hasattr(respuesta_meta, "is_success") and not respuesta_meta.is_success:
         raise HTTPException(status_code=502, detail="Meta no pudo enviar el mensaje")
-    agregar_al_historial(telefono, "assistant", texto_redactado)
+    agregar_al_historial(
+        telefono,
+        "assistant",
+        texto_redactado,
+        whatsapp_message_id=extraer_id_mensaje_meta(respuesta_meta),
+        estado_entrega="accepted",
+    )
 
     actualizar_sesion(telefono, necesita_atencion_humana=False, motivo_escalamiento=None)
 
@@ -407,11 +448,20 @@ async def enviar_audio_desde_panel(
             mime_type=mime_meta,
             nombre_archivo=f"mensaje-voz.{extension}",
         )
-        await enviar_audio_whatsapp(telefono, media_id)
+        respuesta_envio = await enviar_audio_whatsapp(telefono, media_id)
     except (httpx.HTTPError, RuntimeError) as error:
         raise HTTPException(status_code=502, detail=str(error)) from error
 
-    agregar_al_historial(telefono, "humano", "🎤 Nota de voz enviada por el equipo")
+    agregar_al_historial(
+        telefono,
+        "humano",
+        "Nota de voz",
+        tipo="audio",
+        media_id=media_id,
+        mime_type=mime_meta,
+        whatsapp_message_id=extraer_id_mensaje_meta(respuesta_envio),
+        estado_entrega="accepted",
+    )
     return {"status": "enviado"}
 
 
@@ -456,7 +506,7 @@ async def enviar_directo(
     body: dict,
     usuario: str = Depends(verificar_credenciales_panel)
 ):
-    from app.api.whatsapp import enviar_mensaje_whatsapp
+    from app.api.whatsapp import enviar_mensaje_whatsapp, extraer_id_mensaje_meta
     from app.db.session_store import agregar_al_historial
     mensaje = body.get("mensaje", "").strip()
     if not mensaje:
@@ -464,5 +514,11 @@ async def enviar_directo(
     respuesta_meta = await enviar_mensaje_whatsapp(telefono, mensaje)
     if not respuesta_meta.is_success:
         raise HTTPException(status_code=502, detail="Meta no pudo enviar el mensaje")
-    agregar_al_historial(telefono, "humano", mensaje)
+    agregar_al_historial(
+        telefono,
+        "humano",
+        mensaje,
+        whatsapp_message_id=extraer_id_mensaje_meta(respuesta_meta),
+        estado_entrega="accepted",
+    )
     return {"status": "enviado"}
