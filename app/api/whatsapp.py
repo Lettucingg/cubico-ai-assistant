@@ -112,7 +112,7 @@ async def enviar_imagen_whatsapp(telefono_destino: str, media_id: str, caption: 
 
 async def subir_audio_whatsapp(
     audio_bytes: bytes,
-    mime_type: str = "audio/ogg",
+    mime_type: str = "audio/ogg; codecs=opus",
     nombre_archivo: str = "mensaje-voz.ogg",
 ) -> str:
     """Sube un audio a Meta y devuelve el identificador del archivo."""
@@ -143,7 +143,7 @@ async def enviar_audio_whatsapp(telefono_destino: str, media_id: str):
         "messaging_product": "whatsapp",
         "to": telefono_destino,
         "type": "audio",
-        "audio": {"id": media_id},
+        "audio": {"id": media_id, "voice": True},
     }
     async with httpx.AsyncClient(timeout=30.0) as client:
         respuesta = await client.post(url, headers=headers, json=payload)
