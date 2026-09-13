@@ -14,6 +14,14 @@ class Settings(BaseSettings):
 
     # --- Base de datos ---
     DATABASE_URL: str
+    # Conversaciones del panel. Si no se define, mantiene el SQLite actual.
+    # En Railway debe apuntar a PostgreSQL o a un volumen persistente.
+    SESSION_DATABASE_URL: str = "sqlite:///sesiones.db"
+
+    # Precios configurables para calcular el costo real de Claude. Se guardan
+    # con cada llamada, de modo que cambiar la tarifa no altera el histórico.
+    ANTHROPIC_INPUT_USD_PER_MTOK: float = 3.0
+    ANTHROPIC_OUTPUT_USD_PER_MTOK: float = 15.0
 
     # --- Anthropic (Claude API) ---
     ANTHROPIC_API_KEY: str
@@ -33,6 +41,23 @@ class Settings(BaseSettings):
     # --- Notificaciones internas (POST /notificar/carga-llegada) ---
     # Clave compartida esperada en el header X-Cubico-Key.
     CUBICO_NOTIFY_KEY: str
+
+    # --- Datos privados del negocio (no publicar en GitHub) ---
+    CUBICO_TEAM_COMMAND_NUMBERS_JSON: str = "[]"
+    CUBICO_NOTIFICATION_NUMBERS_JSON: str = "[]"
+    CUBICO_PAYMENT_ACCOUNT: str = ""
+    CUBICO_PAYMENT_YAPPY: str = ""
+    CUBICO_MIAMI_STREET: str = ""
+    CUBICO_MIAMI_CITY_ZIP: str = ""
+    CUBICO_MIAMI_PHONE: str = ""
+    CUBICO_CHINA_AIR_ADDRESS: str = ""
+    CUBICO_CHINA_AIR_PHONE: str = ""
+    CUBICO_CHINA_OCEAN_ADDRESS: str = ""
+    CUBICO_CHINA_OCEAN_ROUTE_CODE: str = ""
+    CUBICO_CHINA_OCEAN_PHONE_PRIMARY: str = ""
+    CUBICO_CHINA_OCEAN_PHONE_SECONDARY: str = ""
+    CUBICO_LOCAL_ADDRESS: str = ""
+    CUBICO_LOCAL_PHONE: str = ""
 
     class Config:
         env_file = ".env"
