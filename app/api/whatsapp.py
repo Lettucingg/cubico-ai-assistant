@@ -1,4 +1,6 @@
 import asyncio
+import json
+import re
 from datetime import datetime, timezone
 
 import httpx
@@ -12,6 +14,7 @@ from app.db.session_store import (
     obtener_sesion_existente,
     agregar_al_historial,
     actualizar_sesion,
+    actualizar_estado_mensaje_whatsapp,
     listar_sesiones_escaladas,
     listar_sesiones_con_retiro_pendiente,
     listar_sesiones_con_domicilio_pendiente,
@@ -107,9 +110,79 @@ async def enviar_imagen_whatsapp(telefono_destino: str, media_id: str, caption: 
     return respuesta
 
 
+async def subir_audio_whatsapp(
+    audio_bytes: bytes,
+    mime_type: str = "audio/ogg; codecs=opus",
+    nombre_archivo: str = "mensaje-voz.ogg",
+) -> str:
+    """Sube un audio a Meta y devuelve el identificador del archivo."""
+    url = f"https://graph.facebook.com/v21.0/{settings.WHATSAPP_PHONE_NUMBER_ID}/media"
+    headers = {"Authorization": f"Bearer {settings.WHATSAPP_TOKEN}"}
+    data = {"messaging_product": "whatsapp", "type": mime_type}
+    files = {"file": (nombre_archivo, audio_bytes, mime_type)}
+
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        respuesta = await client.post(url, headers=headers, data=data, files=files)
+
+    if not respuesta.is_success:
+        raise RuntimeError(f"Meta rechazó la carga del audio ({respuesta.status_code})")
+    media_id = respuesta.json().get("id")
+    if not media_id:
+        raise RuntimeError("Meta no devolvió el identificador del audio")
+    return media_id
+
+
+async def enviar_audio_whatsapp(telefono_destino: str, media_id: str):
+    """Envía como audio de WhatsApp un archivo previamente subido a Meta."""
+    url = f"https://graph.facebook.com/v21.0/{settings.WHATSAPP_PHONE_NUMBER_ID}/messages"
+    headers = {
+        "Authorization": f"Bearer {settings.WHATSAPP_TOKEN}",
+        "Content-Type": "application/json",
+    }
+    payload = {
+        "messaging_product": "whatsapp",
+        "to": telefono_destino,
+        "type": "audio",
+        "audio": {"id": media_id, "voice": True},
+    }
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        respuesta = await client.post(url, headers=headers, json=payload)
+    if not respuesta.is_success:
+        raise RuntimeError(f"Meta rechazó el envío del audio ({respuesta.status_code})")
+    return respuesta
+
+
+def extraer_id_mensaje_meta(respuesta: httpx.Response) -> str | None:
+    """Obtiene el wamid devuelto por Meta sin fallar si cambia la respuesta."""
+    try:
+        return respuesta.json()["messages"][0]["id"]
+    except (KeyError, IndexError, TypeError, ValueError):
+        return None
+
+
+def extraer_estado_entrega(payload: dict) -> dict | None:
+    """Extrae recibos sent/delivered/read/failed enviados por el webhook."""
+    try:
+        estado = payload["entry"][0]["changes"][0]["value"]["statuses"][0]
+        errores = estado.get("errors") or []
+        error = errores[0] if errores else {}
+        detalle = (
+            error.get("error_data", {}).get("details")
+            or error.get("message")
+            or error.get("title")
+        )
+        return {
+            "id": estado.get("id"),
+            "estado": estado.get("status"),
+            "error": detalle,
+        }
+    except (KeyError, IndexError, TypeError):
+        return None
+
+
 # Números que pueden usar comandos de equipo (/responder, /resuelto,
 # /pendientes). Sus mensajes normales NO se procesan como cliente.
-NUMEROS_EQUIPO = ["50769837308"]
+NUMEROS_EQUIPO = json.loads(settings.CUBICO_TEAM_COMMAND_NUMBERS_JSON)
 
 # Última lista de /retiros y /domicilios consultada por cada miembro del
 # equipo, para poder resolver "el número 2 de la lista" a un teléfono
@@ -194,7 +267,7 @@ def _componer_respuesta_entregado(
 # Números que reciben notificaciones (escalamiento, comprobantes de
 # pago) pero que SÍ pueden seguir siendo tratados como cliente normal
 # en sus mensajes regulares.
-NUMEROS_NOTIFICACION = ["50760348962", "50769837308"]
+NUMEROS_NOTIFICACION = json.loads(settings.CUBICO_NOTIFICATION_NUMBERS_JSON)
 
 
 SEGUNDOS_ESPERA_BUFFER = 4.0
@@ -401,6 +474,7 @@ async def enviar_respuesta_natural(telefono_destino: str, texto_completo: str, m
     if len(partes) > 2:
         partes = [partes[0], "\n\n".join(partes[1:])]
 
+    ultima_respuesta = None
     for i, parte in enumerate(partes):
         # Simula tiempo de escritura: ~0.05 segundos por palabra,
         # con un mínimo de 1 segundo y un máximo de 4 segundos,
@@ -408,14 +482,19 @@ async def enviar_respuesta_natural(telefono_destino: str, texto_completo: str, m
         palabras = len(parte.split())
         tiempo_espera = min(max(palabras * 0.05, 1.0), 4.0)
 
-        await marcar_leido_y_escribiendo(message_id)
+        if message_id:
+            await marcar_leido_y_escribiendo(message_id)
         await asyncio.sleep(tiempo_espera)
-        await enviar_mensaje_whatsapp(telefono_destino, parte)
+        ultima_respuesta = await enviar_mensaje_whatsapp(telefono_destino, parte)
+        if not ultima_respuesta.is_success:
+            return ultima_respuesta
 
         # Pequeña pausa entre mensajes consecutivos, como si la
         # persona hiciera una breve pausa antes de seguir escribiendo.
         if i < len(partes) - 1:
             await asyncio.sleep(0.8)
+
+    return ultima_respuesta
 
 
 def extraer_mensaje_entrante(payload: dict):
@@ -544,23 +623,52 @@ async def procesar_mensaje_en_segundo_plano(mensaje: dict):
 
     try:
         if mensaje["tipo"] == "image":
+            sesion = obtener_o_crear_sesion(mensaje["telefono"])
+            modo_humano = bool(sesion.atencion_humana_directa)
             imagen_bytes = await descargar_imagen_de_whatsapp(mensaje["media_id"])
-            resultado = analizar_imagen_cliente(imagen_bytes, texto_cliente=mensaje["texto"])
+            resultado = await asyncio.to_thread(
+                analizar_imagen_cliente,
+                imagen_bytes,
+                mensaje["texto"],
+                mensaje["telefono"],
+            )
 
             if resultado["es_comprobante"]:
+                campos = extraer_campos_comprobante(resultado["detalle_completo"])
+                monto_encontrado = re.search(
+                    r"\d+(?:[.,]\d{1,2})?", campos.get("monto", "")
+                )
+                monto = (
+                    float(monto_encontrado.group(0).replace(",", "."))
+                    if monto_encontrado else None
+                )
+                obtener_o_crear_sesion(mensaje["telefono"])
+                actualizar_sesion(
+                    mensaje["telefono"],
+                    pago_reportado=True,
+                    pago_confirmado=False,
+                    # Si el caso anterior ya se entregó, este comprobante
+                    # inicia un ciclo operativo nuevo para el cliente.
+                    entregado=False,
+                    paquetes_preparados=False,
+                    domicilio_coordinado=False,
+                    metodo_pago_reportado=campos.get("metodo"),
+                    monto_pago_reportado=monto,
+                    comprobante_media_id=mensaje["media_id"],
+                )
                 await notificar_equipo_comprobante(
                     mensaje["telefono"], resultado["detalle_completo"], mensaje["media_id"]
                 )
 
-            await enviar_mensaje_whatsapp(mensaje["telefono"], resultado["texto_respuesta"])
+            if not modo_humano:
+                await enviar_mensaje_whatsapp(mensaje["telefono"], resultado["texto_respuesta"])
 
             # Guardamos la imagen en el historial de la sesión para que
             # Bruno pueda dar seguimiento natural en el siguiente mensaje.
-            sesion = obtener_o_crear_sesion(mensaje["telefono"])
-
             texto_para_historial = mensaje["texto"] or "[Cliente envió una imagen]"
             agregar_al_historial(sesion.telefono, "user", texto_para_historial)
-            agregar_al_historial(sesion.telefono, "assistant", resultado["texto_respuesta"])
+            if not modo_humano:
+                agregar_al_historial(sesion.telefono, "assistant", resultado["texto_respuesta"])
 
             return
 
@@ -606,11 +714,12 @@ async def procesar_mensaje_en_segundo_plano(mensaje: dict):
                 motivo_escalamiento_previo = motivo_automatico
                 ya_se_notifico_en_este_mensaje = True
 
-        texto_respuesta = generar_respuesta(
+        texto_respuesta = await asyncio.to_thread(
+            generar_respuesta,
             mensaje["texto"],
-            telefono=mensaje["telefono"],
-            codigo_cliente=sesion.codigo_cliente_verificado,
-            historial=sesion.obtener_historial(),
+            mensaje["telefono"],
+            sesion.codigo_cliente_verificado,
+            sesion.obtener_historial(),
         )
 
         agregar_al_historial(sesion.telefono, "user", mensaje["texto"])
@@ -714,6 +823,17 @@ async def recibir_mensaje(request: Request, background_tasks: BackgroundTasks):
     except Exception:
         print("Se recibió una petición sin un JSON válido.")
         return {"status": "ignorado", "razon": "cuerpo vacío o inválido"}
+
+    recibo = extraer_estado_entrega(payload)
+    if recibo and recibo.get("id") and recibo.get("estado"):
+        encontrado = actualizar_estado_mensaje_whatsapp(
+            recibo["id"], recibo["estado"], recibo.get("error")
+        )
+        print(
+            f"Estado de entrega Meta: {recibo['estado']} "
+            f"({'registrado' if encontrado else 'sin mensaje local'})"
+        )
+        return {"status": "recibo_procesado"}
 
     mensaje = extraer_mensaje_entrante(payload)
 

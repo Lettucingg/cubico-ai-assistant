@@ -18,6 +18,12 @@ app.include_router(notificaciones_router)
 
 @app.get("/admin")
 def panel_admin():
+    return FileResponse(STATIC_DIR / "panel-nuevo-diseno.html")
+
+
+@app.get("/admin-anterior")
+def panel_admin_anterior():
+    """Respaldo inmediato del panel anterior durante la transición."""
     return FileResponse(STATIC_DIR / "panel.html")
 
 @app.on_event("startup")

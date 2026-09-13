@@ -14,10 +14,28 @@ from app.tools.clientes import (
     obtener_nombre_completo_cliente,
     verificar_correo_registrado,
 )
-from app.db.session_store import actualizar_sesion, obtener_sesion_existente
+from app.db.session_store import (
+    actualizar_sesion,
+    obtener_sesion_existente,
+    registrar_uso_ia,
+)
 
 
 cliente_claude = Anthropic(api_key=settings.ANTHROPIC_API_KEY)
+
+CUBICO_PAYMENT_ACCOUNT = settings.CUBICO_PAYMENT_ACCOUNT
+CUBICO_PAYMENT_YAPPY = settings.CUBICO_PAYMENT_YAPPY
+CUBICO_MIAMI_STREET = settings.CUBICO_MIAMI_STREET
+CUBICO_MIAMI_CITY_ZIP = settings.CUBICO_MIAMI_CITY_ZIP
+CUBICO_MIAMI_PHONE = settings.CUBICO_MIAMI_PHONE
+CUBICO_CHINA_AIR_ADDRESS = settings.CUBICO_CHINA_AIR_ADDRESS
+CUBICO_CHINA_AIR_PHONE = settings.CUBICO_CHINA_AIR_PHONE
+CUBICO_CHINA_OCEAN_ADDRESS = settings.CUBICO_CHINA_OCEAN_ADDRESS
+CUBICO_CHINA_OCEAN_ROUTE_CODE = settings.CUBICO_CHINA_OCEAN_ROUTE_CODE
+CUBICO_CHINA_OCEAN_PHONE_PRIMARY = settings.CUBICO_CHINA_OCEAN_PHONE_PRIMARY
+CUBICO_CHINA_OCEAN_PHONE_SECONDARY = settings.CUBICO_CHINA_OCEAN_PHONE_SECONDARY
+CUBICO_LOCAL_ADDRESS = settings.CUBICO_LOCAL_ADDRESS
+CUBICO_LOCAL_PHONE = settings.CUBICO_LOCAL_PHONE
 
 
 SYSTEM_PROMPT = """
@@ -396,10 +414,10 @@ INFORMACIÓN GENERAL DE CÚBICO
 
 Dirección del casillero en Miami:
 
-7854 NW 46TH ST
+{CUBICO_MIAMI_STREET}
 CUBICO UNIT2
-Doral, FL 33195-6085
-Tel: (786)6221058
+{CUBICO_MIAMI_CITY_ZIP}
+Tel: {CUBICO_MIAMI_PHONE}
 
 Si el cliente YA está verificado y solicita su dirección de Miami, utiliza obtener_direccion_miami_personalizada, indicando el tipo_envio correspondiente ("aereo" u "ocean").
 
@@ -537,10 +555,10 @@ Transferencia bancaria (ACH):
 Banco General
 Cuenta de ahorro
 Beneficiario: Cúbico
-Número de cuenta: 04-72-97-202288-7
+Número de cuenta: {CUBICO_PAYMENT_ACCOUNT}
 
 Yappy:
-60705727
+{CUBICO_PAYMENT_YAPPY}
 
 Efectivo también disponible.
 
@@ -557,29 +575,29 @@ Con ese código puede usar estas direcciones para sus compras:
 
 Miami Aéreo:
 [Nombre Cliente] CBC-XXXX
-7854 NW 46TH ST
+{CUBICO_MIAMI_STREET}
 CUBICO CBC-XXXX UNIT2
-Doral, FL 33195-6085
-Tel: (786)6221058
+{CUBICO_MIAMI_CITY_ZIP}
+Tel: {CUBICO_MIAMI_PHONE}
 
 Miami Marítimo:
 [Nombre Cliente] OCEAN CBC-XXXX
-7854 NW 46TH ST
+{CUBICO_MIAMI_STREET}
 CUBICO OCEAN CBC-XXXX UNIT2
-Doral, FL 33195-6085
-Tel: (786)6221058
+{CUBICO_MIAMI_CITY_ZIP}
+Tel: {CUBICO_MIAMI_PHONE}
 
 China Aéreo:
 SHIPPING MARK: CUBICO-CBC-XXXX AÉREO
-广州市白云区园夏碑记街36号B栋一楼1号仓
+{CUBICO_CHINA_AIR_ADDRESS}
 源琪达货运 (CUBICO-CBC-XXXX)
-Teléfono: 13631330475
+Teléfono: {CUBICO_CHINA_AIR_PHONE}
 
 China Marítimo:
-SHIPPING MARK: CUBICO-CBC-XXXX (6P0006)
-广州市荔湾区东联路40号L栋 6P0006 (CUBICO-CBC-XXXX)
+SHIPPING MARK: CUBICO-CBC-XXXX ({CUBICO_CHINA_OCEAN_ROUTE_CODE})
+{CUBICO_CHINA_OCEAN_ADDRESS} {CUBICO_CHINA_OCEAN_ROUTE_CODE} (CUBICO-CBC-XXXX)
 Buscar: "OSC奥冉达仓库"
-Teléfono: 13610061191 / 36082779
+Teléfono: {CUBICO_CHINA_OCEAN_PHONE_PRIMARY} / {CUBICO_CHINA_OCEAN_PHONE_SECONDARY}
 
 Donde XXXX es el código CBC del cliente. Para la dirección
 personalizada con su código exacto, el cliente debe verificarse
@@ -607,8 +625,8 @@ Sábado:
 Domingo:
 cerrado
 
-Local: Av. Juan Pablo II, Panamá, Provincia de Panamá
-Teléfono: 6730-2839
+Local: {CUBICO_LOCAL_ADDRESS}
+Teléfono: {CUBICO_LOCAL_PHONE}
 
 
 VERIFICACIÓN DE IDENTIDAD
@@ -771,8 +789,8 @@ Si el cliente verificado avisa que va a retirar y tiene facturas
 pendientes de pago, avísale de manera amable antes de confirmar
 el retiro. Ejemplo:
 "Perfecto, te esperamos. Solo recuerda traer el pago listo —
-puedes pagar por Yappy al 60705727 o por transferencia al
-Banco General cuenta 04-72-97-202288-7 a nombre de Cúbico.
+puedes pagar por Yappy al {CUBICO_PAYMENT_YAPPY} o por transferencia al
+Banco General cuenta {CUBICO_PAYMENT_ACCOUNT} a nombre de Cúbico.
 Así agilizamos la entrega cuando llegues."
 
 Luego confirma el retiro normalmente con avisar_retiro_paquete().
@@ -961,6 +979,25 @@ Bruno no debe parecer una plantilla de atención al cliente.
 
 Debe sentirse como una conversación normal con Cúbico.
 """
+
+for _clave_privada in (
+    "CUBICO_PAYMENT_ACCOUNT",
+    "CUBICO_PAYMENT_YAPPY",
+    "CUBICO_MIAMI_STREET",
+    "CUBICO_MIAMI_CITY_ZIP",
+    "CUBICO_MIAMI_PHONE",
+    "CUBICO_CHINA_AIR_ADDRESS",
+    "CUBICO_CHINA_AIR_PHONE",
+    "CUBICO_CHINA_OCEAN_ADDRESS",
+    "CUBICO_CHINA_OCEAN_ROUTE_CODE",
+    "CUBICO_CHINA_OCEAN_PHONE_PRIMARY",
+    "CUBICO_CHINA_OCEAN_PHONE_SECONDARY",
+    "CUBICO_LOCAL_ADDRESS",
+    "CUBICO_LOCAL_PHONE",
+):
+    SYSTEM_PROMPT = SYSTEM_PROMPT.replace(
+        "{" + _clave_privada + "}", globals()[_clave_privada]
+    )
 
 
 HERRAMIENTAS = [
@@ -1426,10 +1463,10 @@ def buscar_respuesta_fija(
 
         return (
             "La dirección de Cúbico en Miami es:\n\n"
-            "7854 NW 46TH ST\n"
+            "{CUBICO_MIAMI_STREET}\n"
             "CUBICO UNIT2\n"
-            "Doral, FL 33195-6085\n"
-            "Tel: (786)6221058"
+            "{CUBICO_MIAMI_CITY_ZIP}\n"
+            "Tel: {CUBICO_MIAMI_PHONE}"
         )
 
     if any(
@@ -1575,18 +1612,18 @@ def generar_respuesta(
         if tipo_normalizado == "ocean":
             direccion = (
                 f"{resultado['nombre_completo']} OCEAN {codigo_normalizado}\n"
-                f"7854 NW 46TH ST\n"
+                f"{CUBICO_MIAMI_STREET}\n"
                 f"CUBICO OCEAN {codigo_normalizado} UNIT2\n"
-                f"Doral, FL 33195-6085\n"
-                f"Tel: (786)6221058"
+                f"{CUBICO_MIAMI_CITY_ZIP}\n"
+                f"Tel: {CUBICO_MIAMI_PHONE}"
             )
         else:
             direccion = (
                 f"{resultado['nombre_completo']} {codigo_normalizado}\n"
-                f"7854 NW 46TH ST\n"
+                f"{CUBICO_MIAMI_STREET}\n"
                 f"CUBICO {codigo_normalizado} UNIT2\n"
-                f"Doral, FL 33195-6085\n"
-                f"Tel: (786)6221058"
+                f"{CUBICO_MIAMI_CITY_ZIP}\n"
+                f"Tel: {CUBICO_MIAMI_PHONE}"
             )
 
         return {
@@ -1616,16 +1653,16 @@ def generar_respuesta(
         if tipo_normalizado == "aereo":
             direccion = (
                 f"SHIPPING MARK: CUBICO-{codigo_normalizado} AÉREO\n"
-                f"广州市白云区园夏碑记街36号B栋一楼1号仓\n"
+                f"{CUBICO_CHINA_AIR_ADDRESS}\n"
                 f"源琪达货运 (CUBICO-{codigo_normalizado})\n"
-                f"Teléfono: 13631330475"
+                f"Teléfono: {CUBICO_CHINA_AIR_PHONE}"
             )
         else:
             direccion = (
-                f"SHIPPING MARK: CUBICO-{codigo_normalizado} (6P0006)\n"
-                f"广州市荔湾区东联路40号L栋 6P0006 (CUBICO-{codigo_normalizado})\n"
+                f"SHIPPING MARK: CUBICO-{codigo_normalizado} ({CUBICO_CHINA_OCEAN_ROUTE_CODE})\n"
+                f"{CUBICO_CHINA_OCEAN_ADDRESS} {CUBICO_CHINA_OCEAN_ROUTE_CODE} (CUBICO-{codigo_normalizado})\n"
                 f"Buscar: \"OSC奥冉达仓库\"\n"
-                f"Teléfono: 13610061191 / 36082779"
+                f"Teléfono: {CUBICO_CHINA_OCEAN_PHONE_PRIMARY} / {CUBICO_CHINA_OCEAN_PHONE_SECONDARY}"
             )
 
         return {
@@ -1660,11 +1697,23 @@ def generar_respuesta(
             if paquete.get("tracking")
         ]
 
-        actualizar_sesion(
-            telefono,
-            aviso_retiro_pendiente=True,
-            paquetes_a_retirar=", ".join(trackings),
-        )
+        cambios_retiro = {
+            "aviso_retiro_pendiente": True,
+            "paquetes_a_retirar": ", ".join(trackings),
+        }
+        sesion_previa = obtener_sesion_existente(telefono)
+        if sesion_previa and sesion_previa.entregado:
+            cambios_retiro.update({
+                "entregado": False,
+                "pago_reportado": False,
+                "pago_confirmado": False,
+                "paquetes_preparados": False,
+                "domicilio_coordinado": False,
+                "metodo_pago_reportado": None,
+                "monto_pago_reportado": None,
+                "comprobante_media_id": None,
+            })
+        actualizar_sesion(telefono, **cambios_retiro)
 
         return {
             "avisado": True,
@@ -1746,12 +1795,24 @@ def generar_respuesta(
             if paquete.get("tracking")
         ]
 
-        actualizar_sesion(
-            telefono,
-            solicitud_domicilio_pendiente=True,
-            direccion_domicilio=direccion.strip(),
-            paquetes_a_domicilio=", ".join(trackings),
-        )
+        cambios_domicilio = {
+            "solicitud_domicilio_pendiente": True,
+            "direccion_domicilio": direccion.strip(),
+            "paquetes_a_domicilio": ", ".join(trackings),
+        }
+        sesion_previa = obtener_sesion_existente(telefono)
+        if sesion_previa and sesion_previa.entregado:
+            cambios_domicilio.update({
+                "entregado": False,
+                "pago_reportado": False,
+                "pago_confirmado": False,
+                "paquetes_preparados": False,
+                "domicilio_coordinado": False,
+                "metodo_pago_reportado": None,
+                "monto_pago_reportado": None,
+                "comprobante_media_id": None,
+            })
+        actualizar_sesion(telefono, **cambios_domicilio)
 
         return {
             "solicitado": True,
@@ -1826,7 +1887,17 @@ def generar_respuesta(
     else:
         texto_para_claude = f"{prefijo_razonamiento}\n\n{texto_cliente}"
 
-    mensajes = list(historial[-20:]) if historial else []
+    # El historial interno también guarda timestamp y puede contener el rol
+    # "humano". La API de Anthropic solo acepta role/content y únicamente
+    # los roles user/assistant, así que normalizamos antes de enviarlo.
+    mensajes = [
+        {
+            "role": "assistant" if item.get("role") in {"assistant", "humano"} else "user",
+            "content": str(item.get("content", "")),
+        }
+        for item in (historial[-20:] if historial else [])
+        if item.get("content")
+    ]
 
     mensajes.append(
         {
@@ -1840,7 +1911,7 @@ def generar_respuesta(
     max_iteraciones_herramientas = 8
 
     def _llamar_claude():
-        return cliente_claude.messages.create(
+        respuesta = cliente_claude.messages.create(
             model="claude-sonnet-5",
             max_tokens=500,
             system=[
@@ -1853,6 +1924,19 @@ def generar_respuesta(
             tools=HERRAMIENTAS,
             messages=mensajes,
         )
+        usage = getattr(respuesta, "usage", None)
+        if usage is not None:
+            try:
+                registrar_uso_ia(
+                    telefono=telefono,
+                    modelo=getattr(respuesta, "model", "claude-sonnet-5"),
+                    input_tokens=int(getattr(usage, "input_tokens", 0) or 0),
+                    output_tokens=int(getattr(usage, "output_tokens", 0) or 0),
+                )
+            except Exception as error:
+                # Las métricas nunca deben impedir que el bot responda.
+                print(f"[WARN] No se pudo registrar uso de IA: {error}")
+        return respuesta
 
     def _extraer_texto(respuesta) -> str | None:
         textos = [
