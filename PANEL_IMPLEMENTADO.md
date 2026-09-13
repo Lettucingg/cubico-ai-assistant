@@ -21,18 +21,18 @@ construyen a partir del estado de cada conversación de WhatsApp.
 
 ## Variables necesarias
 
-Usa `.env.example` como guía. En Railway agrega todas las variables existentes
-y estas tres nuevas:
+Usa `.env.example` como guía. En el archivo de entorno privado del VPS agrega
+las variables existentes y estas tres nuevas:
 
 ```env
-SESSION_DATABASE_URL=${{Postgres.DATABASE_URL}}
+SESSION_DATABASE_URL=sqlite:///./sesiones.db
 ANTHROPIC_INPUT_USD_PER_MTOK=3.0
 ANTHROPIC_OUTPUT_USD_PER_MTOK=15.0
 ```
 
-`SESSION_DATABASE_URL` debe apuntar a PostgreSQL o a un volumen persistente.
-Si se deja sin configurar, la aplicación usa `sesiones.db`, que puede perderse
-al reiniciar o volver a desplegar un contenedor de Railway.
+`SESSION_DATABASE_URL` puede apuntar a PostgreSQL. En el VPS de Hetzner también
+se puede dejar sin configurar para continuar usando `sesiones.db`, que permanece
+en el disco entre reinicios de PM2. Haz una copia del archivo antes del despliegue.
 
 Los dos precios son configurables: coloca las tarifas de tu modelo/contrato.
 El sistema guarda el costo calculado en el momento de cada llamada, por lo que
@@ -41,23 +41,29 @@ un cambio futuro de precio no altera el histórico.
 Los teléfonos internos, direcciones de bodegas y datos de pago ya no viven en
 el repositorio público. Copia sus valores actuales a las variables
 `CUBICO_TEAM_COMMAND_NUMBERS_JSON`, `CUBICO_NOTIFICATION_NUMBERS_JSON`,
-`CUBICO_PAYMENT_*`, `CUBICO_MIAMI_*`, `CUBICO_CHINA_*` y `CUBICO_LOCAL_*` de
-Railway antes de fusionar o desplegar. Los dos campos `*_JSON` reciben arreglos
+`CUBICO_PAYMENT_*`, `CUBICO_MIAMI_*`, `CUBICO_CHINA_*` y `CUBICO_LOCAL_*` en el
+entorno privado del VPS antes de fusionar o desplegar. Los dos campos `*_JSON` reciben arreglos
 como `["50760000000"]`, siempre sin el signo `+`.
 
 ## Despliegue
 
-1. Sube el código a tu repositorio o reemplaza los archivos del proyecto.
-2. Configura `SESSION_DATABASE_URL` y las demás variables en Railway.
-3. Ejecuta el despliegue. `requirements.txt` ya está en UTF-8 y Railway inicia
-   con el comando definido en `railway.json`.
-4. Abre `https://TU-DOMINIO/admin` e inicia sesión con una cuenta definida en
+1. Configura las nuevas variables en el archivo de entorno privado que carga PM2.
+2. Comprueba y respalda `sesiones.db` si se mantiene SQLite.
+3. Fusiona el PR solamente después de la validación y despliega por SSH:
+
+   ```bash
+   ssh alexander@178.104.169.244
+   cd cubico-ai-assistant
+   git pull && pm2 restart cubico-bot --update-env
+   ```
+
+4. Abre `https://bot.cubico.com.pa/admin` e inicia sesión con una cuenta definida en
    `PANEL_USUARIOS_JSON`.
 5. Envía un mensaje de prueba desde un número que no sea el número de Cúbico y
    comprueba que aparece en Conversaciones.
 
 Durante la transición, el panel anterior permanece disponible en
-`https://TU-DOMINIO/admin-anterior`. Esta ruta permite una reversión operativa
+`https://bot.cubico.com.pa/admin-anterior`. Esta ruta permite una reversión operativa
 inmediata sin cambiar código ni volver a desplegar.
 
 Las tablas `sesiones` y `uso_ia`, además de las nuevas columnas operativas, se
