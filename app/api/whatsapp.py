@@ -109,6 +109,48 @@ async def enviar_imagen_whatsapp(telefono_destino: str, media_id: str, caption: 
     return respuesta
 
 
+async def subir_audio_whatsapp(
+    audio_bytes: bytes,
+    mime_type: str = "audio/ogg",
+    nombre_archivo: str = "mensaje-voz.ogg",
+) -> str:
+    """Sube un audio a Meta y devuelve el identificador del archivo."""
+    url = f"https://graph.facebook.com/v21.0/{settings.WHATSAPP_PHONE_NUMBER_ID}/media"
+    headers = {"Authorization": f"Bearer {settings.WHATSAPP_TOKEN}"}
+    data = {"messaging_product": "whatsapp", "type": mime_type}
+    files = {"file": (nombre_archivo, audio_bytes, mime_type)}
+
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        respuesta = await client.post(url, headers=headers, data=data, files=files)
+
+    if not respuesta.is_success:
+        raise RuntimeError(f"Meta rechazó la carga del audio ({respuesta.status_code})")
+    media_id = respuesta.json().get("id")
+    if not media_id:
+        raise RuntimeError("Meta no devolvió el identificador del audio")
+    return media_id
+
+
+async def enviar_audio_whatsapp(telefono_destino: str, media_id: str):
+    """Envía como audio de WhatsApp un archivo previamente subido a Meta."""
+    url = f"https://graph.facebook.com/v21.0/{settings.WHATSAPP_PHONE_NUMBER_ID}/messages"
+    headers = {
+        "Authorization": f"Bearer {settings.WHATSAPP_TOKEN}",
+        "Content-Type": "application/json",
+    }
+    payload = {
+        "messaging_product": "whatsapp",
+        "to": telefono_destino,
+        "type": "audio",
+        "audio": {"id": media_id},
+    }
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        respuesta = await client.post(url, headers=headers, json=payload)
+    if not respuesta.is_success:
+        raise RuntimeError(f"Meta rechazó el envío del audio ({respuesta.status_code})")
+    return respuesta
+
+
 # Números que pueden usar comandos de equipo (/responder, /resuelto,
 # /pendientes). Sus mensajes normales NO se procesan como cliente.
 NUMEROS_EQUIPO = json.loads(settings.CUBICO_TEAM_COMMAND_NUMBERS_JSON)
