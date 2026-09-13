@@ -389,13 +389,27 @@ async def _convertir_audio_webm_a_ogg(audio: bytes) -> bytes:
         "-hide_banner",
         "-loglevel",
         "error",
+        "-fflags",
+        "+genpts",
         "-i",
         "pipe:0",
         "-vn",
+        "-map_metadata",
+        "-1",
+        "-af",
+        "aresample=async=1:first_pts=0",
+        "-ac",
+        "1",
+        "-ar",
+        "48000",
         "-c:a",
         "libopus",
         "-b:a",
         "32k",
+        "-application",
+        "voip",
+        "-avoid_negative_ts",
+        "make_zero",
         "-f",
         "ogg",
         "pipe:1",
@@ -431,13 +445,16 @@ async def enviar_audio_desde_panel(
         raise HTTPException(status_code=413, detail="La grabación supera el límite de 16 MB")
 
     mime_original = request.headers.get("content-type", "").split(";", 1)[0].lower()
-    if mime_original in {"audio/ogg", "audio/mpeg", "audio/mp4", "audio/aac", "audio/amr"}:
-        audio_meta = audio
-        mime_meta = mime_original
-        extension = {"audio/mpeg": "mp3", "audio/mp4": "m4a"}.get(mime_meta, mime_meta.split("/")[-1])
-    elif mime_original in {"audio/webm", "video/webm", "application/octet-stream"}:
+    formatos_grabacion = {
+        "audio/ogg", "audio/webm", "video/webm", "application/octet-stream",
+        "audio/mpeg", "audio/mp4", "audio/aac", "audio/amr",
+    }
+    if mime_original in formatos_grabacion:
+        # El navegador puede grabar estéreo o usar marcas de tiempo que iOS
+        # no reproduce bien. Normalizamos siempre a la variante exacta que
+        # WhatsApp exige para notas de voz: OGG, Opus, mono y 48 kHz.
         audio_meta = await _convertir_audio_webm_a_ogg(audio)
-        mime_meta = "audio/ogg"
+        mime_meta = "audio/ogg; codecs=opus"
         extension = "ogg"
     else:
         raise HTTPException(status_code=415, detail="El navegador produjo un formato de audio no compatible")
