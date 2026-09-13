@@ -657,34 +657,34 @@ Si el cliente ya está verificado en el contexto, NO vuelvas a solicitar su iden
 
 TRACKING
 
-La prioridad para conocer el estado real del paquete es:
+Cuando el cliente manda un número de tracking sin decir nada más,
+responde directamente con el estado — no pidas confirmación.
 
-1. consultar_paquetes_por_codigo cuando el cliente esté verificado.
-2. consultar_tracking solamente cuando el paquete todavía no aparezca en nuestra base de datos o sea necesario revisar el transporte.
+Usa SIEMPRE consultar_tracking para buscar el estado. No consultes
+directamente PTY Freight ni otras fuentes externas: el endpoint ya
+hace la cascada completa (base de datos de Cúbico, PTY Freight y
+bodega de China) y te devuelve un único resultado con su "fuente".
 
-Si aparece en la base de Cúbico, estado_cargo es la fuente principal.
+Según la fuente que devuelva:
 
-Posibles estados:
-- en_miami
-- notificado
-- entregado
-
-Nunca digas que el cliente recibió su paquete basándote únicamente en ptyfreight.
-
-Si ptyfreight muestra "entregado", eso puede significar únicamente que llegó a nuestra bodega.
-
-En ese caso comunícalo como:
-"Ya llegó a nuestra bodega en Miami y está siendo procesado."
+- fuente="cubico": es el estado interno real del paquete (estado,
+  ruta, fecha). Es la fuente más confiable — comunícala tal cual.
+- fuente="ptyfreight": es tránsito externo, todavía no confirmado por
+  Cúbico. Nunca digas que el cliente recibió su paquete basándote
+  únicamente en esta fuente. Si muestra "entregado", eso puede
+  significar únicamente que llegó a nuestra bodega — comunícalo como
+  "Ya llegó a nuestra bodega en Miami y está siendo procesado."
+- fuente="china": estado del paquete todavía en la bodega de China.
+- fuente="no_encontrado": el tracking no aparece en ninguna fuente.
+  Si el cliente dice que es carga aérea de China, escala a humano con
+  motivo "Tracking aéreo China sin resultado". En cualquier otro caso,
+  informa que el paquete aún no está en nuestro sistema, pídele más
+  información (tienda donde compró, fecha aproximada de envío) para
+  poder rastrearlo, y escala al equipo humano si necesita seguimiento
+  especial.
 
 Todos los paquetes pasan por la bodega de Cúbico en Miami antes
 de llegar a Panamá — no hay entregas directas al cliente.
-
-Si un paquete no aparece en nuestro sistema ni en PTY Freight,
-significa que aún no ha llegado a nuestra bodega. En ese caso:
-- Informa al cliente que el paquete aún no está en nuestro sistema.
-- Pídele más información (número de tracking, tienda donde compró,
-  fecha aproximada de envío) para poder rastrearlo.
-- Escala al equipo humano si el cliente necesita seguimiento especial.
 
 No inventes información sobre el paradero del paquete.
 
@@ -1085,7 +1085,9 @@ HERRAMIENTAS = [
     {
         "name": "consultar_tracking",
         "description": (
-            "Consulta el estado de tracking en tiempo real de un paquete. "
+            "Consulta el estado unificado de un paquete (endpoint propio "
+            "de Cúbico, que ya hace la cascada completa contra la base "
+            "de datos de Cúbico, PTY Freight y la bodega de China). "
             "No requiere verificación de identidad, solamente el número "
             "de tracking."
         ),
@@ -1095,10 +1097,6 @@ HERRAMIENTAS = [
                 "numero_tracking": {
                     "type": "string",
                     "description": "Número de tracking",
-                },
-                "tipo_envio": {
-                    "type": "string",
-                    "description": "'aereo' o 'maritimo'",
                 },
             },
             "required": ["numero_tracking"],

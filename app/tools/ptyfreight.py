@@ -1,45 +1,82 @@
+import time
+
 import httpx
 
+TIMEOUT_SEGUNDOS = 8.0
+DURACION_CACHE_SEGUNDOS = 180  # 3 minutos
 
-def consultar_tracking(numero_tracking: str, tipo_envio: str = "aereo") -> dict:
+# Caché en memoria del proceso: numero_tracking -> (guardado_en, resultado).
+# Evita golpear el endpoint unificado en cada mensaje si el cliente
+# pregunta por el mismo tracking varias veces seguidas.
+_cache_tracking: dict[str, tuple[float, dict]] = {}
+
+
+def consultar_tracking(numero_tracking: str) -> dict:
     """
-    Consulta el estado de tracking en tiempo real de un paquete,
-    directamente contra la API pública de ptyfreight.com.
-
-    A diferencia de las otras herramientas, esta no consulta la
-    base de datos de Cúbico — consulta un servicio EXTERNO en
-    tiempo real, así que la información puede variar en cada
-    llamada (por ejemplo, si el paquete avanzó de estado).
+    Consulta el estado de un paquete contra el endpoint unificado de
+    Cúbico (tracking-publico), que ya hace la cascada completa —
+    base de datos propia, PTY Freight y bodega de China — y devuelve
+    un único resultado indicando de dónde salió ("fuente").
     """
-    tipo_envio = tipo_envio.strip().lower()
+    numero_normalizado = numero_tracking.strip()
 
-    if tipo_envio in ("maritimo", "marítimo"):
-        url = f"https://ptyfreight.com/api/ocean-tracking/{numero_tracking}"
-    else:
-        url = f"https://ptyfreight.com/api/tracking/{numero_tracking}"
+    en_cache = _cache_tracking.get(numero_normalizado)
+    if en_cache is not None:
+        guardado_en, resultado_cacheado = en_cache
+        if time.monotonic() - guardado_en < DURACION_CACHE_SEGUNDOS:
+            return resultado_cacheado
+
+    url = f"http://127.0.0.1:3000/api/tracking-publico/{numero_normalizado}"
 
     try:
-        respuesta = httpx.get(url, timeout=10.0)
-
-        if respuesta.status_code != 200:
-            return {
-                "encontrado": False,
-                "mensaje": (
-                    f"No se pudo consultar el tracking {numero_tracking} "
-                    f"en este momento."
-                ),
-            }
-
-        return {
-            "encontrado": True,
-            "datos": respuesta.json(),
-        }
-
-    except httpx.RequestError:
+        respuesta = httpx.get(url, timeout=TIMEOUT_SEGUNDOS)
+        respuesta.raise_for_status()
+        datos = respuesta.json()
+    except (httpx.RequestError, httpx.HTTPStatusError, ValueError):
         return {
             "encontrado": False,
-            "mensaje": (
-                "El servicio de tracking no está disponible en este "
-                "momento. Intenta de nuevo más tarde."
-            ),
+            "mensaje": "No se pudo consultar el estado",
         }
+
+    resultado = _mapear_respuesta(datos)
+    _cache_tracking[numero_normalizado] = (time.monotonic(), resultado)
+
+    return resultado
+
+
+def _mapear_respuesta(datos: dict) -> dict:
+    """
+    Traduce la respuesta cruda del endpoint unificado (que trae un
+    campo "fuente" distinto según de dónde salió el dato) al formato
+    que espera Bruno.
+    """
+    fuente = datos.get("fuente")
+
+    if fuente == "cubico":
+        return {
+            "encontrado": True,
+            "fuente": "cubico",
+            "estado": datos.get("estado"),
+            "ruta": datos.get("ruta"),
+            "fecha": datos.get("fecha_carga"),
+        }
+
+    if fuente == "ptyfreight":
+        return {
+            "encontrado": True,
+            "fuente": "ptyfreight",
+            "estado": datos.get("estado_texto"),
+            "ubicacion": datos.get("ubicacion"),
+        }
+
+    if fuente == "china":
+        return {
+            "encontrado": True,
+            "fuente": "china",
+            "estado": datos.get("estado_texto"),
+        }
+
+    return {
+        "encontrado": False,
+        "mensaje": "No encontrado en ninguna fuente",
+    }
