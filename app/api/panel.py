@@ -1,9 +1,11 @@
 import asyncio
 import json
 import secrets
+import shutil
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Response
+import httpx
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 
 from app.core.config import settings
@@ -19,7 +21,11 @@ from app.tools.clientes import obtener_nombre_completo_cliente
 from app.tools.comprobantes import descargar_imagen_de_whatsapp
 from app.tools.facturas import consultar_facturas_por_codigo
 from app.ai.orchestrator import redactar_respuesta_de_asesor
-from app.api.whatsapp import enviar_respuesta_natural
+from app.api.whatsapp import (
+    enviar_audio_whatsapp,
+    enviar_respuesta_natural,
+    subir_audio_whatsapp,
+)
 
 router = APIRouter(prefix="/panel", tags=["panel"])
 
@@ -29,6 +35,19 @@ security = HTTPBasic()
 # PANEL_USUARIOS_JSON (un objeto JSON usuario -> contraseña). Nunca
 # hardcodear usuarios/contraseñas reales aquí en el código.
 USUARIOS_PANEL: dict[str, str] = json.loads(settings.PANEL_USUARIOS_JSON)
+
+
+def _ultimo_mensaje_cliente_en(historial: list[dict]) -> datetime | None:
+    """Fecha del último mensaje entrante; ignora respuestas y cambios operativos."""
+    for mensaje in reversed(historial):
+        if mensaje.get("role") != "user" or not mensaje.get("timestamp"):
+            continue
+        try:
+            fecha = datetime.fromisoformat(str(mensaje["timestamp"]).replace("Z", "+00:00"))
+            return fecha.replace(tzinfo=None)
+        except (TypeError, ValueError):
+            continue
+    return None
 
 
 def verificar_credenciales_panel(credenciales: HTTPBasicCredentials = Depends(security)) -> str:
@@ -70,6 +89,7 @@ def listar_conversaciones(usuario: str = Depends(verificar_credenciales_panel)):
         if historial:
             ultimo = historial[-1]
             ultimo_mensaje = {"rol": ultimo.get("role"), "contenido": ultimo.get("content")}
+        ultimo_cliente_en = _ultimo_mensaje_cliente_en(historial)
 
         resultado.append({
             "telefono": sesion.telefono,
@@ -94,9 +114,12 @@ def listar_conversaciones(usuario: str = Depends(verificar_credenciales_panel)):
             "monto_pago_reportado": sesion.monto_pago_reportado,
             "uso": obtener_uso_por_telefono(sesion.telefono),
             "ultimo_mensaje": ultimo_mensaje,
-            "tiene_no_leidos": (
-                sesion.actualizado_en > sesion.ultimo_leido_panel
-                if sesion.ultimo_leido_panel else True
+            "tiene_no_leidos": bool(
+                ultimo_cliente_en
+                and (
+                    sesion.ultimo_leido_panel is None
+                    or ultimo_cliente_en > sesion.ultimo_leido_panel
+                )
             ),
         })
     return resultado
@@ -310,6 +333,86 @@ def marcar_leido(
     """Marca la conversación como leída por el trabajador en el panel."""
     actualizar_sesion(telefono, ultimo_leido_panel=datetime.utcnow())
     return {"status": "leido"}
+
+
+async def _convertir_audio_webm_a_ogg(audio: bytes) -> bytes:
+    """Convierte la grabación del navegador a OGG/Opus aceptado por WhatsApp."""
+    ffmpeg = shutil.which("ffmpeg")
+    if not ffmpeg:
+        raise HTTPException(
+            status_code=503,
+            detail="El servidor todavía no tiene instalado el convertidor de audio",
+        )
+    proceso = await asyncio.create_subprocess_exec(
+        ffmpeg,
+        "-hide_banner",
+        "-loglevel",
+        "error",
+        "-i",
+        "pipe:0",
+        "-vn",
+        "-c:a",
+        "libopus",
+        "-b:a",
+        "32k",
+        "-f",
+        "ogg",
+        "pipe:1",
+        stdin=asyncio.subprocess.PIPE,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
+    try:
+        salida, error = await asyncio.wait_for(proceso.communicate(audio), timeout=30)
+    except TimeoutError as exc:
+        proceso.kill()
+        await proceso.wait()
+        raise HTTPException(status_code=504, detail="La conversión del audio tardó demasiado") from exc
+    if proceso.returncode != 0 or not salida:
+        detalle = error.decode("utf-8", errors="ignore")[-300:]
+        raise HTTPException(status_code=400, detail=f"No se pudo procesar la grabación: {detalle}")
+    return salida
+
+
+@router.post("/enviar-audio/{telefono}")
+async def enviar_audio_desde_panel(
+    telefono: str,
+    request: Request,
+    usuario: str = Depends(verificar_credenciales_panel),
+):
+    """Recibe una grabación del panel, la normaliza y la envía por WhatsApp."""
+    if obtener_sesion_existente(telefono) is None:
+        raise HTTPException(status_code=404, detail="No existe ninguna conversación con ese teléfono")
+    audio = await request.body()
+    if not audio:
+        raise HTTPException(status_code=400, detail="La grabación está vacía")
+    if len(audio) > 16 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="La grabación supera el límite de 16 MB")
+
+    mime_original = request.headers.get("content-type", "").split(";", 1)[0].lower()
+    if mime_original in {"audio/ogg", "audio/mpeg", "audio/mp4", "audio/aac", "audio/amr"}:
+        audio_meta = audio
+        mime_meta = mime_original
+        extension = {"audio/mpeg": "mp3", "audio/mp4": "m4a"}.get(mime_meta, mime_meta.split("/")[-1])
+    elif mime_original in {"audio/webm", "video/webm", "application/octet-stream"}:
+        audio_meta = await _convertir_audio_webm_a_ogg(audio)
+        mime_meta = "audio/ogg"
+        extension = "ogg"
+    else:
+        raise HTTPException(status_code=415, detail="El navegador produjo un formato de audio no compatible")
+
+    try:
+        media_id = await subir_audio_whatsapp(
+            audio_meta,
+            mime_type=mime_meta,
+            nombre_archivo=f"mensaje-voz.{extension}",
+        )
+        await enviar_audio_whatsapp(telefono, media_id)
+    except (httpx.HTTPError, RuntimeError) as error:
+        raise HTTPException(status_code=502, detail=str(error)) from error
+
+    agregar_al_historial(telefono, "humano", "🎤 Nota de voz enviada por el equipo")
+    return {"status": "enviado"}
 
 
 @router.post("/retiro/{telefono}")
