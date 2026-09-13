@@ -647,6 +647,11 @@ async def procesar_mensaje_en_segundo_plano(mensaje: dict):
                     mensaje["telefono"],
                     pago_reportado=True,
                     pago_confirmado=False,
+                    # Si el caso anterior ya se entregó, este comprobante
+                    # inicia un ciclo operativo nuevo para el cliente.
+                    entregado=False,
+                    paquetes_preparados=False,
+                    domicilio_coordinado=False,
                     metodo_pago_reportado=campos.get("metodo"),
                     monto_pago_reportado=monto,
                     comprobante_media_id=mensaje["media_id"],
