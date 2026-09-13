@@ -24,13 +24,31 @@
   </style>
 </head>
 <body>
-  <div class="app">
+  <div id="login-overlay" style="position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:50;padding:20px">
+    <div class="card" style="width:100%;max-width:380px;padding:32px 28px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:24px">
+        <div class="cube">C</div>
+        <div><strong style="font-size:18px">Cúbico Control</strong><small style="display:block;color:var(--muted);font-size:11px;letter-spacing:.1em;text-transform:uppercase;margin-top:2px">Acceso de operaciones</small></div>
+      </div>
+      <div style="margin-bottom:14px">
+        <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:6px">Usuario</label>
+        <input id="login-user" type="text" autocomplete="username" style="width:100%;border:1px solid var(--line);border-radius:10px;padding:10px 12px;outline:none;background:var(--bg)"/>
+      </div>
+      <div style="margin-bottom:18px">
+        <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:6px">Contraseña</label>
+        <input id="login-pass" type="password" autocomplete="current-password" style="width:100%;border:1px solid var(--line);border-radius:10px;padding:10px 12px;outline:none;background:var(--bg)"/>
+      </div>
+      <button class="btn dark" id="login-btn" style="width:100%;padding:12px;justify-content:center;text-align:center">Entrar</button>
+      <div id="login-err" style="display:none;margin-top:12px;font-size:12px;color:var(--red);background:var(--red2);padding:9px;border-radius:8px;text-align:center"></div>
+    </div>
+  </div>
+  <div class="app" style="display:none">
     <aside class="sidebar">
       <div class="brand"><div class="cube">C</div><div><strong>Cúbico</strong><small>Control</small></div></div>
       <div class="nav-label">Operación</div>
       <nav class="nav">
         <button class="active" data-view="overview"><span>⌂</span><span>Resumen</span></button>
-        <button data-view="chats"><span>◫</span><span>Conversaciones</span><span class="count">7</span></button>
+        <button data-view="chats"><span>◫</span><span>Conversaciones</span><span class="count" id="nav-count-chats">0</span></button>
         <button data-view="packages"><span>◇</span><span>Retiros y domicilios</span><span class="count">12</span></button>
         <button data-view="costs"><span>⌁</span><span>Costos y tokens</span></button>
       </nav>
@@ -58,14 +76,11 @@
 
       <section class="view" id="chats">
         <div class="inbox card">
-          <aside class="chat-list"><div class="pane-head"><div class="pane-head-row"><h2>Conversaciones</h2><select class="filter"><option>Todas</option><option>Necesitan humano</option><option>Bruno atendiendo</option></select></div><input class="chat-search" placeholder="Buscar conversación…" /></div><div class="chat-items">
-            <button class="chat-item active" data-name="María González" data-code="MG2041"><div class="person">MG</div><div class="chat-copy"><div class="chat-name"><b>María González</b><span class="bot-tag human-tag">Humano</span></div><p>No me coincide el peso de la factura…</p></div><div class="chat-meta"><small>10:42</small><span class="unread">2</span></div></button>
-            <button class="chat-item" data-name="Carlos Méndez" data-code="CM8832"><div class="person p2">CM</div><div class="chat-copy"><div class="chat-name"><b>Carlos Méndez</b><span class="bot-tag">Bruno</span></div><p>Perfecto, ¿cuándo puedo retirarlo?</p></div><div class="chat-meta"><small>10:37</small></div></button>
-            <button class="chat-item" data-name="Andrea Ríos" data-code="AR5109"><div class="person p3">AR</div><div class="chat-copy"><div class="chat-name"><b>Andrea Ríos</b><span class="bot-tag">Bruno</span></div><p>Tu paquete ya está disponible…</p></div><div class="chat-meta"><small>10:31</small></div></button>
-            <button class="chat-item" data-name="José Castillo" data-code="JC7720"><div class="person p4">JC</div><div class="chat-copy"><div class="chat-name"><b>José Castillo</b><span class="bot-tag human-tag">Humano</span></div><p>Necesito cambiar la dirección.</p></div><div class="chat-meta"><small>10:18</small><span class="unread">1</span></div></button>
+          <aside class="chat-list"><div class="pane-head"><div class="pane-head-row"><h2>Conversaciones</h2><select class="filter" id="filtro-select"><option>Todas</option><option>Necesitan humano</option><option>Bruno atendiendo</option></select></div><input class="chat-search" id="chat-search" placeholder="Buscar conversación…" /></div><div class="chat-items" id="chat-items">
+            <div style="padding:30px 16px;text-align:center;color:var(--muted);font-size:12px">Cargando conversaciones…</div>
           </div></aside>
-          <section class="conversation"><header class="conv-head"><div class="conv-person"><div class="person" id="conv-avatar">MG</div><div><b id="conv-name">María González</b><small><i class="dot"></i>WhatsApp · última vez hace 1 min · <strong style="color:#8a6715">1,840 tokens · $0.041</strong></small></div></div><div class="conv-actions"><button class="btn" id="resolve">✓ Resolver</button><button class="btn dark" id="takeover">Tomar control</button></div></header><div class="messages" id="messages"><div class="day">HOY</div><div class="bubble out">Hola, María. Tu paquete con código CUB-847392 ya llegó a Cúbico y está disponible para retiro o entrega.<time>10:31 ✓✓</time></div><div class="bubble in">Hola, vi la factura pero el peso no coincide con lo que compré.<time>10:39</time></div><div class="bubble out">Entiendo. La factura registra 6.4 lb. ¿Quieres que solicite una revisión del peso?<time>10:40 ✓✓</time></div><div class="bubble in">Sí por favor, mi pedido decía 4.6 lb.<time>10:42</time></div><div class="bubble system">Bruno detectó una diferencia y solicitó atención humana</div></div><footer class="composer"><div class="compose-row"><button class="voice" id="voice" aria-label="Grabar mensaje de voz">●</button><input class="compose-input" id="message-input" placeholder="Escribe como Cúbico…"/><button class="send" id="send" aria-label="Enviar">➤</button></div><div class="compose-foot"><span id="mode-label">Bruno está pausado en esta conversación</span><span>Enter para enviar</span></div></footer></section>
-          <aside class="customer"><div class="customer-head"><h3>Contexto del cliente</h3></div><div class="profile"><div class="person">MG</div><h3 id="profile-name">María González</h3><p id="profile-code">Cliente MG2041</p><span class="risk">Cliente verificado</span></div><div class="detail-block"><h4>Información</h4><div class="detail"><span>Teléfono</span><b>+507 6000-1842</b></div><div class="detail"><span>Última compra</span><b>Amazon</b></div><div class="detail"><span>Conversaciones</span><b>12</b></div><div class="detail"><span>Valor histórico</span><b>$284.60</b></div></div><div class="detail-block"><h4>Paquetes activos</h4><div class="package-mini"><div class="package-mini-top"><b>CUB-847392</b><span class="status">Revisión</span></div><p>Amazon · 6.4 lb · Factura FAC-10452</p></div><div class="package-mini"><div class="package-mini-top"><b>CUB-840118</b><span class="status green">Retirado</span></div><p>Shein · 2.1 lb · 28 ago.</p></div></div><div class="detail-block"><h4>Notas internas</h4><div class="package-mini"><p style="margin:0">Prefiere coordinar entregas después de las 4:00 p. m.</p></div></div></aside>
+          <section class="conversation"><header class="conv-head"><div class="conv-person"><div class="person" id="conv-avatar">—</div><div><b id="conv-name">Selecciona una conversación</b><small><i class="dot"></i><span id="conv-status-line">Elige un chat de la lista</span></small></div></div><div class="conv-actions"><button class="btn" id="resolve" disabled>✓ Resolver</button><button class="btn dark" id="takeover" disabled>Tomar control</button><span id="extra-actions" style="display:contents"></span></div></header><div class="messages" id="messages"><div class="day">Selecciona una conversación para ver su historial</div></div><footer class="composer"><div class="compose-row"><button class="voice" id="voice" aria-label="Grabar mensaje de voz">●</button><input class="compose-input" id="message-input" placeholder="Escribe como Cúbico…" disabled/><button class="send" id="send" aria-label="Enviar" disabled>➤</button></div><div class="compose-foot"><span id="mode-label">Selecciona una conversación para comenzar</span><span>Enter para enviar</span></div></footer></section>
+          <aside class="customer"><div class="customer-head"><h3>Contexto del cliente</h3></div><div class="profile"><div class="person" id="profile-avatar">—</div><h3 id="profile-name">—</h3><p id="profile-code">—</p><span class="risk" id="profile-risk">Sin conversación</span></div><div class="detail-block"><h4>Información</h4><div class="detail"><span>Teléfono</span><b id="profile-phone">—</b></div><div class="detail"><span>Estado</span><b id="profile-estado">—</b></div></div></aside>
         </div>
       </section>
 
@@ -93,17 +108,245 @@
     function showView(id){document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id===id));document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.view===id));document.getElementById('page-title').textContent=titles[id][0];document.getElementById('page-sub').textContent=titles[id][1];window.scrollTo({top:0,behavior:'smooth'})}
     document.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>showView(b.dataset.view)));document.querySelectorAll('.open-chats').forEach(b=>b.addEventListener('click',()=>showView('chats')));
     const toast=document.getElementById('toast');function say(t){toast.textContent=t;toast.classList.add('show');setTimeout(()=>toast.classList.remove('show'),2200)}
-    let human=true;document.getElementById('takeover').addEventListener('click',e=>{human=!human;e.target.textContent=human?'Devolver a Bruno':'Tomar control';e.target.classList.toggle('gold',!human);document.getElementById('mode-label').textContent=human?'Modo humano activo · Bruno está pausado':'Bruno volvió a atender esta conversación';document.getElementById('mode-label').classList.toggle('mode-human',human);say(human?'Control humano activado':'Conversación devuelta a Bruno')});
-    document.getElementById('resolve').addEventListener('click',()=>say('Conversación marcada como resuelta'));
-    const input=document.getElementById('message-input'),messages=document.getElementById('messages');function send(){const value=input.value.trim();if(!value)return;const b=document.createElement('div');b.className='bubble out';b.innerHTML=value.replace(/[<>]/g,'')+'<time>ahora ✓</time>';messages.appendChild(b);input.value='';messages.scrollTop=messages.scrollHeight;say('Mensaje enviado por WhatsApp')};document.getElementById('send').onclick=send;input.addEventListener('keydown',e=>{if(e.key==='Enter')send()});
     const voice=document.getElementById('voice');let recording=false;voice.addEventListener('click',()=>{recording=!recording;voice.classList.toggle('recording',recording);voice.textContent=recording?'■':'●';say(recording?'Grabando nota de voz…':'Nota de voz lista para enviar')});
-    document.querySelectorAll('.chat-item').forEach(item=>item.addEventListener('click',()=>{document.querySelectorAll('.chat-item').forEach(i=>i.classList.remove('active'));item.classList.add('active');const name=item.dataset.name,code=item.dataset.code,initials=name.split(' ').map(x=>x[0]).join('').slice(0,2);document.getElementById('conv-name').textContent=name;document.getElementById('profile-name').textContent=name;document.getElementById('profile-code').textContent='Cliente '+code;document.getElementById('conv-avatar').textContent=initials;say('Conversación de '+name+' abierta')}));
     document.querySelectorAll('.package-tab').forEach(tab=>tab.addEventListener('click',()=>{document.querySelectorAll('.package-tab').forEach(t=>t.classList.remove('active'));tab.classList.add('active');const filter=tab.dataset.packageFilter;document.querySelectorAll('#package-rows tr').forEach(row=>row.style.display=filter==='all'||row.dataset.type.includes(filter)?'':'none')}));
     document.querySelectorAll('.select-case').forEach(btn=>btn.addEventListener('click',()=>{const initials=btn.dataset.customer.split(' ').map(x=>x[0]).join('').slice(0,2);document.getElementById('case-kind').textContent=btn.dataset.kind;document.getElementById('case-customer').textContent=btn.dataset.customer;document.getElementById('case-detail').textContent=btn.dataset.detail;document.getElementById('case-address').textContent=btn.dataset.address;document.getElementById('case-amount').textContent=btn.dataset.amount;document.querySelector('#case-summary .receipt-icon').textContent=initials;say('Caso de '+btn.dataset.customer+' abierto')}));
     document.querySelectorAll('.workflow-action').forEach(btn=>btn.addEventListener('click',()=>{if(btn.dataset.action==='Pago confirmado'){document.getElementById('case-payment').textContent='Confirmado';document.getElementById('case-payment').style.color='var(--green)'}btn.textContent='✓ '+btn.dataset.action;btn.style.background='var(--green2)';btn.style.color='var(--green)';btn.style.borderColor='#bce2d1';say(btn.dataset.action+' · cliente actualizado por WhatsApp')}));
     document.querySelector('.open-chat-case').addEventListener('click',()=>showView('chats'));
     document.querySelectorAll('.seg button').forEach(b=>b.addEventListener('click',()=>{b.parentNode.querySelectorAll('button').forEach(x=>x.classList.remove('active'));b.classList.add('active');say('Período actualizado')}));
-    document.querySelectorAll('.btn,.link-btn').forEach(b=>{if(!b.id&&!b.classList.contains('open-chats')&&!b.dataset.view)b.addEventListener('click',()=>say('Acción disponible en la versión conectada'))});
+    document.querySelectorAll('.btn,.link-btn').forEach(b=>{if(!b.id&&!b.classList.contains('open-chats')&&!b.dataset.view&&!b.classList.contains('package-tab'))b.addEventListener('click',()=>say('Acción disponible en la versión conectada'))});
+
+    // ===================================================================
+    // Integración real con /panel/* (ver INTEGRATION_HANDOFF.md)
+    // ===================================================================
+    let creds=null,convs=[],telActivo=null,filtroEstado='todas',busqueda='',refreshTimer=null;
+    // El backend no expone si una conversación está en modo "control humano"
+    // en GET /panel/conversaciones (ver sección 5 del handoff) — solo se
+    // puede activar/desactivar vía POST /panel/control/{tel}. Por eso este
+    // estado se seguimos localmente, en memoria del navegador, y se pierde
+    // si se recarga la página.
+    let modoControl={};
+
+    function authHeaders(json){const h={'Authorization':'Basic '+creds};if(json)h['Content-Type']='application/json';return h}
+    function apiGet(path){return fetch(path,{headers:authHeaders(false)})}
+    function apiPost(path,body){return fetch(path,{method:'POST',headers:authHeaders(!!body),body:body?JSON.stringify(body):undefined})}
+    function esc(s){return(s||'').toString().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+    function initials(nombre){const t=(nombre||'').trim();if(!t)return'#';return t.split(/\s+/).map(p=>p[0]).join('').slice(0,2).toUpperCase()}
+    function colorClass(tel){const n=[...String(tel)].reduce((a,c)=>a+c.charCodeAt(0),0);return[' ',' p2',' p3',' p4'][n%4]}
+
+    async function login(){
+      const u=document.getElementById('login-user').value.trim();
+      const p=document.getElementById('login-pass').value;
+      const err=document.getElementById('login-err');
+      err.style.display='none';
+      if(!u||!p)return;
+      const b64=btoa(u+':'+p);
+      try{
+        const r=await fetch('/panel/conversaciones',{headers:{'Authorization':'Basic '+b64}});
+        if(r.status===401){err.textContent='Usuario o contraseña incorrectos';err.style.display='block';return}
+        if(!r.ok){err.textContent='Error al conectar con el servidor';err.style.display='block';return}
+        creds=b64;
+        document.getElementById('login-overlay').style.display='none';
+        document.querySelector('.app').style.display='grid';
+        renderLista(await r.json());
+        iniciarAutoRefresh();
+      }catch(e){err.textContent='Error de conexión';err.style.display='block'}
+    }
+    document.getElementById('login-btn').addEventListener('click',login);
+    document.getElementById('login-pass').addEventListener('keydown',e=>{if(e.key==='Enter')login()});
+    document.getElementById('login-user').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('login-pass').focus()});
+
+    function iniciarAutoRefresh(){clearInterval(refreshTimer);refreshTimer=setInterval(recargarConversaciones,30000)}
+
+    async function recargarConversaciones(){
+      try{
+        const r=await apiGet('/panel/conversaciones');
+        if(!r.ok)return;
+        renderLista(await r.json());
+        if(telActivo){
+          const conv=convs.find(c=>c.telefono===telActivo);
+          if(conv)actualizarEncabezadoChat(conv);
+        }
+      }catch(e){}
+    }
+
+    function coincideFiltro(c){
+      if(filtroEstado==='humano')return c.necesita_atencion_humana;
+      if(filtroEstado==='bruno')return!c.necesita_atencion_humana;
+      return true;
+    }
+    function coincideBusqueda(c){
+      if(!busqueda)return true;
+      const q=busqueda.toLowerCase();
+      return(c.nombre||'').toLowerCase().includes(q)||c.telefono.includes(q);
+    }
+
+    function renderLista(data){
+      convs=data;
+      const nav=document.getElementById('nav-count-chats');
+      if(nav)nav.textContent=data.length;
+      const cont=document.getElementById('chat-items');
+      const lista=data.filter(coincideFiltro).filter(coincideBusqueda);
+      if(!lista.length){
+        cont.innerHTML='<div style="padding:30px 16px;text-align:center;color:var(--muted);font-size:12px">Sin conversaciones para este filtro</div>';
+        return;
+      }
+      cont.innerHTML=lista.map(c=>{
+        const nombre=c.nombre||c.telefono;
+        const prev=esc((c.ultimo_mensaje?.contenido||'').slice(0,58))||'—';
+        const enControl=!!modoControl[c.telefono];
+        const tagControl=enControl?'<span class="bot-tag human-tag">Humano</span>':'<span class="bot-tag">Bruno</span>';
+        const badges=[
+          c.necesita_atencion_humana?'<span class="bot-tag human-tag">⚠ Atención</span>':'',
+          c.aviso_retiro_pendiente?'<span class="bot-tag">📦 Retiro</span>':'',
+          c.solicitud_domicilio_pendiente?'<span class="bot-tag">🏠 Domicilio</span>':'',
+        ].join('');
+        return`<button class="chat-item${c.telefono===telActivo?' active':''}" data-telefono="${c.telefono}"><div class="person${colorClass(c.telefono)}">${initials(nombre)}</div><div class="chat-copy"><div class="chat-name"><b>${esc(nombre)}</b>${tagControl}${badges}</div><p>${prev}</p></div><div class="chat-meta">${c.tiene_no_leidos?'<span class="unread"></span>':''}</div></button>`;
+      }).join('');
+      document.querySelectorAll('#chat-items .chat-item').forEach(btn=>btn.addEventListener('click',()=>abrirChat(btn.dataset.telefono)));
+    }
+
+    document.getElementById('filtro-select').addEventListener('change',e=>{
+      const mapa={'Todas':'todas','Necesitan humano':'humano','Bruno atendiendo':'bruno'};
+      filtroEstado=mapa[e.target.value]||'todas';
+      renderLista(convs);
+    });
+    document.getElementById('chat-search').addEventListener('input',e=>{busqueda=e.target.value.trim();renderLista(convs)});
+
+    function habilitarComposer(activo){
+      document.getElementById('message-input').disabled=!activo;
+      document.getElementById('send').disabled=!activo;
+      document.getElementById('resolve').disabled=!activo;
+      document.getElementById('takeover').disabled=!activo;
+    }
+
+    function actualizarEncabezadoChat(conv){
+      if(!conv)return;
+      const nombre=conv.nombre||conv.telefono;
+      document.getElementById('conv-name').textContent=nombre;
+      document.getElementById('conv-avatar').textContent=initials(nombre);
+      document.getElementById('conv-status-line').textContent='WhatsApp · '+conv.telefono;
+      document.getElementById('profile-avatar').textContent=initials(nombre);
+      document.getElementById('profile-name').textContent=nombre;
+      document.getElementById('profile-code').textContent=conv.codigo_cliente_verificado?('Cliente '+conv.codigo_cliente_verificado):'Sin código verificado';
+      document.getElementById('profile-risk').textContent=conv.codigo_cliente_verificado?'Cliente verificado':'No verificado';
+      document.getElementById('profile-phone').textContent=conv.telefono;
+      document.getElementById('profile-estado').textContent=conv.estado||'—';
+
+      const enControl=!!modoControl[conv.telefono];
+      const takeoverBtn=document.getElementById('takeover');
+      takeoverBtn.textContent=enControl?'Devolver a Bruno':'Tomar control';
+      takeoverBtn.classList.toggle('gold',enControl);
+      const modeLabel=document.getElementById('mode-label');
+      modeLabel.textContent=enControl?'Modo humano activo · Bruno está pausado':'Bruno está atendiendo esta conversación';
+      modeLabel.classList.toggle('mode-human',enControl);
+
+      const extra=document.getElementById('extra-actions');
+      const botones=[];
+      if(conv.aviso_retiro_pendiente)botones.push('<button class="btn" id="btn-retiro">📦 Retiro listo</button>');
+      if(conv.solicitud_domicilio_pendiente)botones.push('<button class="btn" id="btn-domicilio">🏠 Domicilio coordinado</button>');
+      extra.innerHTML=botones.join('');
+      const btnRetiro=document.getElementById('btn-retiro');
+      if(btnRetiro)btnRetiro.addEventListener('click',()=>accionSimple(conv.telefono,'/panel/retiro/','Retiro marcado como listo'));
+      const btnDomicilio=document.getElementById('btn-domicilio');
+      if(btnDomicilio)btnDomicilio.addEventListener('click',()=>accionSimple(conv.telefono,'/panel/domicilio/','Domicilio marcado como coordinado'));
+    }
+
+    function renderMensajes(historial){
+      const cont=document.getElementById('messages');
+      if(!historial||!historial.length){
+        cont.innerHTML='<div class="day">Sin mensajes todavía</div>';
+        return;
+      }
+      cont.innerHTML=historial.map(m=>{
+        if(m.role==='user')return`<div class="bubble in">${esc(m.content)}</div>`;
+        if(m.role==='humano')return`<div class="bubble out">${esc(m.content)}</div>`;
+        return`<div class="bubble out">${esc(m.content)}</div>`;
+      }).join('');
+      cont.scrollTop=cont.scrollHeight;
+    }
+
+    async function abrirChat(tel){
+      telActivo=tel;
+      document.querySelectorAll('#chat-items .chat-item').forEach(b=>b.classList.toggle('active',b.dataset.telefono===tel));
+      const conv=convs.find(c=>c.telefono===tel);
+      actualizarEncabezadoChat(conv);
+      habilitarComposer(true);
+      document.getElementById('messages').innerHTML='<div class="day">Cargando historial…</div>';
+      try{
+        const r=await apiGet(`/panel/conversacion/${tel}`);
+        if(r.ok){renderMensajes((await r.json()).historial)}
+        else{document.getElementById('messages').innerHTML='<div class="day">No se pudo cargar el historial</div>'}
+      }catch(e){document.getElementById('messages').innerHTML='<div class="day">Error de conexión</div>'}
+      try{
+        const r2=await apiPost(`/panel/marcar-leido/${tel}`);
+        if(r2.ok){
+          const c=convs.find(x=>x.telefono===tel);
+          if(c)c.tiene_no_leidos=false;
+          renderLista(convs);
+        }
+      }catch(e){}
+    }
+
+    async function accionSimple(tel,pathBase,mensajeOk){
+      try{
+        const r=await apiPost(pathBase+tel);
+        if(r.ok){
+          say(mensajeOk);
+          await recargarConversaciones();
+        }else{
+          say('No se pudo completar la acción');
+        }
+      }catch(e){say('Error de conexión')}
+    }
+
+    document.getElementById('resolve').addEventListener('click',()=>{
+      if(!telActivo)return;
+      accionSimple(telActivo,'/panel/atender/','Conversación marcada como atendida');
+    });
+
+    document.getElementById('takeover').addEventListener('click',async()=>{
+      if(!telActivo)return;
+      const activar=!modoControl[telActivo];
+      try{
+        const r=await apiPost(`/panel/control/${telActivo}`,{accion:activar?'tomar':'devolver'});
+        if(r.ok){
+          modoControl[telActivo]=activar;
+          renderLista(convs);
+          const conv=convs.find(c=>c.telefono===telActivo);
+          actualizarEncabezadoChat(conv);
+          say(activar?'Control humano activado':'Conversación devuelta a Bruno');
+        }else{
+          say('No se pudo cambiar el modo de control');
+        }
+      }catch(e){say('Error de conexión')}
+    });
+
+    async function enviarMensaje(){
+      if(!telActivo)return;
+      const input=document.getElementById('message-input');
+      const texto=input.value.trim();
+      if(!texto)return;
+      const path=modoControl[telActivo]?`/panel/enviar-directo/${telActivo}`:`/panel/responder/${telActivo}`;
+      input.disabled=true;
+      try{
+        const r=await apiPost(path,{mensaje:texto});
+        if(r.ok){
+          input.value='';
+          say('Mensaje enviado');
+          try{const rh=await apiGet(`/panel/conversacion/${telActivo}`);if(rh.ok)renderMensajes((await rh.json()).historial)}catch(e){}
+          recargarConversaciones();
+        }else{
+          let detalle='No se pudo enviar el mensaje';
+          try{const j=await r.json();detalle=j.detail||j.error||detalle}catch(e){}
+          say(detalle);
+        }
+      }catch(e){say('Error de conexión')}
+      input.disabled=false;
+      input.focus();
+    }
+    document.getElementById('send').addEventListener('click',enviarMensaje);
+    document.getElementById('message-input').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();enviarMensaje()}});
   </script>
 </body>
 </html>
