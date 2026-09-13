@@ -14,6 +14,7 @@ from app.db.session_store import (
     obtener_sesion_existente,
     agregar_al_historial,
     actualizar_sesion,
+    actualizar_estado_mensaje_whatsapp,
     listar_sesiones_escaladas,
     listar_sesiones_con_retiro_pendiente,
     listar_sesiones_con_domicilio_pendiente,
@@ -149,6 +150,34 @@ async def enviar_audio_whatsapp(telefono_destino: str, media_id: str):
     if not respuesta.is_success:
         raise RuntimeError(f"Meta rechazó el envío del audio ({respuesta.status_code})")
     return respuesta
+
+
+def extraer_id_mensaje_meta(respuesta: httpx.Response) -> str | None:
+    """Obtiene el wamid devuelto por Meta sin fallar si cambia la respuesta."""
+    try:
+        return respuesta.json()["messages"][0]["id"]
+    except (KeyError, IndexError, TypeError, ValueError):
+        return None
+
+
+def extraer_estado_entrega(payload: dict) -> dict | None:
+    """Extrae recibos sent/delivered/read/failed enviados por el webhook."""
+    try:
+        estado = payload["entry"][0]["changes"][0]["value"]["statuses"][0]
+        errores = estado.get("errors") or []
+        error = errores[0] if errores else {}
+        detalle = (
+            error.get("error_data", {}).get("details")
+            or error.get("message")
+            or error.get("title")
+        )
+        return {
+            "id": estado.get("id"),
+            "estado": estado.get("status"),
+            "error": detalle,
+        }
+    except (KeyError, IndexError, TypeError):
+        return None
 
 
 # Números que pueden usar comandos de equipo (/responder, /resuelto,
@@ -789,6 +818,17 @@ async def recibir_mensaje(request: Request, background_tasks: BackgroundTasks):
     except Exception:
         print("Se recibió una petición sin un JSON válido.")
         return {"status": "ignorado", "razon": "cuerpo vacío o inválido"}
+
+    recibo = extraer_estado_entrega(payload)
+    if recibo and recibo.get("id") and recibo.get("estado"):
+        encontrado = actualizar_estado_mensaje_whatsapp(
+            recibo["id"], recibo["estado"], recibo.get("error")
+        )
+        print(
+            f"Estado de entrega Meta: {recibo['estado']} "
+            f"({'registrado' if encontrado else 'sin mensaje local'})"
+        )
+        return {"status": "recibo_procesado"}
 
     mensaje = extraer_mensaje_entrante(payload)
 
