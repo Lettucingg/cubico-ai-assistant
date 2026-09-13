@@ -1699,11 +1699,23 @@ def generar_respuesta(
             if paquete.get("tracking")
         ]
 
-        actualizar_sesion(
-            telefono,
-            aviso_retiro_pendiente=True,
-            paquetes_a_retirar=", ".join(trackings),
-        )
+        cambios_retiro = {
+            "aviso_retiro_pendiente": True,
+            "paquetes_a_retirar": ", ".join(trackings),
+        }
+        sesion_previa = obtener_sesion_existente(telefono)
+        if sesion_previa and sesion_previa.entregado:
+            cambios_retiro.update({
+                "entregado": False,
+                "pago_reportado": False,
+                "pago_confirmado": False,
+                "paquetes_preparados": False,
+                "domicilio_coordinado": False,
+                "metodo_pago_reportado": None,
+                "monto_pago_reportado": None,
+                "comprobante_media_id": None,
+            })
+        actualizar_sesion(telefono, **cambios_retiro)
 
         return {
             "avisado": True,
@@ -1785,12 +1797,24 @@ def generar_respuesta(
             if paquete.get("tracking")
         ]
 
-        actualizar_sesion(
-            telefono,
-            solicitud_domicilio_pendiente=True,
-            direccion_domicilio=direccion.strip(),
-            paquetes_a_domicilio=", ".join(trackings),
-        )
+        cambios_domicilio = {
+            "solicitud_domicilio_pendiente": True,
+            "direccion_domicilio": direccion.strip(),
+            "paquetes_a_domicilio": ", ".join(trackings),
+        }
+        sesion_previa = obtener_sesion_existente(telefono)
+        if sesion_previa and sesion_previa.entregado:
+            cambios_domicilio.update({
+                "entregado": False,
+                "pago_reportado": False,
+                "pago_confirmado": False,
+                "paquetes_preparados": False,
+                "domicilio_coordinado": False,
+                "metodo_pago_reportado": None,
+                "monto_pago_reportado": None,
+                "comprobante_media_id": None,
+            })
+        actualizar_sesion(telefono, **cambios_domicilio)
 
         return {
             "solicitado": True,
