@@ -174,12 +174,20 @@ def listar_solicitudes(usuario: str = Depends(verificar_credenciales_panel)):
             tipos.append("domicilio")
         for tipo in tipos:
             monto_pendiente = None
+            pago_confirmado_sistema = False
             if sesion.codigo_cliente_verificado:
                 try:
                     facturas = consultar_facturas_por_codigo(sesion.codigo_cliente_verificado)
-                    monto_pendiente = facturas.get("saldo_pendiente_total") if facturas.get("encontrado") else None
+                    tiene_facturas = bool(
+                        facturas.get("encontrado")
+                        and facturas.get("cantidad_facturas", 0) > 0
+                    )
+                    if tiene_facturas:
+                        monto_pendiente = facturas.get("saldo_pendiente_total")
+                        pago_confirmado_sistema = monto_pendiente == 0
                 except Exception:
                     monto_pendiente = None
+            pago_confirmado_panel = bool(sesion.pago_confirmado)
             solicitudes.append({
                 "telefono": sesion.telefono,
                 "nombre": _nombre_cliente(sesion) or sesion.telefono,
@@ -189,7 +197,9 @@ def listar_solicitudes(usuario: str = Depends(verificar_credenciales_panel)):
                 "direccion": sesion.direccion_domicilio if tipo == "domicilio" else "Sucursal Cúbico",
                 "monto_pendiente": monto_pendiente,
                 "pago_reportado": bool(sesion.pago_reportado),
-                "pago_confirmado": bool(sesion.pago_confirmado) or monto_pendiente == 0,
+                "pago_confirmado": pago_confirmado_panel,
+                "pago_confirmado_sistema": pago_confirmado_sistema,
+                "pago_resuelto": pago_confirmado_panel or pago_confirmado_sistema,
                 "paquetes_preparados": bool(sesion.paquetes_preparados),
                 "domicilio_coordinado": bool(sesion.domicilio_coordinado),
                 "tiene_comprobante": bool(sesion.comprobante_media_id),
