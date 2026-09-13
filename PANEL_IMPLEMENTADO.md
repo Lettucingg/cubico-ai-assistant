@@ -52,7 +52,7 @@ como `["50760000000"]`, siempre sin el signo `+`.
 3. Fusiona el PR solamente después de la validación y despliega por SSH:
 
    ```bash
-   ssh alexander@178.104.169.244
+   ssh USUARIO@IP_DEL_VPS
    cd cubico-ai-assistant
    git pull && pm2 restart cubico-bot --update-env
    ```
