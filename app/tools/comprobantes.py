@@ -5,6 +5,7 @@ from anthropic import Anthropic
 
 from app.core.config import settings
 from app.ai.orchestrator import SYSTEM_PROMPT
+from app.db.session_store import registrar_uso_ia
 
 cliente_claude = Anthropic(api_key=settings.ANTHROPIC_API_KEY)
 
@@ -25,7 +26,11 @@ async def descargar_imagen_de_whatsapp(media_id: str) -> bytes:
         return respuesta_imagen.content
 
 
-def analizar_imagen_cliente(imagen_bytes: bytes, texto_cliente: str | None = None) -> dict:
+def analizar_imagen_cliente(
+    imagen_bytes: bytes,
+    texto_cliente: str | None = None,
+    telefono: str | None = None,
+) -> dict:
     """
     Analiza en una sola llamada a Claude una imagen enviada por un
     cliente: determina si es un comprobante de pago y, si lo es,
@@ -95,6 +100,17 @@ No escribas nada antes de "ES_COMPROBANTE:" ni nada después del texto de la sec
             ],
         }],
     )
+
+    if telefono and getattr(respuesta, "usage", None) is not None:
+        try:
+            registrar_uso_ia(
+                telefono=telefono,
+                modelo=getattr(respuesta, "model", "claude-sonnet-5"),
+                input_tokens=int(getattr(respuesta.usage, "input_tokens", 0) or 0),
+                output_tokens=int(getattr(respuesta.usage, "output_tokens", 0) or 0),
+            )
+        except Exception as error:
+            print(f"[WARN] No se pudo registrar uso de IA de imagen: {error}")
 
     texto_completo = "\n".join(
         bloque.text for bloque in respuesta.content if bloque.type == "text"

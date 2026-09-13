@@ -1,10 +1,17 @@
 import json
 
-from sqlalchemy import create_engine, Column, Integer, String, DateTime, Text, Boolean, inspect, text
+from sqlalchemy import create_engine, Column, Integer, String, DateTime, Text, Boolean, Float, inspect, text
 from sqlalchemy.orm import sessionmaker, declarative_base
-from datetime import datetime
+from datetime import datetime, timedelta
 
-engine_sesiones = create_engine("sqlite:///sesiones.db")
+from app.core.config import settings
+
+_session_database_url = settings.SESSION_DATABASE_URL
+_engine_options = {"pool_pre_ping": True}
+if _session_database_url.startswith("sqlite"):
+    _engine_options["connect_args"] = {"check_same_thread": False}
+
+engine_sesiones = create_engine(_session_database_url, **_engine_options)
 SessionSesiones = sessionmaker(bind=engine_sesiones)
 BaseSesiones = declarative_base()
 
@@ -35,10 +42,33 @@ class Sesion(BaseSesiones):
     actualizado_en = Column(DateTime, default=datetime.utcnow)
     ultimo_leido_panel = Column(DateTime, nullable=True)
     atencion_humana_directa = Column(Boolean, default=False)
+    pago_reportado = Column(Boolean, default=False)
+    pago_confirmado = Column(Boolean, default=False)
+    paquetes_preparados = Column(Boolean, default=False)
+    domicilio_coordinado = Column(Boolean, default=False)
+    entregado = Column(Boolean, default=False)
+    metodo_pago_reportado = Column(String, nullable=True)
+    monto_pago_reportado = Column(Float, nullable=True)
+    comprobante_media_id = Column(String, nullable=True)
+    solicitud_actualizada_en = Column(DateTime, nullable=True)
 
     def obtener_historial(self):
         """Convierte el historial guardado (texto JSON) en una lista de Python."""
         return json.loads(self.historial_json or "[]")
+
+
+class UsoIA(BaseSesiones):
+    """Una fila por llamada a Claude para medir consumo y costo por chat."""
+
+    __tablename__ = "uso_ia"
+
+    id = Column(Integer, primary_key=True)
+    telefono = Column(String, index=True, nullable=False)
+    modelo = Column(String, nullable=False)
+    input_tokens = Column(Integer, default=0, nullable=False)
+    output_tokens = Column(Integer, default=0, nullable=False)
+    costo_usd = Column(Float, default=0.0, nullable=False)
+    creado_en = Column(DateTime, default=datetime.utcnow, index=True, nullable=False)
 
 
 BaseSesiones.metadata.create_all(engine_sesiones)
@@ -108,8 +138,17 @@ def actualizar_sesion(telefono: str, **cambios) -> bool:
         sesion = db.query(Sesion).filter(Sesion.telefono == telefono).first()
         if sesion:
             for campo, valor in cambios.items():
+                if not hasattr(sesion, campo):
+                    raise ValueError(f"Campo de sesión desconocido: {campo}")
                 setattr(sesion, campo, valor)
             sesion.actualizado_en = datetime.utcnow()
+            campos_operativos = {
+                "aviso_retiro_pendiente", "solicitud_domicilio_pendiente",
+                "pago_reportado", "pago_confirmado", "paquetes_preparados",
+                "domicilio_coordinado", "entregado",
+            }
+            if campos_operativos.intersection(cambios):
+                sesion.solicitud_actualizada_en = datetime.utcnow()
             db.commit()
             return True
         return False
@@ -185,39 +224,6 @@ def listar_todas_sesiones(limite: int = 50) -> list[Sesion]:
         db.close()
 
 
-def contar_sesiones(
-    *,
-    actualizado_desde: datetime | None = None,
-    necesita_atencion_humana: bool | None = None,
-    aviso_retiro_pendiente: bool | None = None,
-    solicitud_domicilio_pendiente: bool | None = None,
-) -> int:
-    """
-    Cuenta sesiones según los filtros dados (todos opcionales, se
-    combinan con AND). Usado por el resumen del panel de administración.
-    """
-    db = SessionSesiones()
-    try:
-        query = db.query(Sesion)
-        if actualizado_desde is not None:
-            query = query.filter(Sesion.actualizado_en >= actualizado_desde)
-        if necesita_atencion_humana is not None:
-            query = query.filter(
-                Sesion.necesita_atencion_humana == necesita_atencion_humana
-            )
-        if aviso_retiro_pendiente is not None:
-            query = query.filter(
-                Sesion.aviso_retiro_pendiente == aviso_retiro_pendiente
-            )
-        if solicitud_domicilio_pendiente is not None:
-            query = query.filter(
-                Sesion.solicitud_domicilio_pendiente == solicitud_domicilio_pendiente
-            )
-        return query.count()
-    finally:
-        db.close()
-
-
 def listar_sesiones_con_factura_pendiente() -> list[Sesion]:
     """
     Devuelve las sesiones con una factura pendiente de confirmación de
@@ -237,7 +243,7 @@ def listar_sesiones_con_factura_pendiente() -> list[Sesion]:
         db.close()
 
 
-def agregar_al_historial(telefono: str, rol: str, contenido: str, max_mensajes: int = 8):
+def agregar_al_historial(telefono: str, rol: str, contenido: str, max_mensajes: int = 100):
     """
     Agrega un mensaje al historial de la conversación, y recorta
     el historial si supera max_mensajes (para no mandar contexto
@@ -250,11 +256,99 @@ def agregar_al_historial(telefono: str, rol: str, contenido: str, max_mensajes: 
             return
 
         historial = json.loads(sesion.historial_json or "[]")
-        historial.append({"role": rol, "content": contenido})
+        historial.append({
+            "role": rol,
+            "content": contenido,
+            "timestamp": datetime.utcnow().isoformat(timespec="seconds") + "Z",
+        })
         historial = historial[-max_mensajes:]
 
         sesion.historial_json = json.dumps(historial)
         sesion.actualizado_en = datetime.utcnow()
         db.commit()
+    finally:
+        db.close()
+
+
+def registrar_uso_ia(
+    telefono: str,
+    modelo: str,
+    input_tokens: int,
+    output_tokens: int,
+) -> float:
+    """Guarda el consumo de una llamada y devuelve su costo estimado."""
+    costo = round(
+        (input_tokens / 1_000_000) * settings.ANTHROPIC_INPUT_USD_PER_MTOK
+        + (output_tokens / 1_000_000) * settings.ANTHROPIC_OUTPUT_USD_PER_MTOK,
+        8,
+    )
+    db = SessionSesiones()
+    try:
+        db.add(UsoIA(
+            telefono=telefono,
+            modelo=modelo,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            costo_usd=costo,
+        ))
+        db.commit()
+        return costo
+    finally:
+        db.close()
+
+
+def obtener_uso_por_telefono(telefono: str) -> dict:
+    db = SessionSesiones()
+    try:
+        filas = db.query(UsoIA).filter(UsoIA.telefono == telefono).all()
+        return {
+            "input_tokens": sum(f.input_tokens for f in filas),
+            "output_tokens": sum(f.output_tokens for f in filas),
+            "costo_usd": round(sum(f.costo_usd for f in filas), 6),
+            "llamadas": len(filas),
+        }
+    finally:
+        db.close()
+
+
+def obtener_resumen_uso(dias: int = 30) -> dict:
+    desde = datetime.utcnow() - timedelta(days=max(1, min(dias, 365)))
+    db = SessionSesiones()
+    try:
+        filas = db.query(UsoIA).filter(UsoIA.creado_en >= desde).all()
+        por_dia = {}
+        por_chat = {}
+        for fila in filas:
+            dia = fila.creado_en.date().isoformat()
+            diario = por_dia.setdefault(dia, {"input_tokens": 0, "output_tokens": 0, "costo_usd": 0.0})
+            diario["input_tokens"] += fila.input_tokens
+            diario["output_tokens"] += fila.output_tokens
+            diario["costo_usd"] += fila.costo_usd
+            chat = por_chat.setdefault(fila.telefono, {"input_tokens": 0, "output_tokens": 0, "costo_usd": 0.0, "llamadas": 0})
+            chat["input_tokens"] += fila.input_tokens
+            chat["output_tokens"] += fila.output_tokens
+            chat["costo_usd"] += fila.costo_usd
+            chat["llamadas"] += 1
+
+        total_input = sum(f.input_tokens for f in filas)
+        total_output = sum(f.output_tokens for f in filas)
+        total_costo = sum(f.costo_usd for f in filas)
+        return {
+            "dias": [
+                {"fecha": fecha, **valores, "costo_usd": round(valores["costo_usd"], 6)}
+                for fecha, valores in sorted(por_dia.items())
+            ],
+            "chats": [
+                {"telefono": telefono, **valores, "costo_usd": round(valores["costo_usd"], 6)}
+                for telefono, valores in sorted(
+                    por_chat.items(), key=lambda item: item[1]["costo_usd"], reverse=True
+                )
+            ],
+            "input_tokens": total_input,
+            "output_tokens": total_output,
+            "tokens_totales": total_input + total_output,
+            "costo_usd": round(total_costo, 6),
+            "conversaciones": len(por_chat),
+        }
     finally:
         db.close()

@@ -1,18 +1,27 @@
+import asyncio
 import json
 import secrets
-from datetime import datetime, timezone
-from zoneinfo import ZoneInfo
+from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 
 from app.core.config import settings
-from app.db.session_store import listar_todas_sesiones, obtener_sesion_existente
+from app.db.session_store import (
+    listar_todas_sesiones,
+    obtener_sesion_existente,
+    obtener_uso_por_telefono,
+    obtener_resumen_uso,
+    actualizar_sesion,
+    agregar_al_historial,
+)
 from app.tools.clientes import obtener_nombre_completo_cliente
+from app.tools.comprobantes import descargar_imagen_de_whatsapp
+from app.tools.facturas import consultar_facturas_por_codigo
+from app.ai.orchestrator import redactar_respuesta_de_asesor
+from app.api.whatsapp import enviar_respuesta_natural
 
 router = APIRouter(prefix="/panel", tags=["panel"])
-
-TIMEZONE_PANAMA = ZoneInfo("America/Panama")
 
 security = HTTPBasic()
 
@@ -71,6 +80,19 @@ def listar_conversaciones(usuario: str = Depends(verificar_credenciales_panel)):
             "aviso_retiro_pendiente": sesion.aviso_retiro_pendiente,
             "solicitud_domicilio_pendiente": sesion.solicitud_domicilio_pendiente,
             "motivo_escalamiento": sesion.motivo_escalamiento or None,
+            "atencion_humana_directa": bool(sesion.atencion_humana_directa),
+            "actualizado_en": sesion.actualizado_en.isoformat() + "Z" if sesion.actualizado_en else None,
+            "paquetes_a_retirar": sesion.paquetes_a_retirar,
+            "direccion_domicilio": sesion.direccion_domicilio,
+            "paquetes_a_domicilio": sesion.paquetes_a_domicilio,
+            "pago_reportado": bool(sesion.pago_reportado),
+            "pago_confirmado": bool(sesion.pago_confirmado),
+            "paquetes_preparados": bool(sesion.paquetes_preparados),
+            "domicilio_coordinado": bool(sesion.domicilio_coordinado),
+            "entregado": bool(sesion.entregado),
+            "metodo_pago_reportado": sesion.metodo_pago_reportado,
+            "monto_pago_reportado": sesion.monto_pago_reportado,
+            "uso": obtener_uso_por_telefono(sesion.telefono),
             "ultimo_mensaje": ultimo_mensaje,
             "tiene_no_leidos": (
                 sesion.actualizado_en > sesion.ultimo_leido_panel
@@ -78,6 +100,142 @@ def listar_conversaciones(usuario: str = Depends(verificar_credenciales_panel)):
             ),
         })
     return resultado
+
+
+@router.get("/resumen")
+def obtener_resumen_panel(usuario: str = Depends(verificar_credenciales_panel)):
+    """Métricas reales usadas por el inicio del panel."""
+    sesiones = listar_todas_sesiones(limite=500)
+    inicio_hoy = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    uso = obtener_resumen_uso(30)
+    activas_hoy = [s for s in sesiones if s.actualizado_en and s.actualizado_en >= inicio_hoy]
+    solicitudes = [
+        s for s in sesiones
+        if (s.aviso_retiro_pendiente or s.solicitud_domicilio_pendiente) and not s.entregado
+    ]
+    return {
+        "conversaciones_hoy": len(activas_hoy),
+        "atencion_humana": sum(1 for s in sesiones if s.necesita_atencion_humana),
+        "retiros": sum(1 for s in solicitudes if s.aviso_retiro_pendiente),
+        "domicilios": sum(1 for s in solicitudes if s.solicitud_domicilio_pendiente),
+        "pagos_por_confirmar": sum(1 for s in solicitudes if s.pago_reportado and not s.pago_confirmado),
+        "listos": sum(1 for s in solicitudes if s.paquetes_preparados and not s.entregado),
+        "costo_ia_30_dias": uso["costo_usd"],
+        "tokens_30_dias": uso["tokens_totales"],
+    }
+
+
+def _nombre_cliente(sesion) -> str | None:
+    if not sesion.codigo_cliente_verificado:
+        return None
+    try:
+        info = obtener_nombre_completo_cliente(sesion.codigo_cliente_verificado)
+        return info.get("nombre_completo") if info.get("encontrado") else None
+    except Exception:
+        return None
+
+
+@router.get("/solicitudes")
+def listar_solicitudes(usuario: str = Depends(verificar_credenciales_panel)):
+    """Retiros y domicilios generados por conversaciones de WhatsApp."""
+    solicitudes = []
+    for sesion in listar_todas_sesiones(limite=500):
+        if sesion.entregado:
+            continue
+        tipos = []
+        if sesion.aviso_retiro_pendiente:
+            tipos.append("retiro")
+        if sesion.solicitud_domicilio_pendiente:
+            tipos.append("domicilio")
+        for tipo in tipos:
+            monto_pendiente = None
+            if sesion.codigo_cliente_verificado:
+                try:
+                    facturas = consultar_facturas_por_codigo(sesion.codigo_cliente_verificado)
+                    monto_pendiente = facturas.get("saldo_pendiente_total") if facturas.get("encontrado") else None
+                except Exception:
+                    monto_pendiente = None
+            solicitudes.append({
+                "telefono": sesion.telefono,
+                "nombre": _nombre_cliente(sesion) or sesion.telefono,
+                "codigo_cliente": sesion.codigo_cliente_verificado,
+                "tipo": tipo,
+                "paquetes": sesion.paquetes_a_retirar if tipo == "retiro" else sesion.paquetes_a_domicilio,
+                "direccion": sesion.direccion_domicilio if tipo == "domicilio" else "Sucursal Cúbico",
+                "monto_pendiente": monto_pendiente,
+                "pago_reportado": bool(sesion.pago_reportado),
+                "pago_confirmado": bool(sesion.pago_confirmado) or monto_pendiente == 0,
+                "paquetes_preparados": bool(sesion.paquetes_preparados),
+                "domicilio_coordinado": bool(sesion.domicilio_coordinado),
+                "tiene_comprobante": bool(sesion.comprobante_media_id),
+                "actualizado_en": (
+                    (sesion.solicitud_actualizada_en or sesion.actualizado_en).isoformat() + "Z"
+                    if (sesion.solicitud_actualizada_en or sesion.actualizado_en) else None
+                ),
+            })
+    solicitudes.sort(key=lambda item: item["actualizado_en"] or "", reverse=True)
+    return solicitudes
+
+
+@router.post("/solicitud/{telefono}/estado")
+def actualizar_estado_solicitud(
+    telefono: str,
+    body: dict,
+    usuario: str = Depends(verificar_credenciales_panel),
+):
+    """Avanza un retiro o domicilio sin crear registros duplicados."""
+    sesion = obtener_sesion_existente(telefono)
+    if sesion is None:
+        raise HTTPException(status_code=404, detail="No existe esa conversación")
+    accion = body.get("accion")
+    tipo = body.get("tipo")
+    if tipo not in {"retiro", "domicilio"}:
+        raise HTTPException(status_code=400, detail="Tipo de solicitud inválido")
+
+    if accion == "confirmar_pago":
+        cambios = {"pago_confirmado": True}
+    elif accion == "preparar":
+        cambios = {"paquetes_preparados": True}
+    elif accion == "coordinar" and tipo == "domicilio":
+        cambios = {"domicilio_coordinado": True}
+    elif accion == "entregar":
+        cambios = {
+            "entregado": True,
+            "aviso_retiro_pendiente": False if tipo == "retiro" else sesion.aviso_retiro_pendiente,
+            "solicitud_domicilio_pendiente": False if tipo == "domicilio" else sesion.solicitud_domicilio_pendiente,
+        }
+    else:
+        raise HTTPException(status_code=400, detail="Acción inválida")
+
+    actualizar_sesion(telefono, **cambios)
+    return {"status": "ok", "accion": accion, "tipo": tipo}
+
+
+@router.get("/uso")
+def obtener_uso_panel(
+    dias: int = 30,
+    usuario: str = Depends(verificar_credenciales_panel),
+):
+    return obtener_resumen_uso(dias)
+
+
+@router.get("/comprobante/{telefono}")
+async def obtener_comprobante(
+    telefono: str,
+    usuario: str = Depends(verificar_credenciales_panel),
+):
+    """Entrega al operador el último comprobante sin exponer el token de Meta."""
+    sesion = obtener_sesion_existente(telefono)
+    if sesion is None or not sesion.comprobante_media_id:
+        raise HTTPException(status_code=404, detail="No hay comprobante disponible")
+    try:
+        contenido = await descargar_imagen_de_whatsapp(sesion.comprobante_media_id)
+    except Exception as error:
+        raise HTTPException(
+            status_code=502,
+            detail="Meta ya no permitió descargar ese comprobante; pide al cliente que lo reenvíe",
+        ) from error
+    return Response(content=contenido, media_type="image/jpeg")
 
 
 @router.get("/conversacion/{telefono}")
@@ -92,11 +250,6 @@ def obtener_conversacion(telefono: str, usuario: str = Depends(verificar_credenc
         "historial": sesion.obtener_historial(),
     }
 
-
-from app.ai.orchestrator import redactar_respuesta_de_asesor
-from app.db.session_store import actualizar_sesion, agregar_al_historial
-from app.api.whatsapp import enviar_respuesta_natural
-import asyncio
 
 @router.post("/responder/{telefono}")
 async def responder_cliente(
@@ -126,10 +279,14 @@ async def responder_cliente(
         "el cliente escribió por WhatsApp",
     )
 
-    texto_redactado = redactar_respuesta_de_asesor(texto_cliente_original, mensaje)
+    texto_redactado = await asyncio.to_thread(
+        redactar_respuesta_de_asesor, texto_cliente_original, mensaje
+    )
 
+    respuesta_meta = await enviar_respuesta_natural(telefono, texto_redactado, message_id="")
+    if hasattr(respuesta_meta, "is_success") and not respuesta_meta.is_success:
+        raise HTTPException(status_code=502, detail="Meta no pudo enviar el mensaje")
     agregar_al_historial(telefono, "assistant", texto_redactado)
-    await enviar_respuesta_natural(telefono, texto_redactado, message_id="")
 
     actualizar_sesion(telefono, necesita_atencion_humana=False, motivo_escalamiento=None)
 
@@ -184,9 +341,11 @@ async def tomar_control(
     from app.db.session_store import obtener_sesion_existente, actualizar_sesion
     accion = body.get("accion", "tomar")
     sesion = obtener_sesion_existente(telefono)
-    if sesion:
-        actualizar_sesion(telefono, atencion_humana_directa=(accion == "tomar"))
-    return {"status": "ok", "control": accion == "tomar"}
+    if sesion is None:
+        raise HTTPException(status_code=404, detail="No existe esa conversación")
+    control_activo = accion == "tomar"
+    actualizar_sesion(telefono, atencion_humana_directa=control_activo)
+    return {"status": "ok", "control": control_activo}
 
 @router.post("/enviar-directo/{telefono}")
 async def enviar_directo(
@@ -199,115 +358,8 @@ async def enviar_directo(
     mensaje = body.get("mensaje", "").strip()
     if not mensaje:
         raise HTTPException(status_code=400, detail="Mensaje vacío")
-    await enviar_mensaje_whatsapp(telefono, mensaje)
+    respuesta_meta = await enviar_mensaje_whatsapp(telefono, mensaje)
+    if not respuesta_meta.is_success:
+        raise HTTPException(status_code=502, detail="Meta no pudo enviar el mensaje")
     agregar_al_historial(telefono, "humano", mensaje)
     return {"status": "enviado"}
-
-
-@router.get("/resumen")
-def obtener_resumen(usuario: str = Depends(verificar_credenciales_panel)):
-    """
-    Contadores generales para las tarjetas de resumen del panel.
-    "Hoy" se calcula en America/Panama, no en UTC (el servidor corre
-    en UTC pero el negocio opera en hora de Panamá).
-    """
-    from app.db.session_store import contar_sesiones
-
-    ahora_panama = datetime.now(TIMEZONE_PANAMA)
-    inicio_dia_panama = ahora_panama.replace(hour=0, minute=0, second=0, microsecond=0)
-    inicio_dia_utc = inicio_dia_panama.astimezone(timezone.utc).replace(tzinfo=None)
-
-    return {
-        "conversaciones_hoy": contar_sesiones(actualizado_desde=inicio_dia_utc),
-        "requieren_humano": contar_sesiones(necesita_atencion_humana=True),
-        "solicitudes_retiro": contar_sesiones(aviso_retiro_pendiente=True),
-        "solicitudes_domicilio": contar_sesiones(solicitud_domicilio_pendiente=True),
-    }
-
-
-@router.get("/solicitudes")
-def listar_solicitudes(usuario: str = Depends(verificar_credenciales_panel)):
-    """
-    Sesiones con un retiro o una entrega a domicilio pendiente, para
-    la cola de solicitudes operativas del panel.
-    """
-    from app.db.session_store import (
-        listar_sesiones_con_retiro_pendiente,
-        listar_sesiones_con_domicilio_pendiente,
-    )
-
-    def _nombre_de(sesion):
-        if sesion.codigo_cliente_verificado:
-            info = obtener_nombre_completo_cliente(sesion.codigo_cliente_verificado)
-            if info.get("encontrado"):
-                return info["nombre_completo"]
-        return sesion.telefono
-
-    resultado = []
-    for sesion in listar_sesiones_con_retiro_pendiente():
-        resultado.append({
-            "telefono": sesion.telefono,
-            "nombre": _nombre_de(sesion),
-            "tipo": "retiro",
-            "necesita_atencion_humana": sesion.necesita_atencion_humana,
-            "motivo_escalamiento": sesion.motivo_escalamiento or None,
-        })
-    for sesion in listar_sesiones_con_domicilio_pendiente():
-        resultado.append({
-            "telefono": sesion.telefono,
-            "nombre": _nombre_de(sesion),
-            "tipo": "domicilio",
-            "necesita_atencion_humana": sesion.necesita_atencion_humana,
-            "motivo_escalamiento": sesion.motivo_escalamiento or None,
-        })
-    return resultado
-
-
-@router.get("/uso")
-def obtener_uso(dias: int = 30, usuario: str = Depends(verificar_credenciales_panel)):
-    """
-    Uso y costo de la API de IA. Todavía no se registra el consumo de
-    tokens por conversación, así que devuelve ceros y listas vacías.
-    """
-    return {
-        "costo_usd": 0.0,
-        "tokens_totales": 0,
-        "input_tokens": 0,
-        "output_tokens": 0,
-        "conversaciones": 0,
-        "llamadas": 0,
-        "dias": [],
-        "chats": [],
-    }
-
-
-@router.get("/comprobante/{telefono}")
-def obtener_comprobante(telefono: str, usuario: str = Depends(verificar_credenciales_panel)):
-    """
-    Todavía no se guardan los comprobantes de pago recibidos por
-    WhatsApp, así que este endpoint siempre responde que no hay uno
-    disponible.
-    """
-    raise HTTPException(status_code=404, detail="Sin comprobante disponible")
-
-
-@router.post("/solicitud/{telefono}/estado")
-def actualizar_estado_solicitud(
-    telefono: str,
-    body: dict,
-    usuario: str = Depends(verificar_credenciales_panel),
-):
-    """
-    Avanza el flujo operativo de una solicitud de retiro/domicilio.
-    Por ahora solo "Caso entregado y cerrado" tiene efecto real (limpia
-    los avisos pendientes); las demás acciones son pasos intermedios
-    que este backend todavía no rastrea con estado propio.
-    """
-    accion = body.get("accion", "")
-    if accion == "Caso entregado y cerrado":
-        actualizar_sesion(
-            telefono,
-            aviso_retiro_pendiente=False,
-            solicitud_domicilio_pendiente=False,
-        )
-    return {"ok": True, "accion": accion}
