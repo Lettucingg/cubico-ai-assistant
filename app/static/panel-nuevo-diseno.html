@@ -160,7 +160,19 @@
     function iniciarAutoRefresh(){clearInterval(refreshTimer);refreshTimer=setInterval(refrescarPanel,30000)}
 
     async function refrescarPanel(){
-      await Promise.all([recargarConversaciones(),cargarResumen(),cargarSolicitudes(),cargarUso(30)]);
+      await Promise.all([recargarConversaciones(),recargarHistorialActivo(),cargarResumen(),cargarSolicitudes(),cargarUso(30)]);
+    }
+
+    async function recargarHistorialActivo(){
+      const telefono=telActivo;
+      if(!telefono)return;
+      try{
+        const r=await apiGet(`/panel/conversacion/${telefono}`);
+        if(!r.ok||telefono!==telActivo)return;
+        const historial=(await r.json()).historial||[];
+        const firma=JSON.stringify(historial);
+        if(firma!==firmaHistorialActivo)renderMensajes(historial);
+      }catch(e){}
     }
 
     async function recargarConversaciones(){
@@ -261,22 +273,43 @@
       if(btnDomicilio)btnDomicilio.addEventListener('click',()=>accionSimple(conv.telefono,'/panel/domicilio/','Domicilio marcado como coordinado'));
     }
 
+    let urlsAudio=[],firmaHistorialActivo='';
+    function etiquetaEntrega(m){
+      const mapa={accepted:'Enviado',sent:'Enviado',delivered:'Entregado',read:'Leído',failed:'No entregado'};
+      const texto=mapa[m.estado_entrega]||'';
+      if(!texto)return'';
+      const detalle=m.estado_entrega==='failed'&&m.error_entrega?' · '+esc(m.error_entrega):'';
+      return`<small style="display:block;margin-top:5px;color:${m.estado_entrega==='failed'?'var(--red)':'var(--muted)'}">${texto}${detalle}</small>`;
+    }
+    async function cargarReproductoresAudio(){
+      for(const audio of document.querySelectorAll('audio[data-media-id]')){
+        try{
+          const r=await apiGet(`/panel/audio/${encodeURIComponent(audio.dataset.telefono)}/${encodeURIComponent(audio.dataset.mediaId)}`);
+          if(!r.ok)throw Error();
+          const url=URL.createObjectURL(await r.blob());urlsAudio.push(url);audio.src=url;
+        }catch(e){audio.replaceWith(Object.assign(document.createElement('small'),{textContent:'Audio no disponible'}))}
+      }
+    }
     function renderMensajes(historial){
       const cont=document.getElementById('messages');
+      firmaHistorialActivo=JSON.stringify(historial||[]);
+      urlsAudio.forEach(url=>URL.revokeObjectURL(url));urlsAudio=[];
       if(!historial||!historial.length){
         cont.innerHTML='<div class="day">Sin mensajes todavía</div>';
         return;
       }
       cont.innerHTML=historial.map(m=>{
+        if(m.tipo==='audio'&&m.media_id)return`<div class="bubble out"><div style="margin-bottom:7px">🎤 Nota de voz</div><audio controls preload="none" data-telefono="${esc(telActivo)}" data-media-id="${esc(m.media_id)}" style="width:250px;max-width:100%"></audio>${etiquetaEntrega(m)}</div>`;
         if(m.role==='user')return`<div class="bubble in">${esc(m.content)}</div>`;
-        if(m.role==='humano')return`<div class="bubble out">${esc(m.content)}</div>`;
-        return`<div class="bubble out">${esc(m.content)}</div>`;
+        return`<div class="bubble out">${esc(m.content)}${etiquetaEntrega(m)}</div>`;
       }).join('');
       cont.scrollTop=cont.scrollHeight;
+      cargarReproductoresAudio();
     }
 
     async function abrirChat(tel){
       telActivo=tel;
+      firmaHistorialActivo='';
       document.querySelectorAll('#chat-items .chat-item').forEach(b=>b.classList.toggle('active',b.dataset.telefono===tel));
       const conv=convs.find(c=>c.telefono===tel);
       actualizarEncabezadoChat(conv);
