@@ -141,7 +141,11 @@ def actualizar_sesion(telefono: str, **cambios) -> bool:
                 if not hasattr(sesion, campo):
                     raise ValueError(f"Campo de sesión desconocido: {campo}")
                 setattr(sesion, campo, valor)
-            sesion.actualizado_en = datetime.utcnow()
+            # Leer una conversación no es actividad nueva del cliente. Si
+            # actualizáramos actualizado_en aquí, el siguiente polling la
+            # marcaría inmediatamente como no leída otra vez.
+            if set(cambios) != {"ultimo_leido_panel"}:
+                sesion.actualizado_en = datetime.utcnow()
             campos_operativos = {
                 "aviso_retiro_pendiente", "solicitud_domicilio_pendiente",
                 "pago_reportado", "pago_confirmado", "paquetes_preparados",
