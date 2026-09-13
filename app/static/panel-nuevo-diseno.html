@@ -107,12 +107,26 @@
     // ===================================================================
     // Integración real con /panel/* (ver INTEGRATION_HANDOFF.md)
     // ===================================================================
+    const API_BASE='https://bot.cubico.com.pa';
+    const REQUEST_TIMEOUT_MS=10000;
     let creds=null,convs=[],telActivo=null,filtroEstado='todas',busqueda='',refreshTimer=null;
     let modoControl={};
 
-    function authHeaders(json){const h={'Authorization':'Basic '+creds};if(json)h['Content-Type']='application/json';return h}
+    function authHeaders(json,authCreds=creds){const h={'Authorization':'Basic '+authCreds};if(json)h['Content-Type']='application/json';return h}
     function mostrarLogin(mensaje='Tu sesión venció. Inicia sesión nuevamente.'){creds=null;clearInterval(refreshTimer);document.querySelector('.app').style.display='none';document.getElementById('login-overlay').style.display='flex';const err=document.getElementById('login-err');err.textContent=mensaje;err.style.display='block'}
-    async function apiRequest(path,options={}){const r=await fetch(path,{...options,headers:authHeaders(!!options.body)});if(r.status===401)mostrarLogin();return r}
+    async function apiRequest(path,options={},authCreds=creds,reloginOn401=true){
+      const controller=new AbortController();
+      const timeout=setTimeout(()=>controller.abort(),REQUEST_TIMEOUT_MS);
+      try{
+        const r=await fetch(API_BASE+path,{...options,headers:authHeaders(!!options.body,authCreds),signal:controller.signal});
+        if(r.status===401&&reloginOn401)mostrarLogin();
+        if(r.status>=500&&creds)say('El servidor tuvo un problema. Intenta nuevamente.');
+        return r;
+      }catch(e){
+        if(creds)say(e.name==='AbortError'?'El servidor tardó demasiado en responder.':'No se pudo conectar con el servidor.');
+        throw e;
+      }finally{clearTimeout(timeout)}
+    }
     async function apiGet(path){return await apiRequest(path)}
     async function apiPost(path,body){return await apiRequest(path,{method:'POST',body:body?JSON.stringify(body):undefined})}
     function esc(s){return(s||'').toString().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
@@ -127,7 +141,7 @@
       if(!u||!p)return;
       const b64=btoa(u+':'+p);
       try{
-        const r=await fetch('/panel/conversaciones',{headers:{'Authorization':'Basic '+b64}});
+        const r=await apiRequest('/panel/conversaciones',{},b64,false);
         if(r.status===401){err.textContent='Usuario o contraseña incorrectos';err.style.display='block';return}
         if(!r.ok){err.textContent='Error al conectar con el servidor';err.style.display='block';return}
         creds=b64;
