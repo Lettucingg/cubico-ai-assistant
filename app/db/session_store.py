@@ -185,6 +185,39 @@ def listar_todas_sesiones(limite: int = 50) -> list[Sesion]:
         db.close()
 
 
+def contar_sesiones(
+    *,
+    actualizado_desde: datetime | None = None,
+    necesita_atencion_humana: bool | None = None,
+    aviso_retiro_pendiente: bool | None = None,
+    solicitud_domicilio_pendiente: bool | None = None,
+) -> int:
+    """
+    Cuenta sesiones según los filtros dados (todos opcionales, se
+    combinan con AND). Usado por el resumen del panel de administración.
+    """
+    db = SessionSesiones()
+    try:
+        query = db.query(Sesion)
+        if actualizado_desde is not None:
+            query = query.filter(Sesion.actualizado_en >= actualizado_desde)
+        if necesita_atencion_humana is not None:
+            query = query.filter(
+                Sesion.necesita_atencion_humana == necesita_atencion_humana
+            )
+        if aviso_retiro_pendiente is not None:
+            query = query.filter(
+                Sesion.aviso_retiro_pendiente == aviso_retiro_pendiente
+            )
+        if solicitud_domicilio_pendiente is not None:
+            query = query.filter(
+                Sesion.solicitud_domicilio_pendiente == solicitud_domicilio_pendiente
+            )
+        return query.count()
+    finally:
+        db.close()
+
+
 def listar_sesiones_con_factura_pendiente() -> list[Sesion]:
     """
     Devuelve las sesiones con una factura pendiente de confirmación de

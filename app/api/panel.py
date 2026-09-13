@@ -1,6 +1,7 @@
 import json
 import secrets
-from datetime import datetime
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
@@ -10,6 +11,8 @@ from app.db.session_store import listar_todas_sesiones, obtener_sesion_existente
 from app.tools.clientes import obtener_nombre_completo_cliente
 
 router = APIRouter(prefix="/panel", tags=["panel"])
+
+TIMEZONE_PANAMA = ZoneInfo("America/Panama")
 
 security = HTTPBasic()
 
@@ -199,3 +202,112 @@ async def enviar_directo(
     await enviar_mensaje_whatsapp(telefono, mensaje)
     agregar_al_historial(telefono, "humano", mensaje)
     return {"status": "enviado"}
+
+
+@router.get("/resumen")
+def obtener_resumen(usuario: str = Depends(verificar_credenciales_panel)):
+    """
+    Contadores generales para las tarjetas de resumen del panel.
+    "Hoy" se calcula en America/Panama, no en UTC (el servidor corre
+    en UTC pero el negocio opera en hora de Panamá).
+    """
+    from app.db.session_store import contar_sesiones
+
+    ahora_panama = datetime.now(TIMEZONE_PANAMA)
+    inicio_dia_panama = ahora_panama.replace(hour=0, minute=0, second=0, microsecond=0)
+    inicio_dia_utc = inicio_dia_panama.astimezone(timezone.utc).replace(tzinfo=None)
+
+    return {
+        "conversaciones_hoy": contar_sesiones(actualizado_desde=inicio_dia_utc),
+        "requieren_humano": contar_sesiones(necesita_atencion_humana=True),
+        "solicitudes_retiro": contar_sesiones(aviso_retiro_pendiente=True),
+        "solicitudes_domicilio": contar_sesiones(solicitud_domicilio_pendiente=True),
+    }
+
+
+@router.get("/solicitudes")
+def listar_solicitudes(usuario: str = Depends(verificar_credenciales_panel)):
+    """
+    Sesiones con un retiro o una entrega a domicilio pendiente, para
+    la cola de solicitudes operativas del panel.
+    """
+    from app.db.session_store import (
+        listar_sesiones_con_retiro_pendiente,
+        listar_sesiones_con_domicilio_pendiente,
+    )
+
+    def _nombre_de(sesion):
+        if sesion.codigo_cliente_verificado:
+            info = obtener_nombre_completo_cliente(sesion.codigo_cliente_verificado)
+            if info.get("encontrado"):
+                return info["nombre_completo"]
+        return sesion.telefono
+
+    resultado = []
+    for sesion in listar_sesiones_con_retiro_pendiente():
+        resultado.append({
+            "telefono": sesion.telefono,
+            "nombre": _nombre_de(sesion),
+            "tipo": "retiro",
+            "necesita_atencion_humana": sesion.necesita_atencion_humana,
+            "motivo_escalamiento": sesion.motivo_escalamiento or None,
+        })
+    for sesion in listar_sesiones_con_domicilio_pendiente():
+        resultado.append({
+            "telefono": sesion.telefono,
+            "nombre": _nombre_de(sesion),
+            "tipo": "domicilio",
+            "necesita_atencion_humana": sesion.necesita_atencion_humana,
+            "motivo_escalamiento": sesion.motivo_escalamiento or None,
+        })
+    return resultado
+
+
+@router.get("/uso")
+def obtener_uso(dias: int = 30, usuario: str = Depends(verificar_credenciales_panel)):
+    """
+    Uso y costo de la API de IA. Todavía no se registra el consumo de
+    tokens por conversación, así que devuelve ceros y listas vacías.
+    """
+    return {
+        "costo_usd": 0.0,
+        "tokens_totales": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "conversaciones": 0,
+        "llamadas": 0,
+        "dias": [],
+        "chats": [],
+    }
+
+
+@router.get("/comprobante/{telefono}")
+def obtener_comprobante(telefono: str, usuario: str = Depends(verificar_credenciales_panel)):
+    """
+    Todavía no se guardan los comprobantes de pago recibidos por
+    WhatsApp, así que este endpoint siempre responde que no hay uno
+    disponible.
+    """
+    raise HTTPException(status_code=404, detail="Sin comprobante disponible")
+
+
+@router.post("/solicitud/{telefono}/estado")
+def actualizar_estado_solicitud(
+    telefono: str,
+    body: dict,
+    usuario: str = Depends(verificar_credenciales_panel),
+):
+    """
+    Avanza el flujo operativo de una solicitud de retiro/domicilio.
+    Por ahora solo "Caso entregado y cerrado" tiene efecto real (limpia
+    los avisos pendientes); las demás acciones son pasos intermedios
+    que este backend todavía no rastrea con estado propio.
+    """
+    accion = body.get("accion", "")
+    if accion == "Caso entregado y cerrado":
+        actualizar_sesion(
+            telefono,
+            aviso_retiro_pendiente=False,
+            solicitud_domicilio_pendiente=False,
+        )
+    return {"ok": True, "accion": accion}
