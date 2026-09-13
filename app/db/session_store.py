@@ -247,7 +247,18 @@ def listar_sesiones_con_factura_pendiente() -> list[Sesion]:
         db.close()
 
 
-def agregar_al_historial(telefono: str, rol: str, contenido: str, max_mensajes: int = 100):
+def agregar_al_historial(
+    telefono: str,
+    rol: str,
+    contenido: str,
+    max_mensajes: int = 100,
+    *,
+    tipo: str | None = None,
+    media_id: str | None = None,
+    mime_type: str | None = None,
+    whatsapp_message_id: str | None = None,
+    estado_entrega: str | None = None,
+):
     """
     Agrega un mensaje al historial de la conversación, y recorta
     el historial si supera max_mensajes (para no mandar contexto
@@ -260,16 +271,58 @@ def agregar_al_historial(telefono: str, rol: str, contenido: str, max_mensajes: 
             return
 
         historial = json.loads(sesion.historial_json or "[]")
-        historial.append({
+        mensaje = {
             "role": rol,
             "content": contenido,
             "timestamp": datetime.utcnow().isoformat(timespec="seconds") + "Z",
-        })
+        }
+        metadatos = {
+            "tipo": tipo,
+            "media_id": media_id,
+            "mime_type": mime_type,
+            "whatsapp_message_id": whatsapp_message_id,
+            "estado_entrega": estado_entrega,
+        }
+        mensaje.update({clave: valor for clave, valor in metadatos.items() if valor})
+        historial.append(mensaje)
         historial = historial[-max_mensajes:]
 
         sesion.historial_json = json.dumps(historial)
         sesion.actualizado_en = datetime.utcnow()
         db.commit()
+    finally:
+        db.close()
+
+
+def actualizar_estado_mensaje_whatsapp(
+    whatsapp_message_id: str,
+    estado: str,
+    error_entrega: str | None = None,
+) -> bool:
+    """Actualiza el recibo de entrega sin convertir el chat en no leído."""
+    if not whatsapp_message_id:
+        return False
+    db = SessionSesiones()
+    try:
+        sesiones = (
+            db.query(Sesion)
+            .filter(Sesion.historial_json.contains(whatsapp_message_id))
+            .all()
+        )
+        for sesion in sesiones:
+            historial = json.loads(sesion.historial_json or "[]")
+            actualizado = False
+            for mensaje in historial:
+                if mensaje.get("whatsapp_message_id") == whatsapp_message_id:
+                    mensaje["estado_entrega"] = estado
+                    if error_entrega:
+                        mensaje["error_entrega"] = error_entrega[:300]
+                    actualizado = True
+            if actualizado:
+                sesion.historial_json = json.dumps(historial)
+                db.commit()
+                return True
+        return False
     finally:
         db.close()
 
