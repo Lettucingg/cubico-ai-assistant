@@ -75,3 +75,23 @@ def test_no_permite_pago_superior_al_saldo(tmp_path):
     db = fabrica()
     assert db.query(Pago).count() == 0
     db.close()
+
+
+def test_respeta_factura_marcada_pagada_por_la_web(tmp_path):
+    fabrica = _crear_escenario(tmp_path)
+    db = fabrica()
+    db.query(Factura).one().estado = "pagado"
+    db.commit()
+    db.close()
+
+    consulta = facturas.consultar_facturas_por_codigo("CBC-TEST")
+
+    assert consulta["saldo_pendiente_total"] == 0
+    assert consulta["facturas"][0]["saldo_pendiente"] == 0
+    try:
+        facturas.registrar_pago_factura_desde_panel(
+            "CBC-TEST", "FAC-TEST", 10, "Yappy", "REF-DUPLICADA"
+        )
+        assert False, "no debe duplicar un pago ya reflejado por la web"
+    except ValueError as error:
+        assert "ya aparece pagada" in str(error)

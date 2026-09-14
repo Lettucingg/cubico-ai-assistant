@@ -11,7 +11,18 @@ def _dinero(valor) -> Decimal:
     return Decimal(str(valor or 0)).quantize(Decimal("0.01"))
 
 
+def _factura_esta_pagada(factura: Factura) -> bool:
+    return str(factura.estado or "").strip().lower() in {
+        "pagado", "pagada", "paid", "completado", "completada",
+    }
+
+
 def _saldo_factura(factura: Factura) -> Decimal:
+    # La página web puede marcar la factura como pagada sin crear una
+    # fila en `pagos`. En ese caso el estado de facturación manda y no
+    # debemos ofrecer registrar el mismo comprobante una segunda vez.
+    if _factura_esta_pagada(factura):
+        return Decimal("0.00")
     pagado = sum((_dinero(pago.monto) for pago in factura.pagos if not pago.anulado), Decimal("0.00"))
     return max(Decimal("0.00"), _dinero(factura.total) - pagado)
 
@@ -47,7 +58,7 @@ def consultar_facturas_por_codigo(codigo_cliente: str) -> dict:
             total = _dinero(factura.total)
             saldo_factura = _saldo_factura(factura)
 
-            if factura.estado != "pagado":
+            if not _factura_esta_pagada(factura):
                 saldo_pendiente_total += float(saldo_factura)
 
             facturas.append({
