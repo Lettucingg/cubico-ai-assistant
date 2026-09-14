@@ -1711,6 +1711,8 @@ def generar_respuesta(
                 "domicilio_coordinado": False,
                 "metodo_pago_reportado": None,
                 "monto_pago_reportado": None,
+                "referencia_pago_reportado": None,
+                "fecha_pago_reportado": None,
                 "comprobante_media_id": None,
             })
         actualizar_sesion(telefono, **cambios_retiro)
@@ -1810,6 +1812,8 @@ def generar_respuesta(
                 "domicilio_coordinado": False,
                 "metodo_pago_reportado": None,
                 "monto_pago_reportado": None,
+                "referencia_pago_reportado": None,
+                "fecha_pago_reportado": None,
                 "comprobante_media_id": None,
             })
         actualizar_sesion(telefono, **cambios_domicilio)
