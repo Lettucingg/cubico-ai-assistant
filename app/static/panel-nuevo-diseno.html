@@ -214,6 +214,7 @@
         const actividad=await r.json(),anteriores=new Map(convs.map(c=>[c.telefono,c]));
         const combinadas=actividad.map(a=>({...anteriores.get(a.telefono),...a}));
         renderLista(combinadas);
+        renderAlertas();
         if(telActivo){const conv=convs.find(c=>c.telefono===telActivo);if(conv)actualizarEncabezadoChat(conv)}
       }catch(e){}
     }
