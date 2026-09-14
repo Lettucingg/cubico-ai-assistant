@@ -3,11 +3,8 @@ import json
 from sqlalchemy import create_engine, Column, Integer, String, DateTime, Text, Boolean, Float, inspect, text
 from sqlalchemy.orm import sessionmaker, declarative_base
 from datetime import datetime, timedelta
-from zoneinfo import ZoneInfo
 
 from app.core.config import settings
-
-ZONA_PANAMA = ZoneInfo("America/Panama")
 
 _session_database_url = settings.SESSION_DATABASE_URL
 _engine_options = {"pool_pre_ping": True}
@@ -78,6 +75,20 @@ class UsoIA(BaseSesiones):
     creado_en = Column(DateTime, default=datetime.utcnow, index=True, nullable=False)
 
 
+class SuscripcionPush(BaseSesiones):
+    """Dispositivo autorizado para recibir avisos del panel."""
+
+    __tablename__ = "suscripciones_push"
+
+    id = Column(Integer, primary_key=True)
+    endpoint = Column(Text, unique=True, nullable=False)
+    p256dh = Column(Text, nullable=False)
+    auth = Column(Text, nullable=False)
+    usuario = Column(String, nullable=False)
+    creado_en = Column(DateTime, default=datetime.utcnow, nullable=False)
+    actualizado_en = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
 BaseSesiones.metadata.create_all(engine_sesiones)
 
 
@@ -100,6 +111,57 @@ def _migrar_columnas_faltantes():
 
 
 _migrar_columnas_faltantes()
+
+
+def guardar_suscripcion_push(usuario: str, suscripcion: dict) -> None:
+    """Crea o renueva una suscripción sin almacenar credenciales del panel."""
+    endpoint = str(suscripcion.get("endpoint") or "").strip()
+    keys = suscripcion.get("keys") or {}
+    p256dh = str(keys.get("p256dh") or "").strip()
+    auth = str(keys.get("auth") or "").strip()
+    if not endpoint or not p256dh or not auth:
+        raise ValueError("Suscripción push incompleta")
+
+    db = SessionSesiones()
+    try:
+        registro = db.query(SuscripcionPush).filter(SuscripcionPush.endpoint == endpoint).first()
+        if registro is None:
+            registro = SuscripcionPush(endpoint=endpoint, creado_en=datetime.utcnow())
+            db.add(registro)
+        registro.p256dh = p256dh
+        registro.auth = auth
+        registro.usuario = usuario
+        registro.actualizado_en = datetime.utcnow()
+        db.commit()
+    finally:
+        db.close()
+
+
+def eliminar_suscripcion_push(endpoint: str) -> bool:
+    db = SessionSesiones()
+    try:
+        eliminadas = db.query(SuscripcionPush).filter(
+            SuscripcionPush.endpoint == endpoint
+        ).delete(synchronize_session=False)
+        db.commit()
+        return bool(eliminadas)
+    finally:
+        db.close()
+
+
+def listar_suscripciones_push() -> list[dict]:
+    db = SessionSesiones()
+    try:
+        return [
+            {
+                "endpoint": fila.endpoint,
+                "keys": {"p256dh": fila.p256dh, "auth": fila.auth},
+                "usuario": fila.usuario,
+            }
+            for fila in db.query(SuscripcionPush).all()
+        ]
+    finally:
+        db.close()
 
 
 def obtener_o_crear_sesion(telefono: str) -> Sesion:
@@ -250,60 +312,6 @@ def listar_sesiones_con_factura_pendiente() -> list[Sesion]:
         for sesion in sesiones:
             db.expunge(sesion)
         return sesiones
-    finally:
-        db.close()
-
-
-def obtener_resumen_dia() -> dict:
-    """
-    Cuenta actividad del día (hora Panamá) para el resumen de fin de
-    día: conversaciones con actividad, casos escalados, retiros y
-    domicilios coordinados. `actualizado_en` y `solicitud_actualizada_en`
-    se guardan en UTC, así que el inicio del día en Panamá se convierte
-    a UTC antes de filtrar.
-    """
-    inicio_dia_panama = datetime.now(ZONA_PANAMA).replace(
-        hour=0, minute=0, second=0, microsecond=0
-    )
-    inicio_dia_utc = inicio_dia_panama.astimezone(ZoneInfo("UTC")).replace(tzinfo=None)
-
-    db = SessionSesiones()
-    try:
-        conversaciones_activas = (
-            db.query(Sesion)
-            .filter(Sesion.actualizado_en >= inicio_dia_utc)
-            .count()
-        )
-        casos_escalados = (
-            db.query(Sesion)
-            .filter(
-                Sesion.necesita_atencion_humana == True,  # noqa: E712
-                Sesion.actualizado_en >= inicio_dia_utc,
-            )
-            .count()
-        )
-        retiros_coordinados = (
-            db.query(Sesion)
-            .filter(
-                Sesion.paquetes_preparados == True,  # noqa: E712
-                Sesion.solicitud_actualizada_en >= inicio_dia_utc,
-            )
-            .count()
-        )
-        domicilios_coordinados = (
-            db.query(Sesion)
-            .filter(
-                Sesion.domicilio_coordinado == True,  # noqa: E712
-                Sesion.solicitud_actualizada_en >= inicio_dia_utc,
-            )
-            .count()
-        )
-        return {
-            "conversaciones_activas": conversaciones_activas,
-            "casos_escalados": casos_escalados,
-            "retiros_coordinados": retiros_coordinados,
-            "domicilios_coordinados": domicilios_coordinados,
-        }
     finally:
         db.close()
 
