@@ -45,6 +45,8 @@ class Sesion(BaseSesiones):
     actualizado_en = Column(DateTime, default=datetime.utcnow)
     ultimo_leido_panel = Column(DateTime, nullable=True)
     atencion_humana_directa = Column(Boolean, default=False)
+    atencion_humana_por = Column(String, nullable=True)
+    atencion_humana_desde = Column(DateTime, nullable=True)
     pago_reportado = Column(Boolean, default=False)
     pago_confirmado = Column(Boolean, default=False)
     paquetes_preparados = Column(Boolean, default=False)
@@ -333,7 +335,7 @@ def agregar_al_historial(
         mensaje = {
             "role": rol,
             "content": contenido,
-            "timestamp": datetime.utcnow().isoformat(timespec="seconds") + "Z",
+            "timestamp": datetime.utcnow().isoformat(timespec="milliseconds") + "Z",
         }
         metadatos = {
             "tipo": tipo,
