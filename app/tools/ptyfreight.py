@@ -44,6 +44,14 @@ def consultar_tracking(numero_tracking: str) -> dict:
     return resultado
 
 
+ESTADOS_CUBICO = {
+    "notificado": "llegó a Cúbico Panamá y está listo para retiro o entrega",
+    "en_ruta": "está en camino hacia Panamá",
+    "entregado": "fue entregado al cliente",
+    "en_miami": "está en nuestra bodega en Miami siendo procesado",
+}
+
+
 def _mapear_respuesta(datos: dict) -> dict:
     """
     Traduce la respuesta cruda del endpoint unificado (que trae un
@@ -53,11 +61,15 @@ def _mapear_respuesta(datos: dict) -> dict:
     fuente = datos.get("fuente")
 
     if fuente == "cubico":
+        estado_raw = datos.get("estado", "")
+        estado_texto = ESTADOS_CUBICO.get(estado_raw, estado_raw)
+        ruta = datos.get("ruta", "")
         return {
             "encontrado": True,
             "fuente": "cubico",
-            "estado": datos.get("estado"),
-            "ruta": datos.get("ruta"),
+            "estado": estado_raw,
+            "estado_texto": estado_texto,
+            "ruta": ruta,
             "fecha": datos.get("fecha_carga"),
         }
 
