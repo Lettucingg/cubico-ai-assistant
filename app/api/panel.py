@@ -7,6 +7,7 @@ from datetime import datetime
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
+from pydantic import BaseModel
 
 from app.core.config import settings
 from app.db.session_store import (
@@ -16,7 +17,10 @@ from app.db.session_store import (
     obtener_resumen_uso,
     actualizar_sesion,
     agregar_al_historial,
+    eliminar_suscripcion_push,
+    guardar_suscripcion_push,
 )
+from app.services.push_notifications import push_configurado
 from app.tools.clientes import obtener_nombre_completo_cliente
 from app.tools.comprobantes import descargar_imagen_de_whatsapp
 from app.tools.transcripcion import descargar_audio_de_whatsapp
@@ -40,6 +44,11 @@ security = HTTPBasic()
 # PANEL_USUARIOS_JSON (un objeto JSON usuario -> contraseña). Nunca
 # hardcodear usuarios/contraseñas reales aquí en el código.
 USUARIOS_PANEL: dict[str, str] = json.loads(settings.PANEL_USUARIOS_JSON)
+
+
+class SuscripcionPushPayload(BaseModel):
+    endpoint: str
+    keys: dict[str, str]
 
 
 def _ultimo_mensaje_cliente_en(historial: list[dict]) -> datetime | None:
@@ -73,6 +82,36 @@ def verificar_credenciales_panel(credenciales: HTTPBasicCredentials = Depends(se
             headers={"WWW-Authenticate": "Basic"},
         )
     return credenciales.username
+
+
+@router.get("/push/config")
+def configuracion_push(usuario: str = Depends(verificar_credenciales_panel)):
+    return {
+        "disponible": push_configurado(),
+        "public_key": settings.PUSH_VAPID_PUBLIC_KEY if push_configurado() else "",
+    }
+
+
+@router.post("/push/suscripcion")
+def registrar_push(
+    payload: SuscripcionPushPayload,
+    usuario: str = Depends(verificar_credenciales_panel),
+):
+    if not push_configurado():
+        raise HTTPException(status_code=503, detail="Notificaciones push no configuradas")
+    try:
+        guardar_suscripcion_push(usuario, payload.model_dump())
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    return {"ok": True}
+
+
+@router.delete("/push/suscripcion")
+def borrar_push(
+    payload: SuscripcionPushPayload,
+    usuario: str = Depends(verificar_credenciales_panel),
+):
+    return {"ok": True, "eliminada": eliminar_suscripcion_push(payload.endpoint)}
 
 
 @router.get("/conversaciones")
