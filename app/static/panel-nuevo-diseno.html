@@ -65,7 +65,7 @@
       <div class="side-bottom"><div class="health"><div class="health-top"><span><i class="dot"></i>Panel conectado</span><b>API</b></div><p>Los estados mostrados vienen del backend de Bruno.</p></div></div>
     </aside>
     <main>
-      <header class="topbar"><div class="title"><h1 id="page-title">Buenos días, Alexander</h1><p id="page-sub">Esto es lo que está pasando en Cúbico hoy.</p></div><div class="top-actions"><input class="search" id="global-search" placeholder="Buscar chat, cliente o paquete…" aria-label="Buscar"/><button class="icon-btn" id="notifications" aria-label="Notificaciones" title="Ver alertas y activar notificaciones">🔔<span class="notification-count" id="notification-count">0</span></button><div class="avatar">AS</div></div></header>
+      <header class="topbar"><div class="title"><h1 id="page-title">Buenos días, Alexander</h1><p id="page-sub">Esto es lo que está pasando en Cúbico hoy.</p></div><div class="top-actions"><input class="search" id="global-search" placeholder="Buscar chat, cliente o paquete…" aria-label="Buscar"/><button class="icon-btn" id="notifications" aria-label="Notificaciones" title="Ver alertas y activar notificaciones">🔔<span class="notification-count" id="notification-count">0</span></button><div class="avatar" id="settings-shortcut" role="button" tabindex="0" aria-label="Abrir configuración" title="Configuración">AS</div></div></header>
 
       <section class="view active" id="overview">
         <div class="demo-note">● Mensajes cada 5 segundos · métricas cada 30 segundos</div>
@@ -671,6 +671,9 @@
 
     document.querySelectorAll('.seg button').forEach(b=>b.addEventListener('click',()=>{b.parentNode.querySelectorAll('button').forEach(x=>x.classList.remove('active'));b.classList.add('active');cargarUso(Number(b.dataset.days||30))}));
     document.getElementById('global-search').addEventListener('keydown',e=>{if(e.key!=='Enter')return;busqueda=e.target.value.trim();document.getElementById('chat-search').value=busqueda;showView('chats');renderLista(convs)});
+    const accesoConfiguracion=document.getElementById('settings-shortcut');
+    accesoConfiguracion.addEventListener('click',()=>showView('settings'));
+    accesoConfiguracion.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();showView('settings')}});
     document.getElementById('notification-toggle').addEventListener('click',activarNotificaciones);
     document.getElementById('push-toggle').addEventListener('click',cambiarPush);
     document.getElementById('sound-toggle').addEventListener('click',e=>{sonidoActivo=!sonidoActivo;e.currentTarget.textContent='Sonido: '+(sonidoActivo?'activo':'silenciado');if(sonidoActivo)reproducirAviso();say(sonidoActivo?'Sonido de mensajes activado':'Sonido de mensajes silenciado')});
