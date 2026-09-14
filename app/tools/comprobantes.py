@@ -21,8 +21,14 @@ async def descargar_imagen_de_whatsapp(media_id: str) -> bytes:
             f"https://graph.facebook.com/v21.0/{media_id}",
             headers=headers,
         )
+        respuesta_info.raise_for_status()
         url_descarga = respuesta_info.json()["url"]
         respuesta_imagen = await client.get(url_descarga, headers=headers)
+        respuesta_imagen.raise_for_status()
+        if not respuesta_imagen.content:
+            raise ValueError("Meta devolvió un comprobante vacío")
+        if not respuesta_imagen.headers.get("content-type", "").lower().startswith("image/"):
+            raise ValueError("Meta no devolvió una imagen válida")
         return respuesta_imagen.content
 
 
