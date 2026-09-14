@@ -20,7 +20,10 @@ from app.db.session_store import (
 from app.tools.clientes import obtener_nombre_completo_cliente
 from app.tools.comprobantes import descargar_imagen_de_whatsapp
 from app.tools.transcripcion import descargar_audio_de_whatsapp
-from app.tools.facturas import consultar_facturas_por_codigo
+from app.tools.facturas import (
+    consultar_facturas_por_codigo,
+    registrar_pago_factura_desde_panel,
+)
 from app.ai.orchestrator import redactar_respuesta_de_asesor
 from app.api.whatsapp import (
     enviar_audio_whatsapp,
@@ -175,6 +178,9 @@ def listar_solicitudes(usuario: str = Depends(verificar_credenciales_panel)):
         for tipo in tipos:
             monto_pendiente = None
             pago_confirmado_sistema = False
+            detalle_facturas = []
+            factura_sugerida = None
+            tiene_facturas = False
             if sesion.codigo_cliente_verificado:
                 try:
                     facturas = consultar_facturas_por_codigo(sesion.codigo_cliente_verificado)
@@ -185,6 +191,20 @@ def listar_solicitudes(usuario: str = Depends(verificar_credenciales_panel)):
                     if tiene_facturas:
                         monto_pendiente = facturas.get("saldo_pendiente_total")
                         pago_confirmado_sistema = monto_pendiente == 0
+                        detalle_facturas = [
+                            factura for factura in facturas.get("facturas", [])
+                            if factura.get("saldo_pendiente", 0) > 0
+                        ]
+                        monto_reportado = sesion.monto_pago_reportado
+                        coincidencias = [
+                            factura for factura in detalle_facturas
+                            if monto_reportado is not None
+                            and abs(float(factura["saldo_pendiente"]) - float(monto_reportado)) < .005
+                        ]
+                        if len(coincidencias) == 1:
+                            factura_sugerida = coincidencias[0]["codigo"]
+                        elif len(detalle_facturas) == 1:
+                            factura_sugerida = detalle_facturas[0]["codigo"]
                 except Exception:
                     monto_pendiente = None
             pago_confirmado_panel = bool(sesion.pago_confirmado)
@@ -196,10 +216,21 @@ def listar_solicitudes(usuario: str = Depends(verificar_credenciales_panel)):
                 "paquetes": sesion.paquetes_a_retirar if tipo == "retiro" else sesion.paquetes_a_domicilio,
                 "direccion": sesion.direccion_domicilio if tipo == "domicilio" else "Sucursal Cúbico",
                 "monto_pendiente": monto_pendiente,
+                "monto_reportado": sesion.monto_pago_reportado,
+                "metodo_reportado": sesion.metodo_pago_reportado,
+                "referencia_reportada": sesion.referencia_pago_reportado,
+                "fecha_reportada": sesion.fecha_pago_reportado,
+                "diferencia_pago": (
+                    round(float(sesion.monto_pago_reportado) - float(monto_pendiente), 2)
+                    if sesion.monto_pago_reportado is not None and monto_pendiente is not None
+                    else None
+                ),
+                "facturas_pendientes": detalle_facturas,
+                "factura_sugerida": factura_sugerida,
                 "pago_reportado": bool(sesion.pago_reportado),
                 "pago_confirmado": pago_confirmado_panel,
                 "pago_confirmado_sistema": pago_confirmado_sistema,
-                "pago_resuelto": pago_confirmado_panel or pago_confirmado_sistema,
+                "pago_resuelto": pago_confirmado_sistema or (pago_confirmado_panel and not tiene_facturas),
                 "paquetes_preparados": bool(sesion.paquetes_preparados),
                 "domicilio_coordinado": bool(sesion.domicilio_coordinado),
                 "tiene_comprobante": bool(sesion.comprobante_media_id),
@@ -228,12 +259,73 @@ def actualizar_estado_solicitud(
         raise HTTPException(status_code=400, detail="Tipo de solicitud inválido")
 
     if accion == "confirmar_pago":
+        if sesion.pago_confirmado:
+            raise HTTPException(status_code=409, detail="Este comprobante ya fue procesado")
+        resultado_pago = None
+        if sesion.codigo_cliente_verificado:
+            facturas = consultar_facturas_por_codigo(sesion.codigo_cliente_verificado)
+            pendientes = [
+                factura for factura in facturas.get("facturas", [])
+                if factura.get("saldo_pendiente", 0) > 0
+            ]
+            if pendientes:
+                if not sesion.pago_reportado or sesion.monto_pago_reportado is None:
+                    raise HTTPException(
+                        status_code=409,
+                        detail="Primero debe existir un comprobante con monto legible",
+                    )
+                codigo_factura = body.get("factura_codigo")
+                if not codigo_factura:
+                    coincidencias = [
+                        factura for factura in pendientes
+                        if abs(float(factura["saldo_pendiente"]) - float(sesion.monto_pago_reportado)) < .005
+                    ]
+                    if len(coincidencias) == 1:
+                        codigo_factura = coincidencias[0]["codigo"]
+                    elif len(pendientes) == 1:
+                        codigo_factura = pendientes[0]["codigo"]
+                    else:
+                        raise HTTPException(
+                            status_code=409,
+                            detail="Selecciona la factura a la que corresponde el comprobante",
+                        )
+                try:
+                    resultado_pago = registrar_pago_factura_desde_panel(
+                        sesion.codigo_cliente_verificado,
+                        codigo_factura,
+                        sesion.monto_pago_reportado,
+                        sesion.metodo_pago_reportado,
+                        sesion.referencia_pago_reportado,
+                        sesion.fecha_pago_reportado,
+                    )
+                except ValueError as error:
+                    raise HTTPException(status_code=409, detail=str(error)) from error
+                except Exception as error:
+                    raise HTTPException(
+                        status_code=502,
+                        detail="No se pudo registrar el pago en facturación",
+                    ) from error
         cambios = {"pago_confirmado": True}
     elif accion == "preparar":
+        if sesion.codigo_cliente_verificado:
+            facturas = consultar_facturas_por_codigo(sesion.codigo_cliente_verificado)
+            if facturas.get("cantidad_facturas", 0) and facturas.get("saldo_pendiente_total", 0) > .01:
+                raise HTTPException(
+                    status_code=409,
+                    detail="Aún existe saldo pendiente; no se pueden preparar los paquetes",
+                )
+        elif not sesion.pago_confirmado:
+            raise HTTPException(status_code=409, detail="Confirma el pago antes de preparar")
         cambios = {"paquetes_preparados": True}
     elif accion == "coordinar" and tipo == "domicilio":
+        if not sesion.paquetes_preparados:
+            raise HTTPException(status_code=409, detail="Primero marca los paquetes como listos")
         cambios = {"domicilio_coordinado": True}
     elif accion == "entregar":
+        if not sesion.paquetes_preparados:
+            raise HTTPException(status_code=409, detail="Primero marca los paquetes como listos")
+        if tipo == "domicilio" and not sesion.domicilio_coordinado:
+            raise HTTPException(status_code=409, detail="Primero coordina el domicilio")
         cambios = {
             "entregado": True,
             "aviso_retiro_pendiente": False if tipo == "retiro" else sesion.aviso_retiro_pendiente,
@@ -243,7 +335,10 @@ def actualizar_estado_solicitud(
         raise HTTPException(status_code=400, detail="Acción inválida")
 
     actualizar_sesion(telefono, **cambios)
-    return {"status": "ok", "accion": accion, "tipo": tipo}
+    respuesta = {"status": "ok", "accion": accion, "tipo": tipo}
+    if accion == "confirmar_pago":
+        respuesta["pago"] = resultado_pago
+    return respuesta
 
 
 @router.get("/uso")
@@ -271,6 +366,33 @@ async def obtener_comprobante(
             detail="Meta ya no permitió descargar ese comprobante; pide al cliente que lo reenvíe",
         ) from error
     return Response(content=contenido, media_type="image/jpeg")
+
+
+@router.get("/imagen/{telefono}/{media_id}")
+async def obtener_imagen_panel(
+    telefono: str,
+    media_id: str,
+    usuario: str = Depends(verificar_credenciales_panel),
+):
+    """Sirve una imagen que realmente pertenece al historial del cliente."""
+    sesion = obtener_sesion_existente(telefono)
+    if sesion is None:
+        raise HTTPException(status_code=404, detail="No existe esa conversación")
+    pertenece = sesion.comprobante_media_id == media_id or any(
+        item.get("tipo") == "image" and item.get("media_id") == media_id
+        for item in sesion.obtener_historial()
+    )
+    if not pertenece:
+        raise HTTPException(status_code=404, detail="Esa imagen no pertenece a la conversación")
+    try:
+        contenido = await descargar_imagen_de_whatsapp(media_id)
+    except Exception as error:
+        raise HTTPException(status_code=502, detail="Meta ya no permitió descargar esta imagen") from error
+    return Response(
+        content=contenido,
+        media_type="image/jpeg",
+        headers={"Cache-Control": "private, max-age=60"},
+    )
 
 
 @router.get("/conversacion/{telefono}")
