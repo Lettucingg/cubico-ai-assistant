@@ -49,6 +49,8 @@ class Sesion(BaseSesiones):
     entregado = Column(Boolean, default=False)
     metodo_pago_reportado = Column(String, nullable=True)
     monto_pago_reportado = Column(Float, nullable=True)
+    referencia_pago_reportado = Column(String, nullable=True)
+    fecha_pago_reportado = Column(String, nullable=True)
     comprobante_media_id = Column(String, nullable=True)
     solicitud_actualizada_en = Column(DateTime, nullable=True)
 
