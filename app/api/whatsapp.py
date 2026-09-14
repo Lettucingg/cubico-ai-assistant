@@ -27,6 +27,7 @@ from app.tools.comprobantes import (
 )
 from app.tools.clientes import obtener_nombre_completo_cliente
 from app.tools.paquetes import consultar_paquetes_por_codigo
+from app.services.push_notifications import notificar_panel_push
 
 router = APIRouter()
 
@@ -612,6 +613,29 @@ async def agregar_mensaje_a_buffer(mensaje: dict):
     tareas_pendientes[telefono] = asyncio.create_task(_procesar_buffer_tras_espera(telefono))
 
 
+async def procesar_entrada_con_push(mensaje: dict):
+    """Procesa el mensaje y avisa a los paneles instalados en paralelo."""
+    sesion = obtener_sesion_existente(mensaje["telefono"])
+    nombre = None
+    if sesion and sesion.codigo_cliente_verificado:
+        info = obtener_nombre_completo_cliente(sesion.codigo_cliente_verificado)
+        if info.get("encontrado"):
+            nombre = info.get("nombre_completo")
+
+    tipo = mensaje.get("tipo")
+    if tipo == "image":
+        resumen = "Envió una imagen o comprobante"
+    elif tipo == "audio":
+        resumen = "Envió una nota de voz"
+    else:
+        resumen = str(mensaje.get("texto") or "Nuevo mensaje de WhatsApp")
+
+    await asyncio.gather(
+        agregar_mensaje_a_buffer(mensaje),
+        notificar_panel_push(mensaje["telefono"], nombre, resumen),
+    )
+
+
 async def procesar_mensaje_en_segundo_plano(mensaje: dict):
     """
     Hace todo el trabajo pesado de un mensaje ya combinado del buffer
@@ -1023,6 +1047,6 @@ async def recibir_mensaje(request: Request, background_tasks: BackgroundTasks):
         )
         return {"status": "comando_no_reconocido"}
 
-    background_tasks.add_task(agregar_mensaje_a_buffer, mensaje)
+    background_tasks.add_task(procesar_entrada_con_push, mensaje)
 
     return {"status": "recibido"}
