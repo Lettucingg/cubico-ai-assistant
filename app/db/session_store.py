@@ -78,6 +78,20 @@ class UsoIA(BaseSesiones):
     creado_en = Column(DateTime, default=datetime.utcnow, index=True, nullable=False)
 
 
+class SuscripcionPush(BaseSesiones):
+    """Dispositivo autorizado para recibir avisos del panel."""
+
+    __tablename__ = "suscripciones_push"
+
+    id = Column(Integer, primary_key=True)
+    endpoint = Column(Text, unique=True, nullable=False)
+    p256dh = Column(Text, nullable=False)
+    auth = Column(Text, nullable=False)
+    usuario = Column(String, nullable=False)
+    creado_en = Column(DateTime, default=datetime.utcnow, nullable=False)
+    actualizado_en = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
 BaseSesiones.metadata.create_all(engine_sesiones)
 
 
@@ -100,6 +114,57 @@ def _migrar_columnas_faltantes():
 
 
 _migrar_columnas_faltantes()
+
+
+def guardar_suscripcion_push(usuario: str, suscripcion: dict) -> None:
+    """Crea o renueva una suscripción sin almacenar credenciales del panel."""
+    endpoint = str(suscripcion.get("endpoint") or "").strip()
+    keys = suscripcion.get("keys") or {}
+    p256dh = str(keys.get("p256dh") or "").strip()
+    auth = str(keys.get("auth") or "").strip()
+    if not endpoint or not p256dh or not auth:
+        raise ValueError("Suscripción push incompleta")
+
+    db = SessionSesiones()
+    try:
+        registro = db.query(SuscripcionPush).filter(SuscripcionPush.endpoint == endpoint).first()
+        if registro is None:
+            registro = SuscripcionPush(endpoint=endpoint, creado_en=datetime.utcnow())
+            db.add(registro)
+        registro.p256dh = p256dh
+        registro.auth = auth
+        registro.usuario = usuario
+        registro.actualizado_en = datetime.utcnow()
+        db.commit()
+    finally:
+        db.close()
+
+
+def eliminar_suscripcion_push(endpoint: str) -> bool:
+    db = SessionSesiones()
+    try:
+        eliminadas = db.query(SuscripcionPush).filter(
+            SuscripcionPush.endpoint == endpoint
+        ).delete(synchronize_session=False)
+        db.commit()
+        return bool(eliminadas)
+    finally:
+        db.close()
+
+
+def listar_suscripciones_push() -> list[dict]:
+    db = SessionSesiones()
+    try:
+        return [
+            {
+                "endpoint": fila.endpoint,
+                "keys": {"p256dh": fila.p256dh, "auth": fila.auth},
+                "usuario": fila.usuario,
+            }
+            for fila in db.query(SuscripcionPush).all()
+        ]
+    finally:
+        db.close()
 
 
 def obtener_o_crear_sesion(telefono: str) -> Sesion:
