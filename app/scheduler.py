@@ -5,7 +5,11 @@ from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 
 from app.api.whatsapp import NUMEROS_NOTIFICACION, enviar_mensaje_whatsapp, notificar_equipo_domicilio
-from app.db.session_store import listar_sesiones_con_factura_pendiente, actualizar_sesion
+from app.db.session_store import (
+    listar_sesiones_con_factura_pendiente,
+    actualizar_sesion,
+    obtener_resumen_dia,
+)
 from app.tools.facturas import consultar_facturas_por_codigo
 from app.tools.paquetes import consultar_paquetes_por_codigo
 
@@ -27,6 +31,17 @@ MENSAJE_DOMICILIO_NOTIFICADO = (
     "domicilio quedó notificada al equipo."
 )
 
+# También fijo, sin Claude: es un resumen generado a partir de conteos
+# de la base de datos, no hay nada que Claude deba redactar aquí.
+MENSAJE_RESUMEN_FIN_DIA = (
+    "📊 Resumen del día — Cúbico\n"
+    "💬 Conversaciones activas: {conversaciones_activas}\n"
+    "⚠️ Casos escalados: {casos_escalados}\n"
+    "📦 Retiros coordinados: {retiros_coordinados}\n"
+    "🏠 Domicilios coordinados: {domicilios_coordinados}\n"
+    "Buen trabajo equipo 💪"
+)
+
 ZONA_HORARIA = "America/Panama"
 
 scheduler = AsyncIOScheduler(timezone=ZONA_HORARIA)
@@ -41,11 +56,29 @@ async def enviar_ping_diario():
     los avisos de escalamiento/comprobantes/retiro dejan de llegar. Este
     ping la mantiene abierta.
     """
+    print(f"[PING DIARIO] Enviando a {len(NUMEROS_NOTIFICACION)} números...")
     for numero in NUMEROS_NOTIFICACION:
         try:
             await enviar_mensaje_whatsapp(numero, MENSAJE_PING_DIARIO)
+            print(f"[PING DIARIO] Enviado a {numero}")
         except Exception as error:
             log.error(f"Error enviando ping diario a {numero}: {type(error).__name__}: {error}")
+
+
+async def resumen_fin_dia():
+    """
+    A las 5:00 PM hora Panamá, manda al equipo un resumen fijo (sin
+    Claude) de la actividad del día: conversaciones con actividad,
+    casos escalados, y retiros/domicilios coordinados.
+    """
+    resumen = obtener_resumen_dia()
+    mensaje = MENSAJE_RESUMEN_FIN_DIA.format(**resumen)
+
+    for numero in NUMEROS_NOTIFICACION:
+        try:
+            await enviar_mensaje_whatsapp(numero, mensaje)
+        except Exception as error:
+            log.error(f"Error enviando resumen de fin de día a {numero}: {type(error).__name__}: {error}")
 
 
 async def _continuar_domicilio_tras_pago_confirmado(sesion, codigo_factura: str):
@@ -152,8 +185,15 @@ def iniciar_scheduler():
         replace_existing=True,
         misfire_grace_time=300,
     )
+    scheduler.add_job(
+        resumen_fin_dia,
+        CronTrigger(hour=17, minute=0, timezone=ZONA_HORARIA),
+        id="resumen_fin_dia",
+        replace_existing=True,
+        misfire_grace_time=3600,
+    )
     scheduler.start()
     log.info(
         f"Scheduler iniciado: ping diario 8:00 AM + revisión de pagos "
-        f"cada 30 min ({ZONA_HORARIA})."
+        f"cada 30 min + resumen fin de día 5:00 PM ({ZONA_HORARIA})."
     )

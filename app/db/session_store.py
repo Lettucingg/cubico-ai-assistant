@@ -3,8 +3,11 @@ import json
 from sqlalchemy import create_engine, Column, Integer, String, DateTime, Text, Boolean, Float, inspect, text
 from sqlalchemy.orm import sessionmaker, declarative_base
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 
 from app.core.config import settings
+
+ZONA_PANAMA = ZoneInfo("America/Panama")
 
 _session_database_url = settings.SESSION_DATABASE_URL
 _engine_options = {"pool_pre_ping": True}
@@ -245,6 +248,60 @@ def listar_sesiones_con_factura_pendiente() -> list[Sesion]:
         for sesion in sesiones:
             db.expunge(sesion)
         return sesiones
+    finally:
+        db.close()
+
+
+def obtener_resumen_dia() -> dict:
+    """
+    Cuenta actividad del día (hora Panamá) para el resumen de fin de
+    día: conversaciones con actividad, casos escalados, retiros y
+    domicilios coordinados. `actualizado_en` y `solicitud_actualizada_en`
+    se guardan en UTC, así que el inicio del día en Panamá se convierte
+    a UTC antes de filtrar.
+    """
+    inicio_dia_panama = datetime.now(ZONA_PANAMA).replace(
+        hour=0, minute=0, second=0, microsecond=0
+    )
+    inicio_dia_utc = inicio_dia_panama.astimezone(ZoneInfo("UTC")).replace(tzinfo=None)
+
+    db = SessionSesiones()
+    try:
+        conversaciones_activas = (
+            db.query(Sesion)
+            .filter(Sesion.actualizado_en >= inicio_dia_utc)
+            .count()
+        )
+        casos_escalados = (
+            db.query(Sesion)
+            .filter(
+                Sesion.necesita_atencion_humana == True,  # noqa: E712
+                Sesion.actualizado_en >= inicio_dia_utc,
+            )
+            .count()
+        )
+        retiros_coordinados = (
+            db.query(Sesion)
+            .filter(
+                Sesion.paquetes_preparados == True,  # noqa: E712
+                Sesion.solicitud_actualizada_en >= inicio_dia_utc,
+            )
+            .count()
+        )
+        domicilios_coordinados = (
+            db.query(Sesion)
+            .filter(
+                Sesion.domicilio_coordinado == True,  # noqa: E712
+                Sesion.solicitud_actualizada_en >= inicio_dia_utc,
+            )
+            .count()
+        )
+        return {
+            "conversaciones_activas": conversaciones_activas,
+            "casos_escalados": casos_escalados,
+            "retiros_coordinados": retiros_coordinados,
+            "domicilios_coordinados": domicilios_coordinados,
+        }
     finally:
         db.close()
 
