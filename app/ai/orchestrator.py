@@ -806,6 +806,8 @@ Usa el resultado real de la herramienta para decidir cómo continuar:
 
 Si el resultado indica pago_pendiente, informa al cliente con naturalidad que debe completarse el pago antes de coordinar la entrega a domicilio. No confirmes la solicitud.
 
+Si el resultado indica requiere_factura, explica que el equipo primero debe generar o asociar la factura antes de coordinar el domicilio. No confirmes la solicitud y no digas que está pagado solamente porque no aparezca saldo.
+
 Si el resultado indica requiere_direccion, pide la dirección exacta de entrega. Cuando el cliente la dé, vuelve a utilizar solicitar_entrega_domicilio con esa dirección.
 
 Si el resultado confirma que quedó solicitado, avísale al cliente con naturalidad que el equipo quedó notificado y coordinará la entrega.
@@ -1732,6 +1734,17 @@ def generar_respuesta(
 
         if not resultado_facturas.get("encontrado"):
             return resultado_facturas
+
+        if resultado_facturas.get("cantidad_facturas", 0) < 1:
+            return {
+                "solicitado": False,
+                "requiere_factura": True,
+                "mensaje": (
+                    "El cliente todavía no tiene una factura asociada. "
+                    "El equipo debe facturar los paquetes antes de coordinar "
+                    "la entrega a domicilio."
+                ),
+            }
 
         if resultado_facturas.get("saldo_pendiente_total", 0) > 0:
             factura_pendiente = next(
