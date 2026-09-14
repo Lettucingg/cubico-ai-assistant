@@ -688,7 +688,12 @@ async def procesar_mensaje_en_segundo_plano(mensaje: dict):
             # Un trabajador tomó control de la conversación desde el panel:
             # seguimos guardando el mensaje del cliente para que se vea en
             # el historial, pero Bruno no genera ni envía ninguna respuesta.
-            agregar_al_historial(sesion.telefono, "user", mensaje["texto"])
+            agregar_al_historial(
+                sesion.telefono,
+                "user",
+                mensaje["texto"],
+                whatsapp_message_id=mensaje.get("message_id"),
+            )
             return
 
         # Motivo bajo el cual el equipo ya fue notificado (None si no había
@@ -732,7 +737,12 @@ async def procesar_mensaje_en_segundo_plano(mensaje: dict):
             sesion.obtener_historial(),
         )
 
-        agregar_al_historial(sesion.telefono, "user", mensaje["texto"])
+        agregar_al_historial(
+            sesion.telefono,
+            "user",
+            mensaje["texto"],
+            whatsapp_message_id=mensaje.get("message_id"),
+        )
         agregar_al_historial(sesion.telefono, "assistant", texto_respuesta)
 
         sesion_actualizada = obtener_o_crear_sesion(mensaje["telefono"])
