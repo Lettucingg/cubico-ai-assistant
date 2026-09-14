@@ -160,6 +160,8 @@
     async function actualizarEstadoPush(){
       const estado=document.getElementById('push-status'),boton=document.getElementById('push-toggle');
       pushSuscrito=false;
+      const ios=/iPad|iPhone|iPod/.test(navigator.userAgent),instalada=window.matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
+      if(ios&&!instalada){estado.textContent='En iPhone: comparte esta página, elige “Agregar a inicio” y abre el nuevo icono.';boton.disabled=true;boton.textContent='Primero agrega a Inicio';return}
       if(!entornoPushDisponible()){estado.textContent='Este navegador no admite avisos con el panel cerrado.';boton.disabled=true;boton.textContent='No disponible';return}
       try{
         const r=await apiGet('/panel/push/config');if(!r.ok)return;
@@ -168,7 +170,7 @@
         const registro=await registroPush(),suscripcion=await registro.pushManager.getSubscription();
         pushSuscrito=Boolean(suscripcion);
         if(pushSuscrito){estado.textContent='Activas en este dispositivo, incluso con el panel cerrado.';boton.textContent='Desactivar en este dispositivo'}
-        else{const ios=/iPad|iPhone|iPod/.test(navigator.userAgent),instalada=window.matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;estado.textContent=ios&&!instalada?'En iPhone: agrega Cúbico a Inicio, abre el icono e inicia sesión.':'Recibe mensajes aunque cierres el panel.';boton.textContent='Activar en este dispositivo'}
+        else{estado.textContent='Recibe mensajes aunque cierres el panel.';boton.textContent='Activar en este dispositivo'}
         boton.disabled=false;
       }catch(e){estado.textContent='No se pudo comprobar el servicio push.';boton.disabled=false}
     }
