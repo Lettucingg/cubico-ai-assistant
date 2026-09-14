@@ -5,6 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Cúbico Control — Bruno</title>
   <meta name="description" content="Centro operativo de Cúbico para administrar conversaciones, paquetes, costos y atención humana." />
+  <meta name="theme-color" content="#151512" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="/static/logo.png" />
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23111111'/%3E%3Cpath d='M8 11l8-4 8 4-8 4-8-4zm0 2.6l7 3.5v7.5l-7-3.8v-7.2zm16 0v7.2l-7 3.8v-7.5l7-3.5z' fill='%23f4c85a'/%3E%3C/svg%3E" />
   <style>
     :root{--bg:#f4f3ef;--panel:#fff;--ink:#171714;--muted:#73736e;--line:#e6e4dc;--gold:#e9b949;--gold2:#fff5d6;--dark:#151512;--green:#2e8b67;--green2:#e8f7f0;--red:#c84c4c;--red2:#fff0ef;--blue:#4776d0;--blue2:#edf3ff;--r:18px;--shadow:0 10px 30px rgba(25,24,18,.06)}
@@ -96,7 +101,7 @@
       <section class="view" id="costs"><div class="kpis"><article class="card kpi"><div class="kpi-top"><span>Tokens · 30 días</span><span class="kpi-icon">T</span></div><div class="kpi-value" id="cost-tokens">—</div><div class="delta neutral" id="cost-token-detail">Entrada y salida</div></article><article class="card kpi"><div class="kpi-top"><span>Costo promedio/chat</span><span class="kpi-icon">$</span></div><div class="kpi-value" id="cost-average">—</div><div class="delta neutral">Según conversaciones con uso</div></article><article class="card kpi"><div class="kpi-top"><span>Chat más costoso</span><span class="kpi-icon">↑</span></div><div class="kpi-value" id="cost-highest">—</div><div class="delta neutral" id="cost-highest-detail">Sin datos todavía</div></article><article class="card kpi"><div class="kpi-top"><span>Costo total</span><span class="kpi-icon">◒</span></div><div class="kpi-value" id="cost-total">—</div><div class="delta neutral">Últimos 30 días</div></article></div><div class="overview-grid"><article class="card chart-card"><div class="card-head"><div><h2>Costo por día</h2><p>Uso real de Anthropic</p></div></div><div class="chart-total"><b id="cost-chart-total">$0.00</b><span>30 días</span></div><div class="chart"><svg id="cost-chart" viewBox="0 0 720 210"></svg></div></article><article class="card queue-card"><div class="card-head"><div><h2>Chats con mayor consumo</h2><p>Últimos 30 días</p></div></div><div class="queue" id="expensive-chats"><div style="color:var(--muted);font-size:12px">Cargando…</div></div></article></div></section>
 
       <section class="view" id="alerts"><article class="card alerts" style="margin-top:0"><div class="card-head"><div><h2>Centro de alertas</h2><p>Casos reales escalados por Bruno</p></div></div><div id="alerts-list"><div style="padding:18px;color:var(--muted);font-size:12px">Cargando alertas…</div></div></article></section>
-      <section class="view" id="settings"><article class="card alerts" style="margin-top:0"><div class="card-head"><div><h2>Conexiones del panel</h2><p>Este panel consume la API protegida del mismo backend de Bruno.</p></div></div><div class="alert-row"><i class="dot"></i><div><b>API del panel</b><p>Conectada y autenticada.</p></div><span class="status-pill ready">Operativa</span></div><div class="alert-row"><i class="dot"></i><div><b>Persistencia de conversaciones</b><p>SQLite persistente y respaldado en el VPS Hetzner.</p></div><span class="status-pill ready">Operativa</span></div><div class="alert-row"><i class="alert-dot warn"></i><div><b>Notificaciones de mensajes</b><p id="notification-status">Actívalas para recibir avisos cuando estés en otra pestaña.</p></div><div class="setting-control"><button class="btn" id="notification-toggle">Activar notificaciones</button><button class="btn" id="sound-toggle">Sonido: activo</button></div></div></article></section>
+      <section class="view" id="settings"><article class="card alerts" style="margin-top:0"><div class="card-head"><div><h2>Conexiones del panel</h2><p>Este panel consume la API protegida del mismo backend de Bruno.</p></div></div><div class="alert-row"><i class="dot"></i><div><b>API del panel</b><p>Conectada y autenticada.</p></div><span class="status-pill ready">Operativa</span></div><div class="alert-row"><i class="dot"></i><div><b>Persistencia de conversaciones</b><p>SQLite persistente y respaldado en el VPS Hetzner.</p></div><span class="status-pill ready">Operativa</span></div><div class="alert-row"><i class="alert-dot warn"></i><div><b>Avisos mientras usas el panel</b><p id="notification-status">Actívalos para recibir avisos cuando estés en otra pestaña.</p></div><div class="setting-control"><button class="btn" id="notification-toggle">Activar notificaciones</button><button class="btn" id="sound-toggle">Sonido: activo</button></div></div><div class="alert-row"><i class="alert-dot warn"></i><div><b>Notificaciones en el celular</b><p id="push-status">Inicia sesión para comprobar la instalación.</p></div><div class="setting-control"><button class="btn" id="push-toggle">Activar en este dispositivo</button></div></div></article></section>
     </main>
   </div>
   <div class="toast" id="toast">Acción completada</div>
@@ -115,7 +120,7 @@
     const REQUEST_TIMEOUT_MS=10000;
     let creds=null,convs=[],telActivo=null,filtroEstado='todas',busqueda='',refreshTimer=null,quickRefreshTimer=null;
     let modoControl={};
-    let notificacionesInicializadas=false,sonidoActivo=true,audioContext=null,actualizandoRapido=false;
+    let notificacionesInicializadas=false,sonidoActivo=true,audioContext=null,actualizandoRapido=false,pushSuscrito=false;
     const firmasUltimoCliente=new Map();
 
     function authHeaders(authCreds=creds){return {'Authorization':'Basic '+authCreds}}
@@ -143,11 +148,49 @@
     function firmaMensajeCliente(c){const m=c.ultimo_mensaje_cliente;if(!m)return null;return String(m.id||'')+'|'+String(m.timestamp||'')+'|'+String(m.contenido||'')}
     function reproducirAviso(){if(!sonidoActivo)return;try{audioContext=audioContext||new(window.AudioContext||window.webkitAudioContext)();const ahora=audioContext.currentTime,osc=audioContext.createOscillator(),ganancia=audioContext.createGain();osc.type='sine';osc.frequency.setValueAtTime(740,ahora);osc.frequency.exponentialRampToValueAtTime(520,ahora+.16);ganancia.gain.setValueAtTime(.0001,ahora);ganancia.gain.exponentialRampToValueAtTime(.12,ahora+.02);ganancia.gain.exponentialRampToValueAtTime(.0001,ahora+.22);osc.connect(ganancia);ganancia.connect(audioContext.destination);osc.start(ahora);osc.stop(ahora+.23)}catch(e){}}
     function abrirDesdeNotificacion(telefono){window.focus();showView('chats');abrirChat(telefono)}
-    function avisarMensajeNuevo(c){const nombre=c.nombre||c.telefono,texto=(c.ultimo_mensaje_cliente?.contenido||'Nuevo mensaje').slice(0,110);reproducirAviso();say('Nuevo mensaje de '+nombre+': '+texto);if('Notification'in window&&Notification.permission==='granted'&&document.hidden){try{const aviso=new Notification('Nuevo mensaje de '+nombre,{body:texto,tag:'cubico-'+c.telefono});aviso.onclick=()=>{aviso.close();abrirDesdeNotificacion(c.telefono)}}catch(e){}}}
+    function avisarMensajeNuevo(c){const nombre=c.nombre||c.telefono,texto=(c.ultimo_mensaje_cliente?.contenido||'Nuevo mensaje').slice(0,110);reproducirAviso();say('Nuevo mensaje de '+nombre+': '+texto);if(!pushSuscrito&&'Notification'in window&&Notification.permission==='granted'&&document.hidden){try{const aviso=new Notification('Nuevo mensaje de '+nombre,{body:texto,tag:'cubico-'+c.telefono});aviso.onclick=()=>{aviso.close();abrirDesdeNotificacion(c.telefono)}}catch(e){}}}
     function procesarNuevosMensajes(data){for(const c of data){const firma=firmaMensajeCliente(c),anterior=firmasUltimoCliente.get(c.telefono);if(notificacionesInicializadas&&firma&&firma!==anterior)avisarMensajeNuevo(c);if(firma)firmasUltimoCliente.set(c.telefono,firma)}notificacionesInicializadas=true}
     function actualizarContadorNotificaciones(data=convs){const cantidad=data.filter(c=>c.tiene_no_leidos).length,el=document.getElementById('notification-count');el.textContent=cantidad>99?'99+':cantidad;el.style.display=cantidad?'block':'none'}
     function actualizarEstadoNotificaciones(){const estado=document.getElementById('notification-status'),boton=document.getElementById('notification-toggle');if(!('Notification'in window)){estado.textContent='Este navegador no admite avisos del sistema; el sonido y los avisos internos seguirán funcionando.';boton.disabled=true;boton.textContent='No disponible';return}if(Notification.permission==='granted'){estado.textContent='Activas. Recibirás avisos cuando el panel esté abierto en otra pestaña.';boton.textContent='Notificaciones activas';boton.disabled=true}else if(Notification.permission==='denied'){estado.textContent='Bloqueadas por el navegador. Puedes habilitarlas desde los permisos del sitio.';boton.textContent='Bloqueadas';boton.disabled=true}else{estado.textContent='Actívalas para recibir avisos cuando estés en otra pestaña.';boton.textContent='Activar notificaciones';boton.disabled=false}}
     async function activarNotificaciones(){if(!('Notification'in window)){actualizarEstadoNotificaciones();return}try{const permiso=await Notification.requestPermission();actualizarEstadoNotificaciones();say(permiso==='granted'?'Notificaciones activadas':'El navegador no autorizó las notificaciones')}catch(e){say('No se pudieron activar las notificaciones')}}
+
+    function clavePushBytes(valor){const relleno='='.repeat((4-valor.length%4)%4),base64=(valor+relleno).replace(/-/g,'+').replace(/_/g,'/'),crudo=atob(base64);return Uint8Array.from([...crudo].map(c=>c.charCodeAt(0)))}
+    async function registroPush(){await navigator.serviceWorker.register('/service-worker.js',{scope:'/'});return await navigator.serviceWorker.ready}
+    function entornoPushDisponible(){return location.protocol==='https:'&&'serviceWorker'in navigator&&'PushManager'in window&&'Notification'in window}
+    async function actualizarEstadoPush(){
+      const estado=document.getElementById('push-status'),boton=document.getElementById('push-toggle');
+      pushSuscrito=false;
+      const ios=/iPad|iPhone|iPod/.test(navigator.userAgent),instalada=window.matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
+      if(ios&&!instalada){estado.textContent='En iPhone: comparte esta página, elige “Agregar a inicio” y abre el nuevo icono.';boton.disabled=true;boton.textContent='Primero agrega a Inicio';return}
+      if(!entornoPushDisponible()){estado.textContent='Este navegador no admite avisos con el panel cerrado.';boton.disabled=true;boton.textContent='No disponible';return}
+      try{
+        const r=await apiGet('/panel/push/config');if(!r.ok)return;
+        const config=await r.json();
+        if(!config.disponible){estado.textContent='Falta activar la clave segura del servidor.';boton.disabled=true;boton.textContent='Pendiente del servidor';return}
+        const registro=await registroPush(),suscripcion=await registro.pushManager.getSubscription();
+        pushSuscrito=Boolean(suscripcion);
+        if(pushSuscrito){estado.textContent='Activas en este dispositivo, incluso con el panel cerrado.';boton.textContent='Desactivar en este dispositivo'}
+        else{estado.textContent='Recibe mensajes aunque cierres el panel.';boton.textContent='Activar en este dispositivo'}
+        boton.disabled=false;
+      }catch(e){estado.textContent='No se pudo comprobar el servicio push.';boton.disabled=false}
+    }
+    async function cambiarPush(){
+      const boton=document.getElementById('push-toggle');boton.disabled=true;
+      try{
+        const r=await apiGet('/panel/push/config');if(!r.ok)throw Error('No se pudo consultar la configuración');
+        const config=await r.json();if(!config.disponible)throw Error('El servidor todavía no tiene su clave push');
+        const registro=await registroPush();let suscripcion=await registro.pushManager.getSubscription();
+        if(suscripcion){
+          await apiRequest('/panel/push/suscripcion',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify(suscripcion.toJSON())});
+          await suscripcion.unsubscribe();say('Notificaciones desactivadas en este dispositivo');
+        }else{
+          const permiso=await Notification.requestPermission();if(permiso!=='granted')throw Error('El dispositivo no autorizó las notificaciones');
+          suscripcion=await registro.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:clavePushBytes(config.public_key)});
+          const guardar=await apiPost('/panel/push/suscripcion',suscripcion.toJSON());if(!guardar.ok){await suscripcion.unsubscribe();throw Error('No se pudo guardar el dispositivo')}
+          say('Notificaciones del celular activadas');
+        }
+      }catch(e){say(e.message||'No se pudieron configurar las notificaciones')}finally{await actualizarEstadoPush()}
+    }
 
     async function login(){
       try{audioContext=audioContext||new(window.AudioContext||window.webkitAudioContext)();audioContext.resume()}catch(e){}
@@ -168,6 +211,9 @@
         renderLista(await r.json());
         await refrescarPanel();
         actualizarEstadoNotificaciones();
+        await actualizarEstadoPush();
+        const telefonoPendiente=new URLSearchParams(location.search).get('telefono');
+        if(telefonoPendiente){showView('chats');await abrirChat(telefonoPendiente);history.replaceState({},'',location.pathname)}
         iniciarAutoRefresh();
       }catch(e){err.textContent='Error de conexión';err.style.display='block'}
     }
@@ -214,6 +260,7 @@
         const actividad=await r.json(),anteriores=new Map(convs.map(c=>[c.telefono,c]));
         const combinadas=actividad.map(a=>({...anteriores.get(a.telefono),...a}));
         renderLista(combinadas);
+        renderAlertas();
         if(telActivo){const conv=convs.find(c=>c.telefono===telActivo);if(conv)actualizarEncabezadoChat(conv)}
       }catch(e){}
     }
@@ -625,6 +672,7 @@
     document.querySelectorAll('.seg button').forEach(b=>b.addEventListener('click',()=>{b.parentNode.querySelectorAll('button').forEach(x=>x.classList.remove('active'));b.classList.add('active');cargarUso(Number(b.dataset.days||30))}));
     document.getElementById('global-search').addEventListener('keydown',e=>{if(e.key!=='Enter')return;busqueda=e.target.value.trim();document.getElementById('chat-search').value=busqueda;showView('chats');renderLista(convs)});
     document.getElementById('notification-toggle').addEventListener('click',activarNotificaciones);
+    document.getElementById('push-toggle').addEventListener('click',cambiarPush);
     document.getElementById('sound-toggle').addEventListener('click',e=>{sonidoActivo=!sonidoActivo;e.currentTarget.textContent='Sonido: '+(sonidoActivo?'activo':'silenciado');if(sonidoActivo)reproducirAviso();say(sonidoActivo?'Sonido de mensajes activado':'Sonido de mensajes silenciado')});
     document.getElementById('notifications').addEventListener('click',async()=>{if('Notification'in window&&Notification.permission==='default')await activarNotificaciones();showView('alerts')});
     document.addEventListener('visibilitychange',()=>{if(!document.hidden)refrescarMensajes()});

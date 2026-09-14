@@ -1,0 +1,18 @@
+{
+  "name": "Cúbico Control",
+  "short_name": "Cúbico",
+  "description": "Panel operativo de atención de Cúbico",
+  "start_url": "/admin",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f4f3ef",
+  "theme_color": "#151512",
+  "icons": [
+    {
+      "src": "/static/logo.png",
+      "sizes": "any",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

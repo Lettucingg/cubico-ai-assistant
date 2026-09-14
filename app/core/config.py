@@ -38,6 +38,13 @@ class Settings(BaseSettings):
     # Nunca hardcodear usuarios/contraseñas en el código.
     PANEL_USUARIOS_JSON: str
 
+    # --- Notificaciones push del panel instalable ---
+    # La clave privada permanece únicamente en el VPS. La pública se entrega
+    # al navegador para crear la suscripción Web Push.
+    PUSH_VAPID_PRIVATE_KEY_PATH: str = "vapid_private.pem"
+    PUSH_VAPID_PUBLIC_KEY: str = ""
+    PUSH_VAPID_SUBJECT: str = "mailto:soporte@cubico.com.pa"
+
     # --- Notificaciones internas (POST /notificar/carga-llegada) ---
     # Clave compartida esperada en el header X-Cubico-Key.
     CUBICO_NOTIFY_KEY: str
