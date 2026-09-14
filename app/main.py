@@ -26,6 +26,20 @@ def panel_admin_anterior():
     """Respaldo inmediato del panel anterior durante la transición."""
     return FileResponse(STATIC_DIR / "panel.html")
 
+
+@app.get("/manifest.webmanifest", include_in_schema=False)
+def manifest_panel():
+    return FileResponse(STATIC_DIR / "manifest.webmanifest", media_type="application/manifest+json")
+
+
+@app.get("/service-worker.js", include_in_schema=False)
+def service_worker_panel():
+    return FileResponse(
+        STATIC_DIR / "service-worker.js",
+        media_type="application/javascript",
+        headers={"Cache-Control": "no-cache"},
+    )
+
 @app.on_event("startup")
 def iniciar_tareas_programadas():
     iniciar_scheduler()
