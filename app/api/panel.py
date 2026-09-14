@@ -91,9 +91,27 @@ def listar_conversaciones(usuario: str = Depends(verificar_credenciales_panel)):
 
         historial = sesion.obtener_historial()
         ultimo_mensaje = None
+        ultimo_mensaje_cliente = None
         if historial:
             ultimo = historial[-1]
-            ultimo_mensaje = {"rol": ultimo.get("role"), "contenido": ultimo.get("content")}
+            ultimo_mensaje = {
+                "rol": ultimo.get("role"),
+                "contenido": ultimo.get("content"),
+                "timestamp": ultimo.get("timestamp"),
+                "id": ultimo.get("whatsapp_message_id"),
+                "estado_entrega": ultimo.get("estado_entrega"),
+                "error_entrega": ultimo.get("error_entrega"),
+            }
+            ultimo_cliente = next(
+                (mensaje for mensaje in reversed(historial) if mensaje.get("role") == "user"),
+                None,
+            )
+            if ultimo_cliente:
+                ultimo_mensaje_cliente = {
+                    "contenido": ultimo_cliente.get("content"),
+                    "timestamp": ultimo_cliente.get("timestamp"),
+                    "id": ultimo_cliente.get("whatsapp_message_id"),
+                }
         ultimo_cliente_en = _ultimo_mensaje_cliente_en(historial)
 
         resultado.append({
@@ -106,6 +124,11 @@ def listar_conversaciones(usuario: str = Depends(verificar_credenciales_panel)):
             "solicitud_domicilio_pendiente": sesion.solicitud_domicilio_pendiente,
             "motivo_escalamiento": sesion.motivo_escalamiento or None,
             "atencion_humana_directa": bool(sesion.atencion_humana_directa),
+            "atencion_humana_por": sesion.atencion_humana_por,
+            "atencion_humana_desde": (
+                sesion.atencion_humana_desde.isoformat() + "Z"
+                if sesion.atencion_humana_desde else None
+            ),
             "actualizado_en": sesion.actualizado_en.isoformat() + "Z" if sesion.actualizado_en else None,
             "paquetes_a_retirar": sesion.paquetes_a_retirar,
             "direccion_domicilio": sesion.direccion_domicilio,
@@ -119,6 +142,7 @@ def listar_conversaciones(usuario: str = Depends(verificar_credenciales_panel)):
             "monto_pago_reportado": sesion.monto_pago_reportado,
             "uso": obtener_uso_por_telefono(sesion.telefono),
             "ultimo_mensaje": ultimo_mensaje,
+            "ultimo_mensaje_cliente": ultimo_mensaje_cliente,
             "tiene_no_leidos": bool(
                 ultimo_cliente_en
                 and (
@@ -155,6 +179,55 @@ def obtener_resumen_panel(usuario: str = Depends(verificar_credenciales_panel)):
     }
 
 
+@router.get("/actividad")
+def listar_actividad_panel(usuario: str = Depends(verificar_credenciales_panel)):
+    """Polling liviano para mensajes nuevos, no leídos y control humano."""
+    actividad = []
+    for sesion in listar_todas_sesiones(limite=100):
+        historial = sesion.obtener_historial()
+        ultimo = historial[-1] if historial else None
+        ultimo_cliente = next(
+            (mensaje for mensaje in reversed(historial) if mensaje.get("role") == "user"),
+            None,
+        )
+        ultimo_cliente_en = _ultimo_mensaje_cliente_en(historial)
+        actividad.append({
+            "telefono": sesion.telefono,
+            "actualizado_en": (
+                sesion.actualizado_en.isoformat() + "Z" if sesion.actualizado_en else None
+            ),
+            "necesita_atencion_humana": bool(sesion.necesita_atencion_humana),
+            "motivo_escalamiento": sesion.motivo_escalamiento or None,
+            "atencion_humana_directa": bool(sesion.atencion_humana_directa),
+            "atencion_humana_por": sesion.atencion_humana_por,
+            "atencion_humana_desde": (
+                sesion.atencion_humana_desde.isoformat() + "Z"
+                if sesion.atencion_humana_desde else None
+            ),
+            "ultimo_mensaje": ({
+                "rol": ultimo.get("role"),
+                "contenido": ultimo.get("content"),
+                "timestamp": ultimo.get("timestamp"),
+                "id": ultimo.get("whatsapp_message_id"),
+                "estado_entrega": ultimo.get("estado_entrega"),
+                "error_entrega": ultimo.get("error_entrega"),
+            } if ultimo else None),
+            "ultimo_mensaje_cliente": ({
+                "contenido": ultimo_cliente.get("content"),
+                "timestamp": ultimo_cliente.get("timestamp"),
+                "id": ultimo_cliente.get("whatsapp_message_id"),
+            } if ultimo_cliente else None),
+            "tiene_no_leidos": bool(
+                ultimo_cliente_en
+                and (
+                    sesion.ultimo_leido_panel is None
+                    or ultimo_cliente_en > sesion.ultimo_leido_panel
+                )
+            ),
+        })
+    return actividad
+
+
 def _nombre_cliente(sesion) -> str | None:
     if not sesion.codigo_cliente_verificado:
         return None
@@ -163,6 +236,33 @@ def _nombre_cliente(sesion) -> str | None:
         return info.get("nombre_completo") if info.get("encontrado") else None
     except Exception:
         return None
+
+
+def _exigir_factura_pagada(sesion) -> dict:
+    """Bloquea la preparación/entrega si no existe una factura saldada."""
+    if not sesion.codigo_cliente_verificado:
+        raise HTTPException(
+            status_code=409,
+            detail="Primero debe verificarse el cliente y asociarse una factura",
+        )
+    try:
+        facturas = consultar_facturas_por_codigo(sesion.codigo_cliente_verificado)
+    except Exception as error:
+        raise HTTPException(
+            status_code=502,
+            detail="No se pudo comprobar el estado del pago en facturación",
+        ) from error
+    if not facturas.get("encontrado") or facturas.get("cantidad_facturas", 0) < 1:
+        raise HTTPException(
+            status_code=409,
+            detail="No se puede continuar: el cliente todavía no tiene una factura asociada",
+        )
+    if float(facturas.get("saldo_pendiente_total") or 0) > .01:
+        raise HTTPException(
+            status_code=409,
+            detail="Aún existe saldo pendiente; primero debe confirmarse el pago",
+        )
+    return facturas
 
 
 @router.get("/solicitudes")
@@ -198,7 +298,7 @@ def listar_solicitudes(usuario: str = Depends(verificar_credenciales_panel)):
                     )
                     if tiene_facturas:
                         monto_pendiente = facturas.get("saldo_pendiente_total")
-                        pago_confirmado_sistema = monto_pendiente == 0
+                        pago_confirmado_sistema = float(monto_pendiente or 0) <= .01
                         detalle_facturas = [
                             factura for factura in facturas.get("facturas", [])
                             if factura.get("saldo_pendiente", 0) > 0
@@ -254,7 +354,12 @@ def listar_solicitudes(usuario: str = Depends(verificar_credenciales_panel)):
                 "pago_reportado": bool(sesion.pago_reportado),
                 "pago_confirmado": pago_confirmado_panel,
                 "pago_confirmado_sistema": pago_confirmado_sistema,
-                "pago_resuelto": pago_confirmado_sistema or (pago_confirmado_panel and not tiene_facturas),
+                "requiere_factura": tipo != "pago" and not tiene_facturas,
+                "pago_resuelto": (
+                    pago_confirmado_sistema
+                    if tipo != "pago"
+                    else pago_confirmado_sistema or pago_confirmado_panel
+                ),
                 "paquetes_preparados": bool(sesion.paquetes_preparados),
                 "domicilio_coordinado": bool(sesion.domicilio_coordinado),
                 "tiene_comprobante": bool(sesion.comprobante_media_id),
@@ -331,23 +436,27 @@ def actualizar_estado_solicitud(
                         status_code=502,
                         detail="No se pudo registrar el pago en facturación",
                     ) from error
-        cambios = {"pago_confirmado": True}
-    elif accion == "preparar":
-        if sesion.codigo_cliente_verificado:
-            facturas = consultar_facturas_por_codigo(sesion.codigo_cliente_verificado)
-            if facturas.get("cantidad_facturas", 0) and facturas.get("saldo_pendiente_total", 0) > .01:
+            elif tipo != "pago":
                 raise HTTPException(
                     status_code=409,
-                    detail="Aún existe saldo pendiente; no se pueden preparar los paquetes",
+                    detail="No se puede confirmar para esta entrega: falta una factura asociada",
                 )
-        elif not sesion.pago_confirmado:
-            raise HTTPException(status_code=409, detail="Confirma el pago antes de preparar")
+        elif tipo != "pago":
+            raise HTTPException(
+                status_code=409,
+                detail="Primero debe verificarse el cliente y asociarse una factura",
+            )
+        cambios = {"pago_confirmado": True}
+    elif accion == "preparar":
+        _exigir_factura_pagada(sesion)
         cambios = {"paquetes_preparados": True}
     elif accion == "coordinar" and tipo == "domicilio":
+        _exigir_factura_pagada(sesion)
         if not sesion.paquetes_preparados:
             raise HTTPException(status_code=409, detail="Primero marca los paquetes como listos")
         cambios = {"domicilio_coordinado": True}
     elif accion == "entregar":
+        _exigir_factura_pagada(sesion)
         if not sesion.paquetes_preparados:
             raise HTTPException(status_code=409, detail="Primero marca los paquetes como listos")
         if tipo == "domicilio" and not sesion.domicilio_coordinado:
@@ -666,14 +775,24 @@ async def tomar_control(
     body: dict,
     usuario: str = Depends(verificar_credenciales_panel)
 ):
-    from app.db.session_store import obtener_sesion_existente, actualizar_sesion
     accion = body.get("accion", "tomar")
+    if accion not in {"tomar", "devolver"}:
+        raise HTTPException(status_code=400, detail="Acción de control inválida")
     sesion = obtener_sesion_existente(telefono)
     if sesion is None:
         raise HTTPException(status_code=404, detail="No existe esa conversación")
     control_activo = accion == "tomar"
-    actualizar_sesion(telefono, atencion_humana_directa=control_activo)
-    return {"status": "ok", "control": control_activo}
+    actualizar_sesion(
+        telefono,
+        atencion_humana_directa=control_activo,
+        atencion_humana_por=usuario if control_activo else None,
+        atencion_humana_desde=datetime.utcnow() if control_activo else None,
+    )
+    return {
+        "status": "ok",
+        "control": control_activo,
+        "operador": usuario if control_activo else None,
+    }
 
 @router.post("/enviar-directo/{telefono}")
 async def enviar_directo(
