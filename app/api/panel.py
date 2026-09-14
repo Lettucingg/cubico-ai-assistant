@@ -146,7 +146,9 @@ def obtener_resumen_panel(usuario: str = Depends(verificar_credenciales_panel)):
         "atencion_humana": sum(1 for s in sesiones if s.necesita_atencion_humana),
         "retiros": sum(1 for s in solicitudes if s.aviso_retiro_pendiente),
         "domicilios": sum(1 for s in solicitudes if s.solicitud_domicilio_pendiente),
-        "pagos_por_confirmar": sum(1 for s in solicitudes if s.pago_reportado and not s.pago_confirmado),
+        "pagos_por_confirmar": sum(
+            1 for s in sesiones if s.pago_reportado and not s.pago_confirmado
+        ),
         "listos": sum(1 for s in solicitudes if s.paquetes_preparados and not s.entregado),
         "costo_ia_30_dias": uso["costo_usd"],
         "tokens_30_dias": uso["tokens_totales"],
@@ -165,16 +167,22 @@ def _nombre_cliente(sesion) -> str | None:
 
 @router.get("/solicitudes")
 def listar_solicitudes(usuario: str = Depends(verificar_credenciales_panel)):
-    """Retiros y domicilios generados por conversaciones de WhatsApp."""
+    """Retiros, domicilios y comprobantes generados desde WhatsApp."""
     solicitudes = []
     for sesion in listar_todas_sesiones(limite=500):
-        if sesion.entregado:
+        comprobante_pendiente = bool(sesion.pago_reportado and not sesion.pago_confirmado)
+        if sesion.entregado and not comprobante_pendiente:
             continue
         tipos = []
         if sesion.aviso_retiro_pendiente:
             tipos.append("retiro")
         if sesion.solicitud_domicilio_pendiente:
             tipos.append("domicilio")
+        # Un comprobante siempre debe llegar a la cola. Si ya existe un
+        # retiro/domicilio se integra allí; si no, crea un caso exclusivo
+        # de pago para que ningún operador lo pierda.
+        if comprobante_pendiente and not tipos:
+            tipos.append("pago")
         for tipo in tipos:
             monto_pendiente = None
             pago_confirmado_sistema = False
@@ -208,13 +216,29 @@ def listar_solicitudes(usuario: str = Depends(verificar_credenciales_panel)):
                 except Exception:
                     monto_pendiente = None
             pago_confirmado_panel = bool(sesion.pago_confirmado)
+            paquetes_factura = [
+                paquete.get("tracking")
+                for factura in detalle_facturas
+                for paquete in factura.get("paquetes", [])
+                if paquete.get("tracking")
+            ]
+            if tipo == "retiro":
+                detalle_paquetes = sesion.paquetes_a_retirar
+                direccion = "Sucursal Cúbico"
+            elif tipo == "domicilio":
+                detalle_paquetes = sesion.paquetes_a_domicilio
+                direccion = sesion.direccion_domicilio
+            else:
+                detalle_paquetes = ", ".join(paquetes_factura) or "Comprobante recibido por WhatsApp"
+                direccion = "No aplica"
+
             solicitudes.append({
                 "telefono": sesion.telefono,
                 "nombre": _nombre_cliente(sesion) or sesion.telefono,
                 "codigo_cliente": sesion.codigo_cliente_verificado,
                 "tipo": tipo,
-                "paquetes": sesion.paquetes_a_retirar if tipo == "retiro" else sesion.paquetes_a_domicilio,
-                "direccion": sesion.direccion_domicilio if tipo == "domicilio" else "Sucursal Cúbico",
+                "paquetes": detalle_paquetes,
+                "direccion": direccion,
                 "monto_pendiente": monto_pendiente,
                 "monto_reportado": sesion.monto_pago_reportado,
                 "metodo_reportado": sesion.metodo_pago_reportado,
@@ -255,8 +279,10 @@ def actualizar_estado_solicitud(
         raise HTTPException(status_code=404, detail="No existe esa conversación")
     accion = body.get("accion")
     tipo = body.get("tipo")
-    if tipo not in {"retiro", "domicilio"}:
+    if tipo not in {"retiro", "domicilio", "pago"}:
         raise HTTPException(status_code=400, detail="Tipo de solicitud inválido")
+    if tipo == "pago" and accion != "confirmar_pago":
+        raise HTTPException(status_code=400, detail="Este caso solamente permite confirmar el pago")
 
     if accion == "confirmar_pago":
         if sesion.pago_confirmado:
