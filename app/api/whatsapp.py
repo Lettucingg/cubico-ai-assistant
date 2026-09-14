@@ -654,6 +654,8 @@ async def procesar_mensaje_en_segundo_plano(mensaje: dict):
                     domicilio_coordinado=False,
                     metodo_pago_reportado=campos.get("metodo"),
                     monto_pago_reportado=monto,
+                    referencia_pago_reportado=campos.get("referencia"),
+                    fecha_pago_reportado=campos.get("fecha"),
                     comprobante_media_id=mensaje["media_id"],
                 )
                 await notificar_equipo_comprobante(
@@ -666,7 +668,15 @@ async def procesar_mensaje_en_segundo_plano(mensaje: dict):
             # Guardamos la imagen en el historial de la sesión para que
             # Bruno pueda dar seguimiento natural en el siguiente mensaje.
             texto_para_historial = mensaje["texto"] or "[Cliente envió una imagen]"
-            agregar_al_historial(sesion.telefono, "user", texto_para_historial)
+            agregar_al_historial(
+                sesion.telefono,
+                "user",
+                texto_para_historial,
+                tipo="image",
+                media_id=mensaje["media_id"],
+                mime_type="image/jpeg",
+                whatsapp_message_id=mensaje.get("message_id"),
+            )
             if not modo_humano:
                 agregar_al_historial(sesion.telefono, "assistant", resultado["texto_respuesta"])
 
