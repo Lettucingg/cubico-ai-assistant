@@ -384,6 +384,7 @@ def agregar_al_historial(
     mime_type: str | None = None,
     whatsapp_message_id: str | None = None,
     estado_entrega: str | None = None,
+    contexto_ia: str | None = None,
 ):
     """
     Agrega un mensaje al historial de la conversación, y recorta
@@ -408,6 +409,9 @@ def agregar_al_historial(
             "mime_type": mime_type,
             "whatsapp_message_id": whatsapp_message_id,
             "estado_entrega": estado_entrega,
+            # Información estructurada para que Bruno recuerde lo leído
+            # en una imagen sin mostrar ese texto técnico en el panel.
+            "contexto_ia": contexto_ia,
         }
         mensaje.update({clave: valor for clave, valor in metadatos.items() if valor})
         historial.append(mensaje)
