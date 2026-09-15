@@ -1,4 +1,5 @@
 import base64
+import re
 
 import httpx
 from anthropic import Anthropic
@@ -23,7 +24,15 @@ def detectar_mime_imagen(imagen_bytes: bytes) -> str:
 
 def interpretar_analisis_imagen(texto_completo: str) -> dict:
     """Convierte la salida estructurada del análisis en datos seguros para el flujo."""
-    encabezado, separador, texto_para_cliente = texto_completo.partition("===RESPUESTA===")
+    partes = re.split(
+        r"={2,}\s*RESPUESTA\s*={2,}",
+        texto_completo,
+        maxsplit=1,
+        flags=re.IGNORECASE,
+    )
+    encabezado = partes[0]
+    separador = len(partes) == 2
+    texto_para_cliente = partes[1] if separador else ""
     es_comprobante = "es_comprobante: si" in encabezado.lower()
     contexto_visual = None
     if not es_comprobante:
@@ -38,8 +47,9 @@ def interpretar_analisis_imagen(texto_completo: str) -> dict:
         "texto_respuesta": (
             texto_para_cliente.strip()
             if separador
-            else "No pude ver bien la imagen. Cuéntame qué producto es y te calculo el costo de traerlo sin problema."
+            else "Recibí la imagen, pero necesito revisarla con más detalle."
         ),
+        "formato_valido": separador,
     }
 
 
@@ -71,14 +81,14 @@ def analizar_imagen_cliente(
     telefono: str | None = None,
 ) -> dict:
     """
-    Analiza en una sola llamada a Claude una imagen enviada por un
+    Analiza con Claude una imagen enviada por un
     cliente: determina si es un comprobante de pago y, si lo es,
     extrae sus datos; si no lo es, genera directamente la respuesta
     natural que Bruno le da al cliente sobre lo que ve, considerando
     también el texto que haya escrito junto con la imagen.
 
-    Evita la doble llamada (una para clasificar, otra para responder)
-    que se hacía antes.
+    Normalmente usa una sola llamada. Solo repite el análisis cuando la
+    respuesta no cumple el formato necesario para conservar sus datos.
     """
     imagen_base64 = base64.b64encode(imagen_bytes).decode("utf-8")
 
@@ -114,34 +124,37 @@ tabla, conserva especialmente los totales y su unidad. No inventes datos.]
 No escribas nada antes de "ES_COMPROBANTE:" ni nada después del texto de la sección RESPUESTA. Esa sección debe quedar lista para mandarse tal cual al cliente por WhatsApp.
 """
 
-    respuesta = cliente_claude.messages.create(
-        model="claude-sonnet-5",
-        max_tokens=1000,
-        system=[
-            {
-                "type": "text",
-                "text": SYSTEM_PROMPT,
-                "cache_control": {"type": "ephemeral"},
-            }
-        ],
-        messages=[{
-            "role": "user",
-            "content": [
-                {
-                    "type": "image",
-                    "source": {
-                        "type": "base64",
-                        "media_type": detectar_mime_imagen(imagen_bytes),
-                        "data": imagen_base64,
-                    },
-                },
+    def consultar_vision(texto_instrucciones: str):
+        return cliente_claude.messages.create(
+            model="claude-sonnet-5",
+            max_tokens=1200,
+            system=[
                 {
                     "type": "text",
-                    "text": instrucciones,
-                },
+                    "text": SYSTEM_PROMPT,
+                    "cache_control": {"type": "ephemeral"},
+                }
             ],
-        }],
-    )
+            messages=[{
+                "role": "user",
+                "content": [
+                    {
+                        "type": "image",
+                        "source": {
+                            "type": "base64",
+                            "media_type": detectar_mime_imagen(imagen_bytes),
+                            "data": imagen_base64,
+                        },
+                    },
+                    {
+                        "type": "text",
+                        "text": texto_instrucciones,
+                    },
+                ],
+            }],
+        )
+
+    respuesta = consultar_vision(instrucciones)
 
     if telefono and getattr(respuesta, "usage", None) is not None:
         try:
@@ -154,11 +167,32 @@ No escribas nada antes de "ES_COMPROBANTE:" ni nada después del texto de la sec
         except Exception as error:
             print(f"[WARN] No se pudo registrar uso de IA de imagen: {error}")
 
-    texto_completo = "\n".join(
-        bloque.text for bloque in respuesta.content if bloque.type == "text"
-    ).strip()
+    def extraer_texto(respuesta_vision) -> str:
+        return "\n".join(
+            bloque.text
+            for bloque in respuesta_vision.content
+            if bloque.type == "text"
+        ).strip()
 
-    return interpretar_analisis_imagen(texto_completo)
+    texto_completo = extraer_texto(respuesta)
+    analisis = interpretar_analisis_imagen(texto_completo)
+
+    if not analisis["formato_valido"]:
+        # Algunos modelos describen correctamente la foto pero omiten el
+        # separador solicitado. Reintentamos una sola vez, poniendo especial
+        # atención a manifiestos pequeños y a la fila final de totales.
+        instrucciones_reintento = instrucciones + """
+
+IMPORTANTE: tu respuesta anterior no respetó el formato. Vuelve a analizar la
+imagen desde cero. Si contiene una tabla o manifiesto, lee los encabezados y la
+última fila con especial cuidado; conserva exactamente los totales de peso y
+CBM aunque el texto sea pequeño. Debes incluir literalmente ===RESPUESTA===.
+"""
+        respuesta = consultar_vision(instrucciones_reintento)
+        texto_completo = extraer_texto(respuesta)
+        analisis = interpretar_analisis_imagen(texto_completo)
+
+    return analisis
 
 
 def extraer_campos_comprobante(detalle_completo: str) -> dict:
