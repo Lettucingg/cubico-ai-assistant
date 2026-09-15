@@ -65,7 +65,7 @@
       <div class="side-bottom"><div class="health"><div class="health-top"><span><i class="dot"></i>Panel conectado</span><b>API</b></div><p>Los estados mostrados vienen del backend de Bruno.</p></div></div>
     </aside>
     <main>
-      <header class="topbar"><div class="title"><h1 id="page-title">Buenos días, Alexander</h1><p id="page-sub">Esto es lo que está pasando en Cúbico hoy.</p></div><div class="top-actions"><input class="search" id="global-search" placeholder="Buscar chat, cliente o paquete…" aria-label="Buscar"/><button class="icon-btn" id="notifications" aria-label="Notificaciones" title="Ver alertas y activar notificaciones">🔔<span class="notification-count" id="notification-count">0</span></button><div class="avatar" id="settings-shortcut" role="button" tabindex="0" aria-label="Abrir configuración" title="Configuración">AS</div></div></header>
+      <header class="topbar"><div class="title"><h1 id="page-title">Buenos días</h1><p id="page-sub">Esto es lo que está pasando en Cúbico hoy.</p></div><div class="top-actions"><input class="search" id="global-search" placeholder="Buscar chat, cliente o paquete…" aria-label="Buscar"/><button class="icon-btn" id="notifications" aria-label="Notificaciones" title="Ver alertas y activar notificaciones">🔔<span class="notification-count" id="notification-count">0</span></button><div class="avatar" id="settings-shortcut" role="button" tabindex="0" aria-label="Abrir configuración" title="Configuración">—</div></div></header>
 
       <section class="view active" id="overview">
         <div class="demo-note">● Mensajes cada 5 segundos · métricas cada 30 segundos</div>
@@ -118,13 +118,13 @@
     // ===================================================================
     const API_BASE='https://bot.cubico.com.pa';
     const REQUEST_TIMEOUT_MS=10000;
-    let creds=null,convs=[],telActivo=null,filtroEstado='todas',busqueda='',refreshTimer=null,quickRefreshTimer=null;
+    let creds=null,usuarioActual=null,convs=[],telActivo=null,filtroEstado='todas',busqueda='',refreshTimer=null,quickRefreshTimer=null;
     let modoControl={};
     let notificacionesInicializadas=false,sonidoActivo=true,audioContext=null,actualizandoRapido=false,pushSuscrito=false;
     const firmasUltimoCliente=new Map();
 
     function authHeaders(authCreds=creds){return {'Authorization':'Basic '+authCreds}}
-    function mostrarLogin(mensaje='Tu sesión venció. Inicia sesión nuevamente.'){creds=null;clearInterval(refreshTimer);clearInterval(quickRefreshTimer);document.querySelector('.app').style.display='none';document.getElementById('login-overlay').style.display='flex';const err=document.getElementById('login-err');err.textContent=mensaje;err.style.display='block'}
+    function mostrarLogin(mensaje='Tu sesión venció. Inicia sesión nuevamente.'){creds=null;usuarioActual=null;clearInterval(refreshTimer);clearInterval(quickRefreshTimer);document.querySelector('.app').style.display='none';document.getElementById('login-overlay').style.display='flex';const err=document.getElementById('login-err');err.textContent=mensaje;err.style.display='block'}
     async function apiRequest(path,options={},authCreds=creds,reloginOn401=true){
       const controller=new AbortController();
       const timeout=setTimeout(()=>controller.abort(),REQUEST_TIMEOUT_MS);
@@ -204,7 +204,10 @@
         const r=await apiRequest('/panel/conversaciones',{},b64,false);
         if(r.status===401){err.textContent='Usuario o contraseña incorrectos';err.style.display='block';return}
         if(!r.ok){err.textContent='Error al conectar con el servidor';err.style.display='block';return}
-        creds=b64;
+        creds=b64;usuarioActual=u;
+        const avatarOperador=document.getElementById('settings-shortcut');
+        avatarOperador.textContent=initials(u);avatarOperador.title='Configuración · '+u;
+        titles.overview[0]='Buenos días, '+u.charAt(0).toUpperCase()+u.slice(1);
         notificacionesInicializadas=false;firmasUltimoCliente.clear();
         document.getElementById('login-overlay').style.display='none';
         document.querySelector('.app').style.display='grid';
@@ -294,7 +297,7 @@
         const nombre=c.nombre||c.telefono;
         const prev=esc((c.ultimo_mensaje?.contenido||'').slice(0,58))||'—';
         const enControl=!!c.atencion_humana_directa;
-        const tagControl=enControl?'<span class="bot-tag human-tag">Humano</span>':'<span class="bot-tag">Bruno</span>';
+        const tagControl=enControl?'<span class="bot-tag human-tag">Humano · '+esc(c.atencion_humana_por||'equipo')+'</span>':'<span class="bot-tag">Bruno</span>';
         const badges=[
           c.necesita_atencion_humana?'<span class="bot-tag human-tag">⚠ Atención</span>':'',
           c.aviso_retiro_pendiente?'<span class="bot-tag">📦 Retiro</span>':'',
@@ -335,12 +338,19 @@
       document.getElementById('profile-estado').textContent=conv.estado||'—';
 
       const enControl=!!modoControl[conv.telefono];
+      const operador=conv.atencion_humana_por||null;
+      const esMio=enControl&&operador===usuarioActual;
+      const esAjeno=enControl&&!esMio;
       const takeoverBtn=document.getElementById('takeover');
-      takeoverBtn.textContent=enControl?'Devolver a Bruno':'Tomar control';
-      takeoverBtn.classList.toggle('gold',enControl);
+      takeoverBtn.textContent=esMio?'Devolver a Bruno':esAjeno?('Transferir de '+(operador||'otro operador')):'Tomar control';
+      takeoverBtn.classList.toggle('gold',esMio);
       const modeLabel=document.getElementById('mode-label');
-      modeLabel.textContent=enControl?('Modo humano activo'+(conv.atencion_humana_por?' por '+conv.atencion_humana_por:'')+' · Bruno está pausado'):'Bruno está atendiendo esta conversación';
+      modeLabel.textContent=esMio?'La estás atendiendo tú · Bruno está pausado':esAjeno?('La está atendiendo '+(operador||'otro operador')+' · transfiérela para responder'):'Bruno está atendiendo esta conversación';
       modeLabel.classList.toggle('mode-human',enControl);
+      const puedeResponder=!esAjeno;
+      document.getElementById('message-input').disabled=!puedeResponder;
+      document.getElementById('send').disabled=!puedeResponder;
+      voice.disabled=!puedeResponder||!navigator.mediaDevices||typeof MediaRecorder==='undefined';
 
       const extra=document.getElementById('extra-actions');
       const botones=[];
@@ -409,8 +419,8 @@
       document.querySelector('.inbox').classList.add('mobile-chat-open');
       document.querySelectorAll('#chat-items .chat-item').forEach(b=>b.classList.toggle('active',b.dataset.telefono===tel));
       const conv=convs.find(c=>c.telefono===tel);
-      actualizarEncabezadoChat(conv);
       habilitarComposer(true);
+      actualizarEncabezadoChat(conv);
       document.getElementById('messages').innerHTML='<div class="day">Cargando historial…</div>';
       try{
         const r=await apiGet(`/panel/conversacion/${tel}`);
@@ -451,20 +461,28 @@
 
     document.getElementById('takeover').addEventListener('click',async()=>{
       if(!telActivo)return;
-      const activar=!modoControl[telActivo];
+      const actual=convs.find(c=>c.telefono===telActivo);
+      if(!actual)return;
+      const activa=!!actual.atencion_humana_directa;
+      const esMia=activa&&actual.atencion_humana_por===usuarioActual;
+      const transferir=activa&&!esMia;
+      if(transferir&&!window.confirm('Esta conversación la atiende '+(actual.atencion_humana_por||'otro operador')+'. ¿Quieres transferirla a tu usuario?'))return;
+      const activar=!esMia;
       try{
-        const r=await apiPost(`/panel/control/${telActivo}`,{accion:activar?'tomar':'devolver'});
+        const r=await apiPost(`/panel/control/${telActivo}`,{accion:activar?'tomar':'devolver',forzar:transferir});
         if(r.ok){
+          const respuesta=await r.json();
           modoControl[telActivo]=activar;
-          const actual=convs.find(c=>c.telefono===telActivo);
           if(actual)actual.atencion_humana_directa=activar;
-          if(actual){actual.atencion_humana_por=activar?(await r.json()).operador:null;actual.atencion_humana_desde=activar?new Date().toISOString():null}
+          if(actual){actual.atencion_humana_por=activar?respuesta.operador:null;actual.atencion_humana_desde=activar?new Date().toISOString():null}
           renderLista(convs);
           const conv=convs.find(c=>c.telefono===telActivo);
           actualizarEncabezadoChat(conv);
-          say(activar?'Control humano activado':'Conversación devuelta a Bruno');
+          say(transferir?'Conversación transferida a tu usuario':activar?'Control humano activado':'Conversación devuelta a Bruno');
         }else{
-          say('No se pudo cambiar el modo de control');
+          let detalle='No se pudo cambiar el modo de control';
+          try{const j=await r.json();detalle=j.detail||detalle}catch(e){}
+          say(detalle);
         }
       }catch(e){say('Error de conexión')}
     });
@@ -474,6 +492,8 @@
       const input=document.getElementById('message-input');
       const texto=input.value.trim();
       if(!texto)return;
+      const conv=convs.find(c=>c.telefono===telActivo);
+      if(conv?.atencion_humana_directa&&conv.atencion_humana_por!==usuarioActual){say('Esta conversación está siendo atendida por '+(conv.atencion_humana_por||'otro operador'));return}
       const path=modoControl[telActivo]?`/panel/enviar-directo/${telActivo}`:`/panel/responder/${telActivo}`;
       input.disabled=true;
       try{
@@ -504,7 +524,8 @@
         say('Nota de voz enviada');
         const rh=await apiGet(`/panel/conversacion/${telefono}`);if(rh.ok&&telefono===telActivo)renderMensajes((await rh.json()).historial);
       }catch(e){say(e.message||'No se pudo enviar el audio')}
-      voice.textContent='●';voice.disabled=!telActivo||!navigator.mediaDevices||typeof MediaRecorder==='undefined';
+      const conv=convs.find(c=>c.telefono===telActivo),bloqueada=conv?.atencion_humana_directa&&conv.atencion_humana_por!==usuarioActual;
+      voice.textContent='●';voice.disabled=!telActivo||bloqueada||!navigator.mediaDevices||typeof MediaRecorder==='undefined';
     }
     async function alternarGrabacion(){
       if(grabador&&grabador.state==='recording'){grabador.stop();return}
