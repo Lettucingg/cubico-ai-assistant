@@ -4,7 +4,12 @@ from types import SimpleNamespace
 
 from app.ai import orchestrator
 from app.ai.orchestrator import normalizar_historial_para_claude
-from app.tools.comprobantes import detectar_mime_imagen, interpretar_analisis_imagen
+from app.tools import comprobantes
+from app.tools.comprobantes import (
+    analizar_imagen_cliente,
+    detectar_mime_imagen,
+    interpretar_analisis_imagen,
+)
 from app.tools.cotizador import calcular_costo_envio
 
 
@@ -32,6 +37,58 @@ def test_conserva_datos_visuales_para_siguientes_mensajes():
 
 def test_detecta_png_sin_confiar_en_extension():
     assert detectar_mime_imagen(b"\x89PNG\r\n\x1a\nresto") == "image/png"
+
+
+def test_acepta_separador_con_espacios():
+    resultado = interpretar_analisis_imagen(
+        "ES_COMPROBANTE: no\n"
+        "CONTEXTO_VISUAL: Total 1.40035 CBM.\n"
+        "=== RESPUESTA ===\nVeo el total del manifiesto."
+    )
+
+    assert resultado["formato_valido"] is True
+    assert resultado["contexto_visual"] == "Total 1.40035 CBM."
+
+
+def test_reintenta_tabla_si_claude_omite_formato(monkeypatch):
+    respuestas = iter([
+        SimpleNamespace(
+            content=[SimpleNamespace(type="text", text="Veo una tabla de carga.")],
+            usage=None,
+        ),
+        SimpleNamespace(
+            content=[SimpleNamespace(
+                type="text",
+                text=(
+                    "ES_COMPROBANTE: no\n"
+                    "CONTEXTO_VISUAL: Tabla con total 156.5 kg, 252 kg "
+                    "cobrables y 1.40035 CBM.\n"
+                    "===RESPUESTA===\nVeo los totales del manifiesto."
+                ),
+            )],
+            usage=None,
+        ),
+    ])
+    instrucciones_recibidas = []
+
+    def crear_respuesta(**argumentos):
+        instrucciones_recibidas.append(
+            argumentos["messages"][0]["content"][1]["text"]
+        )
+        return next(respuestas)
+
+    monkeypatch.setattr(
+        comprobantes.cliente_claude.messages,
+        "create",
+        crear_respuesta,
+    )
+
+    resultado = analizar_imagen_cliente(b"\xff\xd8imagen")
+
+    assert len(instrucciones_recibidas) == 2
+    assert "última fila" in instrucciones_recibidas[1]
+    assert resultado["formato_valido"] is True
+    assert "1.40035 CBM" in resultado["contexto_visual"]
 
 
 def test_cotiza_china_maritimo_desde_cbm_total():
