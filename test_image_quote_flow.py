@@ -147,6 +147,23 @@ def test_tarifa_china_maritima_es_directa():
     assert respuesta == "Desde China por marítimo son $325 por CBM, con un mínimo de $45."
 
 
+def test_cantidad_cbm_no_es_interceptada_por_respuesta_fija():
+    respuesta = orchestrator.buscar_respuesta_fija(
+        "Tengo una carga desde China de 0.78342 CBM. "
+        "¿Cuánto me cuesta traerla por marítimo?"
+    )
+
+    assert respuesta is None
+
+
+def test_peso_china_no_es_interceptado_por_respuesta_fija():
+    respuesta = orchestrator.buscar_respuesta_fija(
+        "¿Cuánto cuesta traer 3.2 libras desde China por aéreo?"
+    )
+
+    assert respuesta is None
+
+
 def test_consulta_ambigua_usa_contexto_de_claude():
     assert orchestrator.buscar_respuesta_fija("¿Cuánto cuesta el envío?") is None
 
