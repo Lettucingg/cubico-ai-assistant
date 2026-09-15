@@ -10,6 +10,39 @@ from app.db.session_store import registrar_uso_ia
 cliente_claude = Anthropic(api_key=settings.ANTHROPIC_API_KEY)
 
 
+def detectar_mime_imagen(imagen_bytes: bytes) -> str:
+    """Detecta los formatos de imagen admitidos por Claude sin confiar en la extensión."""
+    if imagen_bytes.startswith(b"\x89PNG\r\n\x1a\n"):
+        return "image/png"
+    if imagen_bytes.startswith((b"GIF87a", b"GIF89a")):
+        return "image/gif"
+    if imagen_bytes.startswith(b"RIFF") and imagen_bytes[8:12] == b"WEBP":
+        return "image/webp"
+    return "image/jpeg"
+
+
+def interpretar_analisis_imagen(texto_completo: str) -> dict:
+    """Convierte la salida estructurada del análisis en datos seguros para el flujo."""
+    encabezado, separador, texto_para_cliente = texto_completo.partition("===RESPUESTA===")
+    es_comprobante = "es_comprobante: si" in encabezado.lower()
+    contexto_visual = None
+    if not es_comprobante:
+        marcador = "CONTEXTO_VISUAL:"
+        posicion = encabezado.upper().find(marcador)
+        if posicion >= 0:
+            contexto_visual = encabezado[posicion + len(marcador):].strip()
+    return {
+        "es_comprobante": es_comprobante,
+        "detalle_completo": encabezado.strip() if es_comprobante else None,
+        "contexto_visual": contexto_visual,
+        "texto_respuesta": (
+            texto_para_cliente.strip()
+            if separador
+            else "No pude ver bien la imagen. Cuéntame qué producto es y te calculo el costo de traerlo sin problema."
+        ),
+    }
+
+
 async def descargar_imagen_de_whatsapp(media_id: str) -> bytes:
     """
     Descarga una imagen real desde los servidores de Meta, usando
@@ -72,6 +105,9 @@ METODO: [Yappy, transferencia, u otro si se puede identificar]
 Si NO es un comprobante de pago, responde EXACTAMENTE en este formato:
 
 ES_COMPROBANTE: no
+CONTEXTO_VISUAL: [describe con precisión todo dato útil que se vea: productos,
+texto, cantidades, pesos, medidas, unidades, subtotales y totales. Si hay una
+tabla, conserva especialmente los totales y su unidad. No inventes datos.]
 ===RESPUESTA===
 [tu respuesta natural sobre lo que ves en la imagen, tomando en cuenta el mensaje del cliente si mandó uno. Si es una captura de una tienda o de algo donde te está pidiendo ayuda, ayúdalo directamente con eso. Si no tiene nada que ver con Cúbico, dile con naturalidad qué ves y pregúntale en qué le puedes ayudar.]
 
@@ -80,7 +116,7 @@ No escribas nada antes de "ES_COMPROBANTE:" ni nada después del texto de la sec
 
     respuesta = cliente_claude.messages.create(
         model="claude-sonnet-5",
-        max_tokens=500,
+        max_tokens=1000,
         system=[
             {
                 "type": "text",
@@ -95,7 +131,7 @@ No escribas nada antes de "ES_COMPROBANTE:" ni nada después del texto de la sec
                     "type": "image",
                     "source": {
                         "type": "base64",
-                        "media_type": "image/jpeg",
+                        "media_type": detectar_mime_imagen(imagen_bytes),
                         "data": imagen_base64,
                     },
                 },
@@ -122,18 +158,7 @@ No escribas nada antes de "ES_COMPROBANTE:" ni nada después del texto de la sec
         bloque.text for bloque in respuesta.content if bloque.type == "text"
     ).strip()
 
-    encabezado, separador, texto_para_cliente = texto_completo.partition("===RESPUESTA===")
-    es_comprobante = "es_comprobante: si" in encabezado.lower()
-
-    return {
-        "es_comprobante": es_comprobante,
-        "detalle_completo": encabezado.strip() if es_comprobante else None,
-        "texto_respuesta": (
-            texto_para_cliente.strip()
-            if separador
-            else "No pude ver bien la imagen. Cuéntame qué producto es y te calculo el costo de traerlo sin problema."
-        ),
-    }
+    return interpretar_analisis_imagen(texto_completo)
 
 
 def extraer_campos_comprobante(detalle_completo: str) -> dict:
