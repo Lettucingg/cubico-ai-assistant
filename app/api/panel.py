@@ -84,6 +84,30 @@ def verificar_credenciales_panel(credenciales: HTTPBasicCredentials = Depends(se
     return credenciales.username
 
 
+def _validar_operador_conversacion(
+    telefono: str,
+    usuario: str,
+    requiere_control: bool = False,
+):
+    """Impide respuestas cruzadas entre trabajadores con paneles desactualizados."""
+    sesion = obtener_sesion_existente(telefono)
+    if sesion is None:
+        raise HTTPException(status_code=404, detail="No existe esa conversación")
+    activa = bool(getattr(sesion, "atencion_humana_directa", False))
+    operador = getattr(sesion, "atencion_humana_por", None)
+    if activa and operador and operador != usuario:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Esta conversación está siendo atendida por {operador}.",
+        )
+    if requiere_control and (not activa or operador != usuario):
+        raise HTTPException(
+            status_code=409,
+            detail="Debes tomar el control de esta conversación antes de enviar directamente.",
+        )
+    return sesion
+
+
 @router.get("/push/config")
 def configuracion_push(usuario: str = Depends(verificar_credenciales_panel)):
     return {
@@ -636,6 +660,7 @@ async def responder_cliente(
     sesion_cliente = obtener_sesion_existente(telefono)
     if sesion_cliente is None:
         raise HTTPException(status_code=404, detail="No existe ninguna conversación con ese teléfono")
+    _validar_operador_conversacion(telefono, usuario)
 
     historial = sesion_cliente.obtener_historial()
     texto_cliente_original = next(
@@ -742,8 +767,7 @@ async def enviar_audio_desde_panel(
     usuario: str = Depends(verificar_credenciales_panel),
 ):
     """Recibe una grabación del panel, la normaliza y la envía por WhatsApp."""
-    if obtener_sesion_existente(telefono) is None:
-        raise HTTPException(status_code=404, detail="No existe ninguna conversación con ese teléfono")
+    _validar_operador_conversacion(telefono, usuario, requiere_control=True)
     audio = await request.body()
     if not audio:
         raise HTTPException(status_code=400, detail="La grabación está vacía")
@@ -821,6 +845,21 @@ async def tomar_control(
     if sesion is None:
         raise HTTPException(status_code=404, detail="No existe esa conversación")
     control_activo = accion == "tomar"
+    operador_actual = getattr(sesion, "atencion_humana_por", None)
+    estaba_activo = bool(getattr(sesion, "atencion_humana_directa", False))
+    forzar = bool(body.get("forzar", False))
+    if control_activo and estaba_activo and operador_actual == usuario:
+        return {"status": "ok", "control": True, "operador": usuario}
+    if control_activo and estaba_activo and operador_actual and operador_actual != usuario and not forzar:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Esta conversación está siendo atendida por {operador_actual}.",
+        )
+    if not control_activo and estaba_activo and operador_actual and operador_actual != usuario:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Solo {operador_actual} puede devolver esta conversación a Bruno.",
+        )
     actualizar_sesion(
         telefono,
         atencion_humana_directa=control_activo,
@@ -844,6 +883,7 @@ async def enviar_directo(
     mensaje = body.get("mensaje", "").strip()
     if not mensaje:
         raise HTTPException(status_code=400, detail="Mensaje vacío")
+    _validar_operador_conversacion(telefono, usuario, requiere_control=True)
     respuesta_meta = await enviar_mensaje_whatsapp(telefono, mensaje)
     if not respuesta_meta.is_success:
         raise HTTPException(status_code=502, detail="Meta no pudo enviar el mensaje")
