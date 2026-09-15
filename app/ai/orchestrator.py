@@ -481,12 +481,19 @@ Nunca calcules mentalmente volumen × tarifa.
 
 La herramienta aplica las reglas reales de cobro.
 
-Para aéreo necesitas peso_libras.
+Indica siempre el origen: origen="miami" u origen="china".
+
+Para aéreo necesitas peso_libras. Para China aéreo también puedes enviar las
+medidas para que la herramienta compare el peso real con el volumétrico.
 
 Para marítimo necesitas:
 - alto
 - ancho
 - largo
+
+Excepción: para China marítimo, si un documento o imagen ya muestra el CBM
+total, utiliza origen="china" y volumen_cbm con ese valor. No vuelvas a pedir
+las medidas si ya tienes el CBM total.
 
 Si falta alguna medida, solicita únicamente lo que falta.
 
@@ -1086,8 +1093,10 @@ HERRAMIENTAS = [
             "Nunca calcules peso por tarifa o volumen por tarifa manualmente. "
             "La herramienta aplica las reglas reales de redondeo y cobro. "
             "No requiere verificación. "
+            "Indica origen='miami' u origen='china'. "
             "Para aéreo usa peso_libras. "
-            "Para marítimo usa alto, ancho y largo. "
+            "Para marítimo desde Miami usa alto, ancho y largo. "
+            "Para marítimo desde China acepta volumen_cbm directamente. "
             "Si las medidas vienen en centímetros usa unidad_medida='cm'."
         ),
         "input_schema": {
@@ -1096,6 +1105,14 @@ HERRAMIENTAS = [
                 "tipo_envio": {
                     "type": "string",
                     "description": "'aereo' o 'maritimo'",
+                },
+                "origen": {
+                    "type": "string",
+                    "description": "'miami' o 'china'",
+                },
+                "volumen_cbm": {
+                    "type": "number",
+                    "description": "CBM total para marítimo desde China",
                 },
                 "peso_libras": {
                     "type": "number",
@@ -1506,6 +1523,18 @@ def buscar_respuesta_fija(
     return None
 
 
+def normalizar_historial_para_claude(historial: list | None) -> list[dict]:
+    """Usa el contexto visual interno sin mostrarlo como mensaje en el panel."""
+    return [
+        {
+            "role": "assistant" if item.get("role") in {"assistant", "humano"} else "user",
+            "content": str(item.get("contexto_ia") or item.get("content", "")),
+        }
+        for item in (historial[-20:] if historial else [])
+        if item.get("contexto_ia") or item.get("content")
+    ]
+
+
 def generar_respuesta(
     texto_cliente: str,
     telefono: str,
@@ -1907,14 +1936,7 @@ def generar_respuesta(
     # El historial interno también guarda timestamp y puede contener el rol
     # "humano". La API de Anthropic solo acepta role/content y únicamente
     # los roles user/assistant, así que normalizamos antes de enviarlo.
-    mensajes = [
-        {
-            "role": "assistant" if item.get("role") in {"assistant", "humano"} else "user",
-            "content": str(item.get("content", "")),
-        }
-        for item in (historial[-20:] if historial else [])
-        if item.get("content")
-    ]
+    mensajes = normalizar_historial_para_claude(historial)
 
     mensajes.append(
         {
@@ -1930,7 +1952,7 @@ def generar_respuesta(
     def _llamar_claude():
         respuesta = cliente_claude.messages.create(
             model="claude-sonnet-5",
-            max_tokens=500,
+            max_tokens=1200,
             system=[
                 {
                     "type": "text",
@@ -1986,10 +2008,12 @@ def generar_respuesta(
             if texto_reintento:
                 return texto_reintento
 
-            return (
-                "No pude completar la consulta en este momento. "
-                "Intenta otra vez."
+            actualizar_sesion(
+                telefono,
+                necesita_atencion_humana=True,
+                motivo_escalamiento="Bruno no pudo generar una respuesta",
             )
+            return "Déjame dejarle esto al equipo para que te respondan correctamente."
 
         # Guardamos la respuesta del assistant que contiene los tool_use.
         mensajes.append(
