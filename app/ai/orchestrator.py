@@ -727,6 +727,10 @@ Según la fuente que devuelva:
   significar únicamente que llegó a nuestra bodega — comunícalo como
   "Ya llegó a nuestra bodega en Miami y está siendo procesado."
 - fuente="china": estado del paquete todavía en la bodega de China.
+- fuente="servicio_indisponible": la consulta falló temporalmente. Informa
+  que en este momento no se pudo verificar el estado y ofrece volver a
+  intentarlo. Nunca digas que el tracking no existe o que el paquete no está
+  registrado cuando recibas esta fuente.
 - fuente="no_encontrado": el tracking no aparece en ninguna fuente.
   Si el cliente dice que es carga aérea de China, escala a humano con
   motivo "Tracking aéreo China sin resultado". En cualquier otro caso,
