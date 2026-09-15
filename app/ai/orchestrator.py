@@ -1,4 +1,5 @@
 import random
+import re
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
@@ -1471,11 +1472,17 @@ def buscar_respuesta_fija(
     es_china = "china" in texto
     menciona_aereo = any(palabra in texto for palabra in ("aereo", "aéreo", "libra"))
     menciona_maritimo = any(palabra in texto for palabra in ("maritimo", "marítimo", "cbm", "barco"))
+    contiene_cantidad_cotizable = bool(
+        re.search(
+            r"\d+(?:[.,]\d+)?\s*(?:cbm|m3|m³|lb|lbs|libra|libras|kg|kilos?)\b",
+            texto,
+        )
+    )
 
-    if es_china and menciona_maritimo:
+    if es_china and menciona_maritimo and not contiene_cantidad_cotizable:
         return "Desde China por marítimo son $325 por CBM, con un mínimo de $45."
 
-    if es_china and menciona_aereo:
+    if es_china and menciona_aereo and not contiene_cantidad_cotizable:
         return "Desde China por aéreo son $12 por libra."
 
     if any(frase in texto for frase in ["cuanto cobran la libra", "cuánto cobran la libra", "precio de la libra"]):
