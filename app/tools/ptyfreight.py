@@ -19,6 +19,13 @@ def consultar_tracking(numero_tracking: str) -> dict:
     un único resultado indicando de dónde salió ("fuente").
     """
     numero_normalizado = numero_tracking.strip()
+    if not numero_normalizado:
+        return {
+            "encontrado": False,
+            "error": True,
+            "tipo_error": "tracking_vacio",
+            "mensaje": "Falta el número de tracking",
+        }
 
     en_cache = _cache_tracking.get(numero_normalizado)
     if en_cache is not None:
@@ -32,24 +39,44 @@ def consultar_tracking(numero_tracking: str) -> dict:
         respuesta = httpx.get(url, timeout=TIMEOUT_SEGUNDOS)
         respuesta.raise_for_status()
         datos = respuesta.json()
-    except (httpx.RequestError, httpx.HTTPStatusError, ValueError):
+    except httpx.HTTPStatusError as error:
+        if error.response.status_code == 404:
+            resultado = {
+                "encontrado": False,
+                "fuente": "no_encontrado",
+                "mensaje": "No encontrado en ninguna fuente",
+            }
+            _cache_tracking[numero_normalizado] = (time.monotonic(), resultado)
+            return resultado
         return {
             "encontrado": False,
-            "mensaje": "No se pudo consultar el estado",
+            "error": True,
+            "fuente": "servicio_indisponible",
+            "tipo_error": "respuesta_http",
+            "codigo_http": error.response.status_code,
+            "mensaje": "El servicio de tracking no está disponible temporalmente",
+        }
+    except httpx.RequestError:
+        return {
+            "encontrado": False,
+            "error": True,
+            "fuente": "servicio_indisponible",
+            "tipo_error": "conexion",
+            "mensaje": "El servicio de tracking no está disponible temporalmente",
+        }
+    except ValueError:
+        return {
+            "encontrado": False,
+            "error": True,
+            "fuente": "servicio_indisponible",
+            "tipo_error": "respuesta_invalida",
+            "mensaje": "El servicio de tracking devolvió una respuesta inválida",
         }
 
     resultado = _mapear_respuesta(datos)
     _cache_tracking[numero_normalizado] = (time.monotonic(), resultado)
 
     return resultado
-
-
-ESTADOS_CUBICO = {
-    "notificado": "llegó a Cúbico Panamá y está listo para retiro o entrega",
-    "en_ruta": "está en camino hacia Panamá",
-    "entregado": "fue entregado al cliente",
-    "en_miami": "está en nuestra bodega en Miami siendo procesado",
-}
 
 
 def _mapear_respuesta(datos: dict) -> dict:
@@ -61,15 +88,11 @@ def _mapear_respuesta(datos: dict) -> dict:
     fuente = datos.get("fuente")
 
     if fuente == "cubico":
-        estado_raw = datos.get("estado", "")
-        estado_texto = ESTADOS_CUBICO.get(estado_raw, estado_raw)
-        ruta = datos.get("ruta", "")
         return {
             "encontrado": True,
             "fuente": "cubico",
-            "estado": estado_raw,
-            "estado_texto": estado_texto,
-            "ruta": ruta,
+            "estado": datos.get("estado"),
+            "ruta": datos.get("ruta"),
             "fecha": datos.get("fecha_carga"),
         }
 
@@ -88,7 +111,17 @@ def _mapear_respuesta(datos: dict) -> dict:
             "estado": datos.get("estado_texto"),
         }
 
+    if fuente == "no_encontrado" or datos.get("encontrado") is False:
+        return {
+            "encontrado": False,
+            "fuente": "no_encontrado",
+            "mensaje": "No encontrado en ninguna fuente",
+        }
+
     return {
         "encontrado": False,
-        "mensaje": "No encontrado en ninguna fuente",
+        "error": True,
+        "fuente": "servicio_indisponible",
+        "tipo_error": "fuente_desconocida",
+        "mensaje": "El servicio de tracking devolvió una fuente desconocida",
     }
