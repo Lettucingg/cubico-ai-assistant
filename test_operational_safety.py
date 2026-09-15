@@ -110,6 +110,114 @@ def test_rechaza_accion_de_control_desconocida(monkeypatch):
     assert error.value.status_code == 400
 
 
+def test_no_permite_robar_control_sin_confirmacion(monkeypatch):
+    monkeypatch.setattr(
+        panel,
+        "obtener_sesion_existente",
+        lambda _telefono: _sesion(
+            atencion_humana_directa=True,
+            atencion_humana_por="luis",
+        ),
+    )
+
+    with pytest.raises(HTTPException) as error:
+        asyncio.run(
+            panel.tomar_control(
+                "50760000000",
+                {"accion": "tomar"},
+                usuario="alexander",
+            )
+        )
+
+    assert error.value.status_code == 409
+    assert "luis" in error.value.detail
+
+
+def test_transferencia_confirmada_cambia_operador(monkeypatch):
+    cambios = {}
+    monkeypatch.setattr(
+        panel,
+        "obtener_sesion_existente",
+        lambda _telefono: _sesion(
+            atencion_humana_directa=True,
+            atencion_humana_por="luis",
+        ),
+    )
+    monkeypatch.setattr(panel, "actualizar_sesion", lambda _telefono, **datos: cambios.update(datos))
+
+    respuesta = asyncio.run(
+        panel.tomar_control(
+            "50760000000",
+            {"accion": "tomar", "forzar": True},
+            usuario="alexander",
+        )
+    )
+
+    assert respuesta["operador"] == "alexander"
+    assert cambios["atencion_humana_por"] == "alexander"
+
+
+def test_solo_dueno_puede_devolver_a_bruno(monkeypatch):
+    monkeypatch.setattr(
+        panel,
+        "obtener_sesion_existente",
+        lambda _telefono: _sesion(
+            atencion_humana_directa=True,
+            atencion_humana_por="luis",
+        ),
+    )
+
+    with pytest.raises(HTTPException) as error:
+        asyncio.run(
+            panel.tomar_control(
+                "50760000000",
+                {"accion": "devolver"},
+                usuario="alexander",
+            )
+        )
+
+    assert error.value.status_code == 409
+    assert "luis" in error.value.detail
+
+
+def test_bloquea_respuesta_de_otro_operador(monkeypatch):
+    monkeypatch.setattr(
+        panel,
+        "obtener_sesion_existente",
+        lambda _telefono: _sesion(
+            atencion_humana_directa=True,
+            atencion_humana_por="luis",
+        ),
+    )
+
+    with pytest.raises(HTTPException) as error:
+        panel._validar_operador_conversacion("50760000000", "alexander")
+
+    assert error.value.status_code == 409
+    assert "luis" in error.value.detail
+
+
+def test_envio_directo_exige_ser_dueno(monkeypatch):
+    monkeypatch.setattr(
+        panel,
+        "obtener_sesion_existente",
+        lambda _telefono: _sesion(
+            atencion_humana_directa=False,
+            atencion_humana_por=None,
+        ),
+    )
+
+    with pytest.raises(HTTPException) as error:
+        panel._validar_operador_conversacion(
+            "50760000000",
+            "alexander",
+            requiere_control=True,
+        )
+
+    assert error.value.status_code == 409
+    assert "tomar el control" in error.value.detail
+
+
 def test_endpoint_liviano_detecta_ultimo_mensaje_cliente(monkeypatch):
     fecha = datetime(2026, 9, 14, 10, 0, 0)
     caso = SimpleNamespace(
