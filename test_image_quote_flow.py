@@ -1,5 +1,8 @@
 """Pruebas de memoria visual y cotizaciones de imágenes."""
 
+from types import SimpleNamespace
+
+from app.ai import orchestrator
 from app.ai.orchestrator import normalizar_historial_para_claude
 from app.tools.comprobantes import detectar_mime_imagen, interpretar_analisis_imagen
 from app.tools.cotizador import calcular_costo_envio
@@ -70,3 +73,54 @@ def test_china_aereo_usa_tarifa_china():
 
     assert resultado["peso_libras_redondeado"] == 2
     assert resultado["costo_estimado"] == 24.00
+
+
+def test_respuesta_fija_da_solo_la_tarifa_preguntada():
+    respuesta = orchestrator.buscar_respuesta_fija("¿Cuánto cobran la libra?")
+
+    assert respuesta == "Desde Miami por aéreo son $2.90 por libra."
+    assert "China" not in respuesta
+
+
+def test_tarifa_china_maritima_es_directa():
+    respuesta = orchestrator.buscar_respuesta_fija(
+        "¿Cuál es la tarifa marítima desde China por CBM?"
+    )
+
+    assert respuesta == "Desde China por marítimo son $325 por CBM, con un mínimo de $45."
+
+
+def test_consulta_ambigua_usa_contexto_de_claude():
+    assert orchestrator.buscar_respuesta_fija("¿Cuánto cuesta el envío?") is None
+
+
+def test_direccion_fija_no_muestra_variables_internas(monkeypatch):
+    monkeypatch.setattr(orchestrator, "CUBICO_MIAMI_STREET", "123 Calle Prueba")
+    monkeypatch.setattr(orchestrator, "CUBICO_MIAMI_CITY_ZIP", "Miami, FL 00000")
+    monkeypatch.setattr(orchestrator, "CUBICO_MIAMI_PHONE", "000-0000")
+
+    respuesta = orchestrator.buscar_respuesta_fija("¿Cuál es la dirección en Miami?")
+
+    assert "123 Calle Prueba" in respuesta
+    assert "{CUBICO_" not in respuesta
+
+
+def test_fallo_repetido_no_repite_el_mismo_mensaje(monkeypatch):
+    estado = SimpleNamespace(
+        necesita_atencion_humana=False,
+        motivo_escalamiento=None,
+    )
+
+    def actualizar(_telefono, **cambios):
+        for clave, valor in cambios.items():
+            setattr(estado, clave, valor)
+
+    monkeypatch.setattr(orchestrator, "obtener_sesion_existente", lambda _telefono: estado)
+    monkeypatch.setattr(orchestrator, "actualizar_sesion", actualizar)
+
+    primera = orchestrator._escalar_fallo_de_respuesta("50760000000")
+    segunda = orchestrator._escalar_fallo_de_respuesta("50760000000")
+
+    assert primera == "Voy a pasarle esto al equipo para que lo revisen bien."
+    assert segunda != primera
+    assert "ya tiene" in segunda
