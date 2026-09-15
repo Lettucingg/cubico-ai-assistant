@@ -1,6 +1,7 @@
 import asyncio
 import json
 import re
+import time
 from datetime import datetime, timezone
 
 import httpx
@@ -276,6 +277,66 @@ SEGUNDOS_ESPERA_BUFFER = 4.0
 
 buffer_mensajes: dict[str, dict] = {}
 tareas_pendientes: dict[str, asyncio.Task] = {}
+tareas_procesamiento_inmediato: set[asyncio.Task] = set()
+mensajes_entrantes_recientes: dict[str, float] = {}
+DURACION_DEDUPLICACION_SEGUNDOS = 3600
+
+
+def registrar_mensaje_entrante_una_vez(
+    message_id: str | None,
+    ahora: float | None = None,
+) -> bool:
+    """Devuelve False si Meta ya entregó recientemente el mismo mensaje."""
+    if not message_id:
+        return True
+
+    instante = time.monotonic() if ahora is None else ahora
+    vencidos = [
+        identificador
+        for identificador, registrado_en in mensajes_entrantes_recientes.items()
+        if instante - registrado_en >= DURACION_DEDUPLICACION_SEGUNDOS
+    ]
+    for identificador in vencidos:
+        mensajes_entrantes_recientes.pop(identificador, None)
+
+    if message_id in mensajes_entrantes_recientes:
+        return False
+
+    mensajes_entrantes_recientes[message_id] = instante
+    return True
+
+
+def combinar_mensajes_para_buffer(
+    anterior: dict | None,
+    nuevo: dict,
+) -> tuple[dict, dict | None]:
+    """Combina ráfagas sin descartar imágenes ni explicaciones del cliente."""
+    if anterior is None:
+        return dict(nuevo), None
+
+    if anterior["tipo"] == "text" and nuevo["tipo"] == "text":
+        combinado = dict(anterior)
+        combinado["texto"] = f"{anterior.get('texto') or ''}\n{nuevo.get('texto') or ''}".strip()
+        combinado["message_id"] = nuevo.get("message_id") or anterior.get("message_id")
+        combinado["timestamp"] = nuevo.get("timestamp") or anterior.get("timestamp")
+        return combinado, None
+
+    tipos = {anterior["tipo"], nuevo["tipo"]}
+    if tipos == {"image", "text"}:
+        imagen = dict(anterior if anterior["tipo"] == "image" else nuevo)
+        textos = [
+            item.get("texto")
+            for item in (anterior, nuevo)
+            if item.get("texto")
+        ]
+        imagen["texto"] = "\n".join(textos) or None
+        imagen["message_id"] = nuevo.get("message_id") or imagen.get("message_id")
+        imagen["timestamp"] = nuevo.get("timestamp") or imagen.get("timestamp")
+        return imagen, None
+
+    # Dos imágenes distintas no se pueden fusionar. La anterior debe
+    # procesarse de inmediato y la nueva queda esperando en el buffer.
+    return dict(nuevo), dict(anterior)
 
 
 PALABRAS_CLAVE_ESCALAMIENTO = [
@@ -594,18 +655,18 @@ async def agregar_mensaje_a_buffer(mensaje: dict):
 
     telefono = mensaje["telefono"]
 
-    mensaje_en_buffer = buffer_mensajes.get(telefono)
-    if mensaje_en_buffer and mensaje_en_buffer["tipo"] == "text" and mensaje["tipo"] == "text":
-        # Ambos son texto: se concatenan para agrupar la ráfaga en un
-        # solo mensaje combinado.
-        mensaje_en_buffer["texto"] += f"\n{mensaje['texto']}"
-        mensaje_en_buffer["message_id"] = mensaje["message_id"]
-    else:
-        # Tipos mezclados (texto/imagen/audio) o buffer vacío: no hay
-        # forma segura de concatenar (texto podría ser None), así que
-        # el mensaje nuevo reemplaza al buffer y se procesa por su
-        # cuenta, priorizando el último tipo recibido.
-        buffer_mensajes[telefono] = dict(mensaje)
+    combinado, pendiente_inmediato = combinar_mensajes_para_buffer(
+        buffer_mensajes.get(telefono),
+        mensaje,
+    )
+    buffer_mensajes[telefono] = combinado
+
+    if pendiente_inmediato is not None:
+        tarea_inmediata = asyncio.create_task(
+            procesar_mensaje_en_segundo_plano(pendiente_inmediato)
+        )
+        tareas_procesamiento_inmediato.add(tarea_inmediata)
+        tarea_inmediata.add_done_callback(tareas_procesamiento_inmediato.discard)
 
     tarea_anterior = tareas_pendientes.get(telefono)
     if tarea_anterior and not tarea_anterior.done():
@@ -926,6 +987,10 @@ async def recibir_mensaje(request: Request, background_tasks: BackgroundTasks):
     if mensaje is None:
         print("Evento recibido, pero no es un mensaje de texto entrante (ignorado).")
         return {"status": "ignorado", "razon": "no es un mensaje de texto"}
+
+    if not registrar_mensaje_entrante_una_vez(mensaje.get("message_id")):
+        print(f"Mensaje duplicado ignorado: {mensaje.get('message_id')}")
+        return {"status": "duplicado_ignorado"}
 
     timestamp_mensaje = int(mensaje.get("timestamp") or 0)
     ahora = int(datetime.now(timezone.utc).timestamp())
