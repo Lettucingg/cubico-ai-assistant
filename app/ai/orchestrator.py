@@ -14,6 +14,7 @@ from app.tools.clientes import (
     verificar_cliente,
     obtener_nombre_completo_cliente,
     verificar_correo_registrado,
+    normalizar_codigo_cbc,
 )
 from app.db.session_store import (
     actualizar_sesion,
@@ -1624,7 +1625,7 @@ def generar_respuesta(
     if codigo_cliente:
         try:
             resultado_nombre = obtener_nombre_completo_cliente(
-                codigo_cliente.strip().upper()
+                normalizar_codigo_cbc(codigo_cliente)
             )
 
             if resultado_nombre.get("encontrado"):
@@ -1652,7 +1653,7 @@ def generar_respuesta(
         return respuesta_fija
 
     def _verificar_identidad(codigo_cliente: str, email: str):
-        codigo_cliente = codigo_cliente.strip().upper()
+        codigo_cliente = normalizar_codigo_cbc(codigo_cliente)
         email = email.strip().lower()
 
         if verificar_cliente(codigo_cliente, email):
@@ -1694,7 +1695,7 @@ def generar_respuesta(
     def _obtener_direccion_miami_personalizada(
         codigo_cliente: str, tipo_envio: str
     ):
-        codigo_normalizado = codigo_cliente.strip().upper()
+        codigo_normalizado = normalizar_codigo_cbc(codigo_cliente)
         tipo_normalizado = tipo_envio.strip().lower()
 
         if tipo_normalizado not in ("aereo", "ocean"):
@@ -1735,7 +1736,7 @@ def generar_respuesta(
     def _obtener_direccion_china_personalizada(
         codigo_cliente: str, tipo_envio: str
     ):
-        codigo_normalizado = codigo_cliente.strip().upper()
+        codigo_normalizado = normalizar_codigo_cbc(codigo_cliente)
         tipo_normalizado = tipo_envio.strip().lower()
 
         if tipo_normalizado not in ("aereo", "ocean"):
@@ -1772,7 +1773,7 @@ def generar_respuesta(
         }
 
     def _avisar_retiro(codigo_cliente: str):
-        codigo_normalizado = codigo_cliente.strip().upper()
+        codigo_normalizado = normalizar_codigo_cbc(codigo_cliente)
 
         resultado_paquetes = consultar_paquetes_por_codigo(
             codigo_normalizado
@@ -1827,7 +1828,7 @@ def generar_respuesta(
         }
 
     def _solicitar_entrega_domicilio(codigo_cliente: str, direccion: str = None):
-        codigo_normalizado = codigo_cliente.strip().upper()
+        codigo_normalizado = normalizar_codigo_cbc(codigo_cliente)
 
         resultado_facturas = consultar_facturas_por_codigo(codigo_normalizado)
 
@@ -1988,7 +1989,7 @@ def generar_respuesta(
     # Añadimos información interna sobre la sesión sin mostrársela
     # directamente al cliente.
     if codigo_cliente:
-        codigo_normalizado = codigo_cliente.strip().upper()
+        codigo_normalizado = normalizar_codigo_cbc(codigo_cliente)
 
         texto_para_claude = (
             f"{prefijo_razonamiento}\n\n"
