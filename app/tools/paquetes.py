@@ -1,5 +1,6 @@
 from app.db.database import SessionLocal
 from app.db.models import ClienteCBC
+from app.tools.clientes import filtro_cliente_activo_por_codigo
 
 
 def consultar_paquetes_por_codigo(codigo_cliente: str) -> dict:
@@ -19,7 +20,7 @@ def consultar_paquetes_por_codigo(codigo_cliente: str) -> dict:
     try:
         cliente = (
             db.query(ClienteCBC)
-            .filter(ClienteCBC.codigo == codigo_cliente)
+            .filter(*filtro_cliente_activo_por_codigo(codigo_cliente))
             .first()
         )
 
