@@ -5,6 +5,7 @@ from sqlalchemy import func
 
 from app.db.database import SessionLocal
 from app.db.models import ClienteCBC, Factura, Pago
+from app.tools.clientes import filtro_cliente_activo_por_codigo
 
 
 def _dinero(valor) -> Decimal:
@@ -41,7 +42,7 @@ def consultar_facturas_por_codigo(codigo_cliente: str) -> dict:
     try:
         cliente = (
             db.query(ClienteCBC)
-            .filter(ClienteCBC.codigo == codigo_cliente)
+            .filter(*filtro_cliente_activo_por_codigo(codigo_cliente))
             .first()
         )
 
@@ -111,7 +112,7 @@ def registrar_pago_factura_desde_panel(
     try:
         cliente = (
             db.query(ClienteCBC)
-            .filter(func.upper(ClienteCBC.codigo) == codigo_cliente.strip().upper())
+            .filter(*filtro_cliente_activo_por_codigo(codigo_cliente))
             .first()
         )
         if cliente is None:

@@ -1,5 +1,32 @@
+import re
+
+from sqlalchemy import func
+
 from app.db.database import SessionLocal
 from app.db.models import ClienteCBC
+
+
+def normalizar_codigo_cbc(codigo: str) -> str:
+    """Devuelve el formato canónico CBC-XXXX sin alterar el sufijo real."""
+    compacto = re.sub(r"[\s_-]+", "", (codigo or "").strip().upper())
+    if compacto.startswith("CBC") and len(compacto) > 3:
+        return f"CBC-{compacto[3:]}"
+    return (codigo or "").strip().upper()
+
+
+def variantes_codigo_cbc(codigo: str) -> set[str]:
+    """Acepta el código con o sin guion al consultar registros existentes."""
+    canonico = normalizar_codigo_cbc(codigo)
+    compacto = canonico.replace("-", "")
+    return {valor for valor in (canonico, compacto) if valor}
+
+
+def filtro_cliente_activo_por_codigo(codigo: str):
+    """Condiciones SQL reutilizables para un cliente activo por código CBC."""
+    return (
+        func.upper(ClienteCBC.codigo).in_(variantes_codigo_cbc(codigo)),
+        ClienteCBC.activo.isnot(False),
+    )
 
 
 def verificar_cliente(codigo: str, email: str) -> bool:
@@ -15,7 +42,7 @@ def verificar_cliente(codigo: str, email: str) -> bool:
     try:
         cliente = (
             db.query(ClienteCBC)
-            .filter(ClienteCBC.codigo == codigo.strip().upper())
+            .filter(*filtro_cliente_activo_por_codigo(codigo))
             .first()
         )
 
@@ -51,6 +78,7 @@ def verificar_correo_registrado(email: str) -> dict:
         cliente = (
             db.query(ClienteCBC)
             .filter(ClienteCBC.email.isnot(None))
+            .filter(ClienteCBC.activo.isnot(False))
             .filter(ClienteCBC.email.ilike(email_escapado, escape="\\"))
             .first()
         )
@@ -71,7 +99,7 @@ def obtener_nombre_completo_cliente(codigo_cliente: str) -> dict:
     try:
         cliente = (
             db.query(ClienteCBC)
-            .filter(ClienteCBC.codigo == codigo_cliente.strip().upper())
+            .filter(*filtro_cliente_activo_por_codigo(codigo_cliente))
             .first()
         )
 
