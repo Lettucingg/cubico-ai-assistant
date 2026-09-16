@@ -19,6 +19,8 @@ from app.db.session_store import (
     agregar_al_historial,
     eliminar_suscripcion_push,
     guardar_suscripcion_push,
+    listar_oportunidades_comerciales,
+    actualizar_oportunidad_comercial,
 )
 from app.services.push_notifications import push_configurado
 from app.tools.clientes import obtener_nombre_completo_cliente
@@ -49,6 +51,12 @@ USUARIOS_PANEL: dict[str, str] = json.loads(settings.PANEL_USUARIOS_JSON)
 class SuscripcionPushPayload(BaseModel):
     endpoint: str
     keys: dict[str, str]
+
+
+class OportunidadPayload(BaseModel):
+    estado: str | None = None
+    nota: str | None = None
+    tomar: bool = False
 
 
 def _ultimo_mensaje_cliente_en(historial: list[dict]) -> datetime | None:
@@ -228,6 +236,7 @@ def obtener_resumen_panel(usuario: str = Depends(verificar_credenciales_panel)):
         s for s in sesiones
         if (s.aviso_retiro_pendiente or s.solicitud_domicilio_pendiente) and not s.entregado
     ]
+    oportunidades = listar_oportunidades_comerciales()
     return {
         "conversaciones_hoy": len(activas_hoy),
         "atencion_humana": sum(1 for s in sesiones if s.necesita_atencion_humana),
@@ -237,9 +246,58 @@ def obtener_resumen_panel(usuario: str = Depends(verificar_credenciales_panel)):
             1 for s in sesiones if s.pago_reportado and not s.pago_confirmado
         ),
         "listos": sum(1 for s in solicitudes if s.paquetes_preparados and not s.entregado),
+        "oportunidades_nuevas": sum(
+            1 for oportunidad in oportunidades
+            if oportunidad["estado"] == "nueva"
+        ),
+        "oportunidades_activas": sum(
+            1 for oportunidad in oportunidades
+            if oportunidad["estado"] not in {"ganada", "no_concretada"}
+        ),
         "costo_ia_30_dias": uso["costo_usd"],
         "tokens_30_dias": uso["tokens_totales"],
     }
+
+
+@router.get("/oportunidades")
+def obtener_oportunidades_panel(usuario: str = Depends(verificar_credenciales_panel)):
+    """Bandeja comercial resumida; no genera ni decide tarifas."""
+    return listar_oportunidades_comerciales()
+
+
+@router.post("/oportunidad/{oportunidad_id}")
+def modificar_oportunidad_panel(
+    oportunidad_id: int,
+    payload: OportunidadPayload,
+    usuario: str = Depends(verificar_credenciales_panel),
+):
+    oportunidades = listar_oportunidades_comerciales()
+    oportunidad = next(
+        (item for item in oportunidades if item["id"] == oportunidad_id),
+        None,
+    )
+    if oportunidad is None:
+        raise HTTPException(status_code=404, detail="La oportunidad no existe")
+    asignado = oportunidad.get("asignado_a")
+    if asignado and asignado != usuario:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Esta oportunidad está siendo revisada por {asignado}.",
+        )
+    nuevo_estado = payload.estado
+    if payload.tomar and nuevo_estado is None and oportunidad["estado"] == "nueva":
+        nuevo_estado = "en_revision"
+    try:
+        return actualizar_oportunidad_comercial(
+            oportunidad_id,
+            estado=nuevo_estado,
+            asignado_a=usuario if payload.tomar or nuevo_estado or payload.nota else None,
+            nota=payload.nota,
+        )
+    except LookupError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
 
 
 @router.get("/actividad")

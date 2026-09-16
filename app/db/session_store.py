@@ -92,6 +92,35 @@ class SuscripcionPush(BaseSesiones):
     actualizado_en = Column(DateTime, default=datetime.utcnow, nullable=False)
 
 
+class OportunidadComercial(BaseSesiones):
+    """Posible cliente empresarial identificado durante una conversación."""
+
+    __tablename__ = "oportunidades_comerciales"
+
+    id = Column(Integer, primary_key=True)
+    telefono = Column(String, index=True, nullable=False)
+    estado = Column(String, default="nueva", index=True, nullable=False)
+    empresa = Column(String, nullable=True)
+    nombre_contacto = Column(String, nullable=True)
+    cargo_contacto = Column(String, nullable=True)
+    necesidad = Column(Text, nullable=True)
+    mercancia = Column(Text, nullable=True)
+    origen = Column(String, nullable=True)
+    proveedores_actuales = Column(Text, nullable=True)
+    volumen_estimado = Column(Text, nullable=True)
+    frecuencia = Column(Text, nullable=True)
+    modalidades = Column(Text, nullable=True)
+    urgencia = Column(Text, nullable=True)
+    preferencia_entrega = Column(Text, nullable=True)
+    direccion_entrega = Column(Text, nullable=True)
+    condiciones = Column(Text, nullable=True)
+    asignado_a = Column(String, nullable=True)
+    notas_internas = Column(Text, nullable=True)
+    creada_en = Column(DateTime, default=datetime.utcnow, index=True, nullable=False)
+    actualizada_en = Column(DateTime, default=datetime.utcnow, index=True, nullable=False)
+    cerrada_en = Column(DateTime, nullable=True)
+
+
 BaseSesiones.metadata.create_all(engine_sesiones)
 
 
@@ -114,6 +143,219 @@ def _migrar_columnas_faltantes():
 
 
 _migrar_columnas_faltantes()
+
+
+ESTADOS_OPORTUNIDAD = {
+    "nueva",
+    "en_revision",
+    "preparando_propuesta",
+    "propuesta_enviada",
+    "seguimiento",
+    "ganada",
+    "no_concretada",
+}
+
+CAMPOS_OPORTUNIDAD_EDITABLES = {
+    "empresa",
+    "nombre_contacto",
+    "cargo_contacto",
+    "necesidad",
+    "mercancia",
+    "origen",
+    "proveedores_actuales",
+    "volumen_estimado",
+    "frecuencia",
+    "modalidades",
+    "urgencia",
+    "preferencia_entrega",
+    "direccion_entrega",
+    "condiciones",
+}
+
+
+def _texto_limpio(valor, limite: int = 1200) -> str | None:
+    if valor is None:
+        return None
+    limpio = " ".join(str(valor).split()).strip()
+    return limpio[:limite] if limpio else None
+
+
+def _resumen_oportunidad(registro: OportunidadComercial) -> str:
+    sujeto = registro.empresa or registro.nombre_contacto or "Este posible cliente empresarial"
+    partes = []
+    if registro.necesidad:
+        partes.append(f"necesita {registro.necesidad.rstrip('.')}" )
+    if registro.mercancia:
+        origen = f" desde {registro.origen}" if registro.origen else ""
+        partes.append(f"maneja {registro.mercancia.rstrip('.')}{origen}")
+    if registro.volumen_estimado or registro.frecuencia:
+        volumen = registro.volumen_estimado or "volumen aún por confirmar"
+        frecuencia = f" ({registro.frecuencia})" if registro.frecuencia else ""
+        partes.append(f"reporta {volumen}{frecuencia}")
+    if registro.modalidades:
+        partes.append(f"le interesa {registro.modalidades.rstrip('.')}")
+    if registro.preferencia_entrega:
+        partes.append(f"prefiere {registro.preferencia_entrega.rstrip('.')}")
+    if registro.proveedores_actuales:
+        partes.append(f"actualmente trabaja con {registro.proveedores_actuales.rstrip('.')}")
+    if not partes:
+        return f"{sujeto} mostró interés en una tarifa o servicio empresarial."
+    return f"{sujeto} " + "; ".join(partes) + "."
+
+
+def _faltantes_oportunidad(registro: OportunidadComercial) -> list[str]:
+    etiquetas = {
+        "empresa": "nombre de la empresa",
+        "nombre_contacto": "nombre de la persona de contacto",
+        "mercancia": "tipo de mercancía",
+        "volumen_estimado": "volumen aproximado",
+        "modalidades": "modalidad de envío",
+        "preferencia_entrega": "forma de entrega o retiro",
+    }
+    return [etiqueta for campo, etiqueta in etiquetas.items() if not getattr(registro, campo)]
+
+
+def _oportunidad_dict(registro: OportunidadComercial) -> dict:
+    return {
+        "id": registro.id,
+        "codigo": f"OP-{registro.id:04d}",
+        "telefono": registro.telefono,
+        "estado": registro.estado,
+        "empresa": registro.empresa,
+        "nombre_contacto": registro.nombre_contacto,
+        "cargo_contacto": registro.cargo_contacto,
+        "necesidad": registro.necesidad,
+        "mercancia": registro.mercancia,
+        "origen": registro.origen,
+        "proveedores_actuales": registro.proveedores_actuales,
+        "volumen_estimado": registro.volumen_estimado,
+        "frecuencia": registro.frecuencia,
+        "modalidades": registro.modalidades,
+        "urgencia": registro.urgencia,
+        "preferencia_entrega": registro.preferencia_entrega,
+        "direccion_entrega": registro.direccion_entrega,
+        "condiciones": registro.condiciones,
+        "asignado_a": registro.asignado_a,
+        "notas_internas": registro.notas_internas,
+        "resumen": _resumen_oportunidad(registro),
+        "informacion_pendiente": _faltantes_oportunidad(registro),
+        "creada_en": registro.creada_en.isoformat() + "Z" if registro.creada_en else None,
+        "actualizada_en": registro.actualizada_en.isoformat() + "Z" if registro.actualizada_en else None,
+        "cerrada_en": registro.cerrada_en.isoformat() + "Z" if registro.cerrada_en else None,
+    }
+
+
+def guardar_oportunidad_comercial(telefono: str, **datos) -> dict:
+    """Crea o actualiza la oportunidad abierta del teléfono sin duplicarla."""
+    telefono = _texto_limpio(telefono, 40)
+    if not telefono:
+        raise ValueError("El teléfono es obligatorio")
+    desconocidos = set(datos) - CAMPOS_OPORTUNIDAD_EDITABLES
+    if desconocidos:
+        raise ValueError(f"Campos de oportunidad desconocidos: {sorted(desconocidos)}")
+
+    db = SessionSesiones()
+    try:
+        registro = (
+            db.query(OportunidadComercial)
+            .filter(
+                OportunidadComercial.telefono == telefono,
+                OportunidadComercial.estado.notin_({"ganada", "no_concretada"}),
+            )
+            .order_by(OportunidadComercial.actualizada_en.desc())
+            .first()
+        )
+        creada = registro is None
+        if creada:
+            registro = OportunidadComercial(telefono=telefono, estado="nueva")
+            db.add(registro)
+        for campo, valor in datos.items():
+            limpio = _texto_limpio(valor)
+            if limpio:
+                setattr(registro, campo, limpio)
+        registro.actualizada_en = datetime.utcnow()
+        db.commit()
+        db.refresh(registro)
+        resultado = _oportunidad_dict(registro)
+        resultado["creada"] = creada
+        return resultado
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        db.close()
+
+
+def listar_oportunidades_comerciales() -> list[dict]:
+    db = SessionSesiones()
+    try:
+        registros = (
+            db.query(OportunidadComercial)
+            .order_by(OportunidadComercial.actualizada_en.desc())
+            .all()
+        )
+        return [_oportunidad_dict(registro) for registro in registros]
+    finally:
+        db.close()
+
+
+def obtener_oportunidad_comercial_abierta(telefono: str) -> dict | None:
+    db = SessionSesiones()
+    try:
+        registro = (
+            db.query(OportunidadComercial)
+            .filter(
+                OportunidadComercial.telefono == str(telefono),
+                OportunidadComercial.estado.notin_({"ganada", "no_concretada"}),
+            )
+            .order_by(OportunidadComercial.actualizada_en.desc())
+            .first()
+        )
+        return _oportunidad_dict(registro) if registro else None
+    finally:
+        db.close()
+
+
+def actualizar_oportunidad_comercial(
+    oportunidad_id: int,
+    *,
+    estado: str | None = None,
+    asignado_a: str | None = None,
+    nota: str | None = None,
+) -> dict:
+    db = SessionSesiones()
+    try:
+        registro = db.query(OportunidadComercial).filter(
+            OportunidadComercial.id == oportunidad_id
+        ).first()
+        if registro is None:
+            raise LookupError("La oportunidad no existe")
+        if estado is not None:
+            estado = _texto_limpio(estado, 40)
+            if estado not in ESTADOS_OPORTUNIDAD:
+                raise ValueError("Estado de oportunidad inválido")
+            registro.estado = estado
+            registro.cerrada_en = (
+                datetime.utcnow() if estado in {"ganada", "no_concretada"} else None
+            )
+        if asignado_a is not None:
+            registro.asignado_a = _texto_limpio(asignado_a, 100)
+        nota_limpia = _texto_limpio(nota, 2000)
+        if nota_limpia:
+            marca = datetime.now(ZONA_PANAMA).strftime("%d/%m/%Y %I:%M %p")
+            linea = f"[{marca}] {nota_limpia}"
+            registro.notas_internas = "\n".join(
+                parte for parte in (registro.notas_internas, linea) if parte
+            )
+        registro.actualizada_en = datetime.utcnow()
+        db.commit()
+        db.refresh(registro)
+        return _oportunidad_dict(registro)
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        db.close()
 
 
 def guardar_suscripcion_push(usuario: str, suscripcion: dict) -> None:
