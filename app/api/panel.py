@@ -12,6 +12,7 @@ from pydantic import BaseModel
 from app.core.config import settings
 from app.db.session_store import (
     listar_todas_sesiones,
+    obtener_o_crear_sesion,
     obtener_sesion_existente,
     obtener_uso_por_telefono,
     obtener_resumen_uso,
@@ -61,6 +62,13 @@ class OportunidadPayload(BaseModel):
     estado: str | None = None
     nota: str | None = None
     tomar: bool = False
+
+
+class NuevaOportunidadPayload(BaseModel):
+    telefono: str
+    nombre: str
+    empresa: str | None = None
+    descripcion: str
 
 
 class SaludoPlantillaPayload(BaseModel):
@@ -272,6 +280,35 @@ def obtener_resumen_panel(usuario: str = Depends(verificar_credenciales_panel)):
 def obtener_oportunidades_panel(usuario: str = Depends(verificar_credenciales_panel)):
     """Bandeja comercial resumida; no genera ni decide tarifas."""
     return listar_oportunidades_comerciales()
+
+
+@router.post("/oportunidad")
+def crear_oportunidad_manual(
+    payload: NuevaOportunidadPayload,
+    usuario: str = Depends(verificar_credenciales_panel),
+):
+    """Registra manualmente una oportunidad detectada fuera de WhatsApp (llamada, referido, etc.)."""
+    nombre = payload.nombre.strip()
+    descripcion = payload.descripcion.strip()
+    if not nombre:
+        raise HTTPException(status_code=400, detail="El nombre del cliente es obligatorio")
+    if not descripcion:
+        raise HTTPException(status_code=400, detail="La descripción es obligatoria")
+
+    obtener_o_crear_sesion(payload.telefono)
+
+    empresa = (payload.empresa or "").strip()
+    motivo = f"Nueva oportunidad comercial: {nombre}"
+    if empresa:
+        motivo += f" ({empresa})"
+    motivo += f" — {descripcion}"
+
+    actualizar_sesion(
+        payload.telefono,
+        motivo_escalamiento=motivo,
+        necesita_atencion_humana=True,
+    )
+    return {"ok": True}
 
 
 @router.post("/oportunidad/{oportunidad_id}")
