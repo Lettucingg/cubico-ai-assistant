@@ -195,6 +195,35 @@ async def enviar_documento_whatsapp(telefono_destino: str, media_id: str, nombre
     return respuesta
 
 
+async def enviar_plantilla_whatsapp(
+    telefono_destino: str,
+    nombre_plantilla: str,
+    componentes: list[dict],
+    idioma: str = "es",
+):
+    """Envía una plantilla (HSM) aprobada en Meta Business Manager, con o sin variables."""
+    url = f"https://graph.facebook.com/v21.0/{settings.WHATSAPP_PHONE_NUMBER_ID}/messages"
+    headers = {
+        "Authorization": f"Bearer {settings.WHATSAPP_TOKEN}",
+        "Content-Type": "application/json",
+    }
+    payload = {
+        "messaging_product": "whatsapp",
+        "to": telefono_destino,
+        "type": "template",
+        "template": {
+            "name": nombre_plantilla,
+            "language": {"code": idioma},
+            "components": componentes,
+        },
+    }
+    async with httpx.AsyncClient(timeout=15.0) as client:
+        respuesta = await client.post(url, headers=headers, json=payload)
+    if not respuesta.is_success:
+        raise RuntimeError(f"Meta rechazó el envío de la plantilla ({respuesta.status_code})")
+    return respuesta
+
+
 def extraer_id_mensaje_meta(respuesta: httpx.Response) -> str | None:
     """Obtiene el wamid devuelto por Meta sin fallar si cambia la respuesta."""
     try:

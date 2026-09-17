@@ -35,6 +35,7 @@ from app.api.whatsapp import (
     enviar_audio_whatsapp,
     enviar_documento_whatsapp,
     enviar_imagen_whatsapp,
+    enviar_plantilla_whatsapp,
     enviar_respuesta_natural,
     extraer_id_mensaje_meta,
     subir_audio_whatsapp,
@@ -60,6 +61,11 @@ class OportunidadPayload(BaseModel):
     estado: str | None = None
     nota: str | None = None
     tomar: bool = False
+
+
+class SaludoPlantillaPayload(BaseModel):
+    telefono: str
+    nombre: str
 
 
 def _ultimo_mensaje_cliente_en(historial: list[dict]) -> datetime | None:
@@ -925,6 +931,91 @@ async def enviar_archivo_desde_panel(
         tipo=tipo,
         media_id=media_id,
         mime_type=mime_type,
+        whatsapp_message_id=extraer_id_mensaje_meta(respuesta_envio),
+        estado_entrega="accepted",
+    )
+    return {"ok": True}
+
+
+@router.post("/plantilla/saludo")
+async def enviar_plantilla_saludo(
+    payload: SaludoPlantillaPayload,
+    usuario: str = Depends(verificar_credenciales_panel),
+):
+    """Reactiva una conversación fuera de la ventana de 24h con la plantilla de saludo aprobada."""
+    _validar_operador_conversacion(payload.telefono, usuario)
+    nombre = payload.nombre.strip()
+    if not nombre:
+        raise HTTPException(status_code=400, detail="El nombre del cliente es obligatorio")
+
+    try:
+        respuesta_envio = await enviar_plantilla_whatsapp(
+            payload.telefono,
+            "cubico_saludo",
+            [{"type": "body", "parameters": [{"type": "text", "text": nombre}]}],
+        )
+    except (httpx.HTTPError, RuntimeError) as error:
+        return {"ok": False, "motivo": str(error)}
+
+    agregar_al_historial(
+        payload.telefono,
+        "humano",
+        f"[Plantilla enviada: saludo a {nombre}]",
+        whatsapp_message_id=extraer_id_mensaje_meta(respuesta_envio),
+        estado_entrega="accepted",
+    )
+    return {"ok": True}
+
+
+@router.post("/plantilla/propuesta")
+async def enviar_plantilla_propuesta(
+    telefono: str = Form(...),
+    nombre: str = Form(...),
+    archivo: UploadFile = File(...),
+    usuario: str = Depends(verificar_credenciales_panel),
+):
+    """Sube un PDF y envía la plantilla de propuesta comercial aprobada, con el PDF como header."""
+    _validar_operador_conversacion(telefono, usuario)
+    nombre_limpio = nombre.strip()
+    if not nombre_limpio:
+        raise HTTPException(status_code=400, detail="El nombre del cliente es obligatorio")
+
+    contenido = await archivo.read()
+    if not contenido:
+        raise HTTPException(status_code=400, detail="El archivo está vacío")
+    if len(contenido) > 16 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="El archivo supera el límite de 16 MB")
+    if (archivo.content_type or "") != "application/pdf":
+        raise HTTPException(status_code=415, detail="Solo se acepta un PDF para la propuesta")
+
+    nombre_archivo = archivo.filename or "propuesta.pdf"
+    try:
+        media_id = await subir_media_whatsapp(
+            contenido, mime_type="application/pdf", nombre_archivo=nombre_archivo
+        )
+        respuesta_envio = await enviar_plantilla_whatsapp(
+            telefono,
+            "cubico_propuesta",
+            [
+                {
+                    "type": "header",
+                    "parameters": [
+                        {"type": "document", "document": {"id": media_id, "filename": nombre_archivo}}
+                    ],
+                },
+                {"type": "body", "parameters": [{"type": "text", "text": nombre_limpio}]},
+            ],
+        )
+    except (httpx.HTTPError, RuntimeError) as error:
+        return {"ok": False, "motivo": str(error)}
+
+    agregar_al_historial(
+        telefono,
+        "humano",
+        f"[Plantilla enviada: propuesta a {nombre_limpio} ({nombre_archivo})]",
+        tipo="document",
+        media_id=media_id,
+        mime_type="application/pdf",
         whatsapp_message_id=extraer_id_mensaje_meta(respuesta_envio),
         estado_entrega="accepted",
     )
