@@ -155,6 +155,46 @@ async def enviar_audio_whatsapp(telefono_destino: str, media_id: str):
     return respuesta
 
 
+async def subir_media_whatsapp(contenido: bytes, mime_type: str, nombre_archivo: str) -> str:
+    """Sube un archivo (imagen, documento, etc.) a Meta y devuelve su media_id."""
+    url = f"https://graph.facebook.com/v21.0/{settings.WHATSAPP_PHONE_NUMBER_ID}/media"
+    headers = {"Authorization": f"Bearer {settings.WHATSAPP_TOKEN}"}
+    data = {"messaging_product": "whatsapp", "type": mime_type}
+    files = {"file": (nombre_archivo, contenido, mime_type)}
+
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        respuesta = await client.post(url, headers=headers, data=data, files=files)
+
+    if not respuesta.is_success:
+        raise RuntimeError(f"Meta rechazó la carga del archivo ({respuesta.status_code})")
+    media_id = respuesta.json().get("id")
+    if not media_id:
+        raise RuntimeError("Meta no devolvió el identificador del archivo")
+    return media_id
+
+
+async def enviar_documento_whatsapp(telefono_destino: str, media_id: str, nombre_archivo: str | None = None):
+    """Envía como documento de WhatsApp un archivo previamente subido a Meta."""
+    url = f"https://graph.facebook.com/v21.0/{settings.WHATSAPP_PHONE_NUMBER_ID}/messages"
+    headers = {
+        "Authorization": f"Bearer {settings.WHATSAPP_TOKEN}",
+        "Content-Type": "application/json",
+    }
+    payload = {
+        "messaging_product": "whatsapp",
+        "to": telefono_destino,
+        "type": "document",
+        "document": {"id": media_id},
+    }
+    if nombre_archivo:
+        payload["document"]["filename"] = nombre_archivo
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        respuesta = await client.post(url, headers=headers, json=payload)
+    if not respuesta.is_success:
+        raise RuntimeError(f"Meta rechazó el envío del documento ({respuesta.status_code})")
+    return respuesta
+
+
 def extraer_id_mensaje_meta(respuesta: httpx.Response) -> str | None:
     """Obtiene el wamid devuelto por Meta sin fallar si cambia la respuesta."""
     try:

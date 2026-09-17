@@ -5,7 +5,7 @@ import shutil
 from datetime import datetime
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, Response, UploadFile
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from pydantic import BaseModel
 
@@ -33,9 +33,12 @@ from app.tools.facturas import (
 from app.ai.orchestrator import redactar_respuesta_de_asesor
 from app.api.whatsapp import (
     enviar_audio_whatsapp,
+    enviar_documento_whatsapp,
+    enviar_imagen_whatsapp,
     enviar_respuesta_natural,
     extraer_id_mensaje_meta,
     subir_audio_whatsapp,
+    subir_media_whatsapp,
 )
 
 router = APIRouter(prefix="/panel", tags=["panel"])
@@ -868,6 +871,64 @@ async def enviar_audio_desde_panel(
         estado_entrega="accepted",
     )
     return {"status": "enviado"}
+
+
+TIPOS_ARCHIVO_PERMITIDOS = {
+    "image": {"image/jpeg", "image/png"},
+    "document": {"application/pdf"},
+}
+
+
+@router.post("/enviar-archivo/{telefono}")
+async def enviar_archivo_desde_panel(
+    telefono: str,
+    tipo: str = Form(...),
+    archivo: UploadFile = File(...),
+    usuario: str = Depends(verificar_credenciales_panel),
+):
+    """Sube una imagen o un PDF a la Media API de Meta y lo envía al cliente."""
+    _validar_operador_conversacion(telefono, usuario, requiere_control=True)
+    if tipo not in TIPOS_ARCHIVO_PERMITIDOS:
+        raise HTTPException(status_code=400, detail="Tipo de archivo inválido")
+
+    contenido = await archivo.read()
+    if not contenido:
+        raise HTTPException(status_code=400, detail="El archivo está vacío")
+    if len(contenido) > 16 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="El archivo supera el límite de 16 MB")
+
+    mime_type = archivo.content_type or ""
+    if mime_type not in TIPOS_ARCHIVO_PERMITIDOS[tipo]:
+        raise HTTPException(
+            status_code=415,
+            detail="Formato de archivo no compatible (se acepta imagen JPG/PNG o PDF)",
+        )
+
+    try:
+        media_id = await subir_media_whatsapp(
+            contenido, mime_type=mime_type, nombre_archivo=archivo.filename or "archivo"
+        )
+        if tipo == "image":
+            respuesta_envio = await enviar_imagen_whatsapp(telefono, media_id)
+        else:
+            respuesta_envio = await enviar_documento_whatsapp(telefono, media_id, nombre_archivo=archivo.filename)
+    except (httpx.HTTPError, RuntimeError) as error:
+        return {"ok": False, "motivo": str(error)}
+
+    if not respuesta_envio.is_success:
+        return {"ok": False, "motivo": "Meta no pudo enviar el archivo"}
+
+    agregar_al_historial(
+        telefono,
+        "humano",
+        f"[Archivo enviado: {archivo.filename}]",
+        tipo=tipo,
+        media_id=media_id,
+        mime_type=mime_type,
+        whatsapp_message_id=extraer_id_mensaje_meta(respuesta_envio),
+        estado_entrega="accepted",
+    )
+    return {"ok": True}
 
 
 @router.post("/retiro/{telefono}")
