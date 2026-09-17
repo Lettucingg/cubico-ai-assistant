@@ -7,6 +7,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from app.core.config import settings
+from app.db.session_store import agregar_al_historial
 
 router = APIRouter(prefix="/notificar", tags=["notificaciones"])
 
@@ -123,6 +124,12 @@ async def notificar_carga_llegada(
         )
 
     if respuesta.status_code == 200:
+        agregar_al_historial(
+            body.telefono,
+            "assistant",
+            f"[Notificación enviada: Hola {body.nombre}, tus paquetes llegaron a Cúbico. "
+            f"Código: {body.codigo}, Factura: {body.factura}, Total: USD {body.monto}]",
+        )
         return {"ok": True}
 
     try:
