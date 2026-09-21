@@ -997,14 +997,18 @@ async def enviar_plantilla_saludo(
 async def enviar_plantilla_propuesta(
     telefono: str = Form(...),
     nombre: str = Form(...),
+    empresa: str = Form(...),
     archivo: UploadFile = File(...),
     usuario: str = Depends(verificar_credenciales_panel),
 ):
     """Sube un PDF y envía la plantilla de propuesta comercial aprobada, con el PDF como header."""
     _validar_operador_conversacion(telefono, usuario)
     nombre_limpio = nombre.strip()
+    empresa_limpia = empresa.strip()
     if not nombre_limpio:
-        raise HTTPException(status_code=400, detail="El nombre del cliente es obligatorio")
+        raise HTTPException(status_code=400, detail="El nombre del contacto es obligatorio")
+    if not empresa_limpia:
+        raise HTTPException(status_code=400, detail="El nombre de la empresa es obligatorio")
 
     contenido = await archivo.read()
     if not contenido:
@@ -1032,7 +1036,13 @@ async def enviar_plantilla_propuesta(
                         {"type": "document", "document": {"id": media_id, "filename": nombre_archivo}}
                     ],
                 },
-                {"type": "body", "parameters": [{"type": "text", "text": nombre_limpio}]},
+                {
+                    "type": "body",
+                    "parameters": [
+                        {"type": "text", "text": nombre_limpio},
+                        {"type": "text", "text": empresa_limpia},
+                    ],
+                },
             ],
             idioma=settings.WHATSAPP_TEMPLATE_PROPUESTA_LANGUAGE,
         )
@@ -1042,7 +1052,7 @@ async def enviar_plantilla_propuesta(
     agregar_al_historial(
         telefono,
         "humano",
-        f"[Plantilla enviada: propuesta a {nombre_limpio} ({nombre_archivo})]",
+        f"[Plantilla enviada: propuesta para {empresa_limpia}, contacto {nombre_limpio} ({nombre_archivo})]",
         tipo="document",
         media_id=media_id,
         mime_type="application/pdf",
