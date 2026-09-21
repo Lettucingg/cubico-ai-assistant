@@ -1,5 +1,10 @@
 """Pruebas contra pérdida y duplicación de mensajes entrantes."""
 
+import asyncio
+
+import httpx
+import pytest
+
 from app.api import whatsapp
 
 
@@ -62,3 +67,40 @@ def test_permite_wamid_nuevo_y_limpia_el_vencido():
 
     assert whatsapp.registrar_mensaje_entrante_una_vez("wamid-nuevo", ahora=3701)
     assert "wamid-viejo" not in whatsapp.mensajes_entrantes_recientes
+
+
+def test_error_de_plantilla_muestra_causa_segura_de_meta(monkeypatch):
+    class ClienteFalso:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return None
+
+        async def post(self, *args, **kwargs):
+            return httpx.Response(
+                404,
+                json={
+                    "error": {
+                        "message": "Template name does not exist in the translation",
+                        "code": 132001,
+                        "error_data": {
+                            "details": "template cubico_saludo does not exist in es"
+                        },
+                    }
+                },
+            )
+
+    monkeypatch.setattr(whatsapp.httpx, "AsyncClient", lambda **kwargs: ClienteFalso())
+
+    with pytest.raises(RuntimeError) as error:
+        asyncio.run(
+            whatsapp.enviar_plantilla_whatsapp(
+                "50760000000", "cubico_saludo", [], idioma="es"
+            )
+        )
+
+    texto = str(error.value)
+    assert "código 132001" in texto
+    assert "does not exist in es" in texto
+    assert "WHATSAPP_TOKEN" not in texto

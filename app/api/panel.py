@@ -976,8 +976,9 @@ async def enviar_plantilla_saludo(
     try:
         respuesta_envio = await enviar_plantilla_whatsapp(
             payload.telefono,
-            "cubico_saludo",
+            settings.WHATSAPP_TEMPLATE_SALUDO_NAME,
             [{"type": "body", "parameters": [{"type": "text", "text": nombre}]}],
+            idioma=settings.WHATSAPP_TEMPLATE_SALUDO_LANGUAGE,
         )
     except (httpx.HTTPError, RuntimeError) as error:
         return {"ok": False, "motivo": str(error)}
@@ -1023,7 +1024,7 @@ async def enviar_plantilla_propuesta(
         )
         respuesta_envio = await enviar_plantilla_whatsapp(
             telefono,
-            "cubico_propuesta",
+            settings.WHATSAPP_TEMPLATE_PROPUESTA_NAME,
             [
                 {
                     "type": "header",
@@ -1033,6 +1034,7 @@ async def enviar_plantilla_propuesta(
                 },
                 {"type": "body", "parameters": [{"type": "text", "text": nombre_limpio}]},
             ],
+            idioma=settings.WHATSAPP_TEMPLATE_PROPUESTA_LANGUAGE,
         )
     except (httpx.HTTPError, RuntimeError) as error:
         return {"ok": False, "motivo": str(error)}

@@ -3,6 +3,7 @@
 from pathlib import Path
 
 from app.api.panel import _detectar_mime_archivo, _nombre_archivo_seguro
+from app.core.config import settings
 
 
 PANEL = Path("app/static/panel-nuevo-diseno.html")
@@ -46,3 +47,10 @@ def test_backend_valida_el_contenido_real_del_adjunto():
 def test_backend_limpia_el_nombre_del_adjunto():
     assert _nombre_archivo_seguro("../../propuesta.pdf", "archivo") == "propuesta.pdf"
     assert _nombre_archivo_seguro(r"C:\\temporal\\foto.png", "archivo") == "foto.png"
+
+
+def test_plantillas_usan_los_idiomas_aprobados_en_meta():
+    assert settings.WHATSAPP_TEMPLATE_SALUDO_NAME == "cubico_saludo"
+    assert settings.WHATSAPP_TEMPLATE_SALUDO_LANGUAGE == "es_PA"
+    assert settings.WHATSAPP_TEMPLATE_PROPUESTA_NAME == "cubico_propuesta"
+    assert settings.WHATSAPP_TEMPLATE_PROPUESTA_LANGUAGE == "es"

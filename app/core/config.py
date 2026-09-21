@@ -30,6 +30,12 @@ class Settings(BaseSettings):
     WHATSAPP_TOKEN: str
     WHATSAPP_PHONE_NUMBER_ID: str
     WHATSAPP_VERIFY_TOKEN: str
+    # Plantillas aprobadas en Meta. El idioma debe coincidir exactamente con
+    # la traducción aprobada (por ejemplo, Spanish (PAN) usa es_PA).
+    WHATSAPP_TEMPLATE_SALUDO_NAME: str = "cubico_saludo"
+    WHATSAPP_TEMPLATE_SALUDO_LANGUAGE: str = "es_PA"
+    WHATSAPP_TEMPLATE_PROPUESTA_NAME: str = "cubico_propuesta"
+    WHATSAPP_TEMPLATE_PROPUESTA_LANGUAGE: str = "es"
     #--- OpenAI (ChatGPT API) ---
     OPENAI_API_KEY: str
 
