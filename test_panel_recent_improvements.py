@@ -54,3 +54,11 @@ def test_plantillas_usan_los_idiomas_aprobados_en_meta():
     assert settings.WHATSAPP_TEMPLATE_SALUDO_LANGUAGE == "es_PA"
     assert settings.WHATSAPP_TEMPLATE_PROPUESTA_NAME == "cubico_propuesta"
     assert settings.WHATSAPP_TEMPLATE_PROPUESTA_LANGUAGE == "es"
+
+
+def test_propuesta_pide_contacto_y_empresa_para_las_dos_variables_de_meta():
+    html = _html()
+    assert 'id="propuesta-contacto"' in html
+    assert 'id="propuesta-empresa"' in html
+    assert "form.append('nombre',nombre)" in html
+    assert "form.append('empresa',empresa)" in html

@@ -118,7 +118,7 @@
   <div class="toast" id="toast">Acción completada</div>
   <div class="lightbox" id="image-lightbox" role="dialog" aria-label="Vista ampliada del comprobante"><button type="button" id="close-lightbox" aria-label="Cerrar">×</button><img id="lightbox-image" alt="Comprobante ampliado"></div>
   <div class="modal-overlay" id="modal-saludo" role="dialog" aria-label="Reactivar chat"><div class="card modal-box"><h3>Reactivar chat</h3><label for="saludo-nombre">Nombre del cliente</label><input type="text" id="saludo-nombre" placeholder="Nombre del cliente"/><div class="modal-actions"><button class="btn" type="button" id="saludo-cancelar">Cancelar</button><button class="btn dark" type="button" id="saludo-enviar">Enviar saludo</button></div></div></div>
-  <div class="modal-overlay" id="modal-propuesta" role="dialog" aria-label="Enviar propuesta"><div class="card modal-box"><h3>Enviar propuesta</h3><label for="propuesta-nombre">Nombre del cliente</label><input type="text" id="propuesta-nombre" placeholder="Nombre del cliente"/><label for="propuesta-pdf">Documento PDF</label><input type="file" id="propuesta-pdf" accept="application/pdf,.pdf"/><div class="modal-actions"><button class="btn" type="button" id="propuesta-cancelar">Cancelar</button><button class="btn dark" type="button" id="propuesta-enviar">Enviar propuesta</button></div></div></div>
+  <div class="modal-overlay" id="modal-propuesta" role="dialog" aria-label="Enviar propuesta"><div class="card modal-box"><h3>Enviar propuesta</h3><label for="propuesta-contacto">Nombre de la persona de contacto</label><input type="text" id="propuesta-contacto" placeholder="Ej. Alexander"/><label for="propuesta-empresa">Empresa</label><input type="text" id="propuesta-empresa" placeholder="Ej. Arthur English Bookstore"/><label for="propuesta-pdf">Documento PDF</label><input type="file" id="propuesta-pdf" accept="application/pdf,.pdf"/><div class="modal-actions"><button class="btn" type="button" id="propuesta-cancelar">Cancelar</button><button class="btn dark" type="button" id="propuesta-enviar">Enviar propuesta</button></div></div></div>
   <script>
     const titles={overview:['Buenos días, Alexander','Esto es lo que está pasando en Cúbico hoy.'],chats:['Conversaciones','Supervisa a Bruno y toma el control cuando haga falta.'],packages:['Retiros y domicilios','Organiza las solicitudes que llegan directamente desde WhatsApp.'],opportunities:['Oportunidades comerciales','Bruno organiza la información; el equipo decide qué propuesta preparar.'],costs:['Costos y tokens','Entiende exactamente cuánto cuesta cada conversación.'],alerts:['Alertas','Problemas que requieren una decisión o intervención.'],settings:['Configuración','Integraciones y estado técnico de Bruno.']};
     function showView(id){document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id===id));document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.view===id));document.getElementById('page-title').textContent=titles[id][0];document.getElementById('page-sub').textContent=titles[id][1];if(id==='packages')cargarSolicitudes();if(id==='opportunities')cargarOportunidades();if(id==='costs')cargarUso(30);window.scrollTo({top:0,behavior:'smooth'})}
@@ -460,19 +460,22 @@
     });
 
     let telefonoPropuestaActivo=null;
-    function abrirModalPropuesta(telefono,nombre){
+    function abrirModalPropuesta(telefono,nombreContacto,empresa){
       if(!telefono){say('Esta oportunidad no tiene un teléfono asociado');return}
       telefonoPropuestaActivo=telefono;
-      document.getElementById('propuesta-nombre').value=nombre||'';
+      document.getElementById('propuesta-contacto').value=nombreContacto||'';
+      document.getElementById('propuesta-empresa').value=empresa||'';
       document.getElementById('propuesta-pdf').value='';
       abrirModal('modal-propuesta');
     }
     document.getElementById('propuesta-cancelar').addEventListener('click',()=>cerrarModal('modal-propuesta'));
     document.getElementById('propuesta-enviar').addEventListener('click',async()=>{
       if(!telefonoPropuestaActivo)return;
-      const nombre=document.getElementById('propuesta-nombre').value.trim();
+      const nombre=document.getElementById('propuesta-contacto').value.trim();
+      const empresa=document.getElementById('propuesta-empresa').value.trim();
       const archivo=document.getElementById('propuesta-pdf').files[0];
-      if(!nombre){say('Escribe el nombre del cliente');return}
+      if(!nombre){say('Escribe el nombre de la persona de contacto');return}
+      if(!empresa){say('Escribe el nombre de la empresa');return}
       if(!archivo){say('Selecciona un PDF para la propuesta');return}
       if(archivo.type!=='application/pdf'){say('Solo se aceptan archivos PDF');return}
       if(archivo.size>16*1024*1024){say('El archivo supera el límite de 16 MB');return}
@@ -481,6 +484,7 @@
       const form=new FormData();
       form.append('telefono',telefonoPropuestaActivo);
       form.append('nombre',nombre);
+      form.append('empresa',empresa);
       form.append('archivo',archivo);
       try{
         const r=await apiRequest('/panel/plantilla/propuesta',{method:'POST',body:form});
@@ -814,7 +818,7 @@
       document.getElementById('lead-take').addEventListener('click',()=>actualizarOportunidad({tomar:true}));
       document.getElementById('lead-save').addEventListener('click',()=>actualizarOportunidad({estado:document.getElementById('lead-state').value,nota:document.getElementById('lead-note').value||null}));
       document.getElementById('lead-chat').addEventListener('click',()=>{showView('chats');abrirChat(o.telefono)});
-      document.getElementById('lead-propuesta').addEventListener('click',()=>abrirModalPropuesta(o.telefono,o.nombre_contacto||o.empresa||''));
+      document.getElementById('lead-propuesta').addEventListener('click',()=>abrirModalPropuesta(o.telefono,o.nombre_contacto||'',o.empresa||''));
     }
     async function actualizarOportunidad(payload){
       if(!oportunidadActiva)return;
