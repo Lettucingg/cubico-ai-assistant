@@ -220,7 +220,20 @@ async def enviar_plantilla_whatsapp(
     async with httpx.AsyncClient(timeout=15.0) as client:
         respuesta = await client.post(url, headers=headers, json=payload)
     if not respuesta.is_success:
-        raise RuntimeError(f"Meta rechazó el envío de la plantilla ({respuesta.status_code})")
+        mensaje = ""
+        codigo = None
+        try:
+            error = respuesta.json().get("error", {})
+            codigo = error.get("code")
+            mensaje = error.get("error_data", {}).get("details") or error.get("message", "")
+        except (TypeError, ValueError):
+            pass
+
+        referencia = f"HTTP {respuesta.status_code}"
+        if codigo is not None:
+            referencia += f", código {codigo}"
+        detalle = f": {mensaje}" if mensaje else ""
+        raise RuntimeError(f"Meta rechazó la plantilla ({referencia}){detalle}")
     return respuesta
 
 
