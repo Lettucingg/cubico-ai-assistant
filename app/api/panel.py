@@ -64,13 +64,6 @@ class OportunidadPayload(BaseModel):
     tomar: bool = False
 
 
-class NuevaOportunidadPayload(BaseModel):
-    telefono: str
-    nombre: str
-    empresa: str | None = None
-    descripcion: str
-
-
 class SaludoPlantillaPayload(BaseModel):
     telefono: str
     nombre: str
@@ -280,35 +273,6 @@ def obtener_resumen_panel(usuario: str = Depends(verificar_credenciales_panel)):
 def obtener_oportunidades_panel(usuario: str = Depends(verificar_credenciales_panel)):
     """Bandeja comercial resumida; no genera ni decide tarifas."""
     return listar_oportunidades_comerciales()
-
-
-@router.post("/oportunidad")
-def crear_oportunidad_manual(
-    payload: NuevaOportunidadPayload,
-    usuario: str = Depends(verificar_credenciales_panel),
-):
-    """Registra manualmente una oportunidad detectada fuera de WhatsApp (llamada, referido, etc.)."""
-    nombre = payload.nombre.strip()
-    descripcion = payload.descripcion.strip()
-    if not nombre:
-        raise HTTPException(status_code=400, detail="El nombre del cliente es obligatorio")
-    if not descripcion:
-        raise HTTPException(status_code=400, detail="La descripción es obligatoria")
-
-    obtener_o_crear_sesion(payload.telefono)
-
-    empresa = (payload.empresa or "").strip()
-    motivo = f"Nueva oportunidad comercial: {nombre}"
-    if empresa:
-        motivo += f" ({empresa})"
-    motivo += f" — {descripcion}"
-
-    actualizar_sesion(
-        payload.telefono,
-        motivo_escalamiento=motivo,
-        necesita_atencion_humana=True,
-    )
-    return {"ok": True}
 
 
 @router.post("/oportunidad/{oportunidad_id}")
@@ -922,6 +886,23 @@ TIPOS_ARCHIVO_PERMITIDOS = {
 }
 
 
+def _detectar_mime_archivo(contenido: bytes) -> str | None:
+    """Valida el contenido real; no confía únicamente en el MIME del navegador."""
+    if contenido.startswith(b"\xff\xd8\xff"):
+        return "image/jpeg"
+    if contenido.startswith(b"\x89PNG\r\n\x1a\n"):
+        return "image/png"
+    if contenido.startswith(b"%PDF-"):
+        return "application/pdf"
+    return None
+
+
+def _nombre_archivo_seguro(nombre: str | None, predeterminado: str) -> str:
+    """Conserva solo el nombre final y limita lo que se envía a Meta."""
+    limpio = (nombre or predeterminado).replace("\\", "/").rsplit("/", 1)[-1].strip()
+    return (limpio or predeterminado)[:180]
+
+
 @router.post("/enviar-archivo/{telefono}")
 async def enviar_archivo_desde_panel(
     telefono: str,
@@ -940,21 +921,28 @@ async def enviar_archivo_desde_panel(
     if len(contenido) > 16 * 1024 * 1024:
         raise HTTPException(status_code=413, detail="El archivo supera el límite de 16 MB")
 
-    mime_type = archivo.content_type or ""
-    if mime_type not in TIPOS_ARCHIVO_PERMITIDOS[tipo]:
+    mime_declarado = (archivo.content_type or "").lower()
+    mime_type = _detectar_mime_archivo(contenido)
+    if (
+        mime_declarado not in TIPOS_ARCHIVO_PERMITIDOS[tipo]
+        or mime_type not in TIPOS_ARCHIVO_PERMITIDOS[tipo]
+    ):
         raise HTTPException(
             status_code=415,
-            detail="Formato de archivo no compatible (se acepta imagen JPG/PNG o PDF)",
+            detail="El contenido del archivo no corresponde a una imagen JPG/PNG o un PDF válido",
         )
 
+    nombre_archivo = _nombre_archivo_seguro(archivo.filename, "archivo")
     try:
         media_id = await subir_media_whatsapp(
-            contenido, mime_type=mime_type, nombre_archivo=archivo.filename or "archivo"
+            contenido, mime_type=mime_type, nombre_archivo=nombre_archivo
         )
         if tipo == "image":
             respuesta_envio = await enviar_imagen_whatsapp(telefono, media_id)
         else:
-            respuesta_envio = await enviar_documento_whatsapp(telefono, media_id, nombre_archivo=archivo.filename)
+            respuesta_envio = await enviar_documento_whatsapp(
+                telefono, media_id, nombre_archivo=nombre_archivo
+            )
     except (httpx.HTTPError, RuntimeError) as error:
         return {"ok": False, "motivo": str(error)}
 
@@ -964,7 +952,7 @@ async def enviar_archivo_desde_panel(
     agregar_al_historial(
         telefono,
         "humano",
-        f"[Archivo enviado: {archivo.filename}]",
+        f"[Archivo enviado: {nombre_archivo}]",
         tipo=tipo,
         media_id=media_id,
         mime_type=mime_type,
@@ -1022,10 +1010,13 @@ async def enviar_plantilla_propuesta(
         raise HTTPException(status_code=400, detail="El archivo está vacío")
     if len(contenido) > 16 * 1024 * 1024:
         raise HTTPException(status_code=413, detail="El archivo supera el límite de 16 MB")
-    if (archivo.content_type or "") != "application/pdf":
+    if (
+        (archivo.content_type or "").lower() != "application/pdf"
+        or _detectar_mime_archivo(contenido) != "application/pdf"
+    ):
         raise HTTPException(status_code=415, detail="Solo se acepta un PDF para la propuesta")
 
-    nombre_archivo = archivo.filename or "propuesta.pdf"
+    nombre_archivo = _nombre_archivo_seguro(archivo.filename, "propuesta.pdf")
     try:
         media_id = await subir_media_whatsapp(
             contenido, mime_type="application/pdf", nombre_archivo=nombre_archivo

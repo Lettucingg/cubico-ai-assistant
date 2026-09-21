@@ -1,5 +1,7 @@
 """Pruebas del registro comercial y el comportamiento natural de Bruno."""
 
+import asyncio
+
 from types import SimpleNamespace
 
 from sqlalchemy import create_engine
@@ -9,6 +11,7 @@ from fastapi import HTTPException
 from app.ai import orchestrator
 from app.ai.orchestrator import HERRAMIENTAS, buscar_respuesta_fija
 from app.api import panel
+from app.api import whatsapp
 from app.db import session_store
 
 
@@ -183,3 +186,50 @@ def test_conversacion_larga_recibe_los_datos_comerciales_guardados(monkeypatch):
     assert "Arthur English Bookstore" in texto_interno
     assert "TLC y Portex" in texto_interno
     assert "No repitas preguntas ya contestadas" in texto_interno
+
+
+def test_prompt_no_inventa_origen_ni_promete_propuesta_comercial():
+    bloque = orchestrator.SYSTEM_PROMPT.split("TARIFAS EMPRESARIALES", 1)[1]
+    bloque = bloque.split("PROTOCOLO DE CALIDAD", 1)[0]
+
+    assert "No asumas el origen" in bloque
+    assert "No prometas que alguien se comunicará" in bloque
+    assert "ya dejé la información para que el equipo revise" in bloque
+    assert "se va a comunicar contigo para darte una propuesta" not in bloque
+
+
+def test_mensajes_del_mismo_cliente_se_procesan_en_orden(monkeypatch):
+    activos = 0
+    maximo_activos = 0
+    orden = []
+
+    async def procesamiento_falso(mensaje):
+        nonlocal activos, maximo_activos
+        activos += 1
+        maximo_activos = max(maximo_activos, activos)
+        orden.append(f"inicio-{mensaje['texto']}")
+        await asyncio.sleep(0.02)
+        orden.append(f"fin-{mensaje['texto']}")
+        activos -= 1
+
+    monkeypatch.setattr(
+        whatsapp,
+        "_procesar_mensaje_en_segundo_plano_sin_candado",
+        procesamiento_falso,
+    )
+    whatsapp.candados_procesamiento.clear()
+
+    async def ejecutar():
+        await asyncio.gather(
+            whatsapp.procesar_mensaje_en_segundo_plano(
+                {"telefono": "50760000010", "texto": "uno"}
+            ),
+            whatsapp.procesar_mensaje_en_segundo_plano(
+                {"telefono": "50760000010", "texto": "dos"}
+            ),
+        )
+
+    asyncio.run(ejecutar())
+
+    assert maximo_activos == 1
+    assert orden == ["inicio-uno", "fin-uno", "inicio-dos", "fin-dos"]

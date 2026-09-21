@@ -347,6 +347,7 @@ SEGUNDOS_ESPERA_BUFFER = 4.0
 buffer_mensajes: dict[str, dict] = {}
 tareas_pendientes: dict[str, asyncio.Task] = {}
 tareas_procesamiento_inmediato: set[asyncio.Task] = set()
+candados_procesamiento: dict[str, asyncio.Lock] = {}
 mensajes_entrantes_recientes: dict[str, float] = {}
 DURACION_DEDUPLICACION_SEGUNDOS = 3600
 
@@ -768,6 +769,14 @@ async def procesar_entrada_con_push(mensaje: dict):
 
 
 async def procesar_mensaje_en_segundo_plano(mensaje: dict):
+    """Procesa en orden los mensajes de un cliente sin bloquear a los demás."""
+    telefono = mensaje["telefono"]
+    candado = candados_procesamiento.setdefault(telefono, asyncio.Lock())
+    async with candado:
+        await _procesar_mensaje_en_segundo_plano_sin_candado(mensaje)
+
+
+async def _procesar_mensaje_en_segundo_plano_sin_candado(mensaje: dict):
     """
     Hace todo el trabajo pesado de un mensaje ya combinado del buffer
     (verificación, llamada a Claude, historial y envío de la
