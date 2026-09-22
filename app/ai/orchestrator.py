@@ -1637,16 +1637,76 @@ def buscar_respuesta_fija(
     return None
 
 
+def contexto_plantilla_saludo(nombre: str) -> str:
+    """Describe con precisión el saludo que recibió el cliente."""
+    return (
+        "El equipo de Cúbico envió al cliente una plantilla de WhatsApp "
+        f'con este mensaje: "Hola {nombre.strip()}, ¿qué tal?"'
+    )
+
+
+def contexto_plantilla_propuesta(
+    contacto: str,
+    empresa: str,
+    archivo: str,
+) -> str:
+    """Describe el texto y el documento que recibió el cliente."""
+    return (
+        "El equipo de Cúbico envió al cliente una propuesta comercial "
+        f'en el documento PDF "{archivo.strip()}" con este mensaje: '
+        f'"Hola {contacto.strip()}, adjuntamos la propuesta de Cúbico para '
+        f'{empresa.strip()}. Cualquier duda estamos a la orden."'
+    )
+
+
+def _contenido_historial_para_ia(item: dict) -> str:
+    """Devuelve lo que Bruno debe entender de un mensaje del historial.
+
+    ``content`` sigue siendo el texto breve que ve el operador en el panel.
+    ``contexto_ia`` guarda la versión completa que recibió el cliente. Además,
+    reconstruimos las etiquetas antiguas para que las plantillas ya enviadas no
+    queden fuera de contexto después de desplegar esta mejora.
+    """
+    contexto = str(item.get("contexto_ia") or "").strip()
+    if contexto:
+        return contexto
+
+    contenido = str(item.get("content") or "").strip()
+    saludo = re.fullmatch(r"\[Plantilla enviada: saludo a (.+)\]", contenido)
+    if saludo:
+        return contexto_plantilla_saludo(saludo.group(1))
+
+    propuesta = re.fullmatch(
+        r"\[Plantilla enviada: propuesta para (.+), contacto (.+) \((.+)\)\]",
+        contenido,
+    )
+    if propuesta:
+        empresa, contacto, archivo = (
+            valor.strip() for valor in propuesta.groups()
+        )
+        return contexto_plantilla_propuesta(contacto, empresa, archivo)
+
+    return contenido
+
+
 def normalizar_historial_para_claude(historial: list | None) -> list[dict]:
-    """Usa el contexto visual interno sin mostrarlo como mensaje en el panel."""
-    return [
-        {
-            "role": "assistant" if item.get("role") in {"assistant", "humano"} else "user",
-            "content": str(item.get("contexto_ia") or item.get("content", "")),
-        }
-        for item in (historial[-20:] if historial else [])
-        if item.get("contexto_ia") or item.get("content")
-    ]
+    """Usa el contexto interno completo sin mostrarlo como mensaje en el panel."""
+    mensajes = []
+    for item in (historial[-20:] if historial else []):
+        contenido = _contenido_historial_para_ia(item)
+        if not contenido:
+            continue
+        mensajes.append(
+            {
+                "role": (
+                    "assistant"
+                    if item.get("role") in {"assistant", "humano"}
+                    else "user"
+                ),
+                "content": contenido,
+            }
+        )
+    return mensajes
 
 
 def _escalar_fallo_de_respuesta(telefono: str) -> str:
