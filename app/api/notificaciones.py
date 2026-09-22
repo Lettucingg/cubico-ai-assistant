@@ -123,6 +123,8 @@ def _registrar_carga_llegada_en_historial(
         whatsapp_message_id=whatsapp_message_id,
         estado_entrega="accepted",
         contexto_ia=_contexto_ia_carga_llegada(body),
+        autor_tipo="plantilla",
+        modo_envio="automatico",
     )
 
 

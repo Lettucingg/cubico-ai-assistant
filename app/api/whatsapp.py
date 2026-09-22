@@ -596,7 +596,12 @@ async def marcar_leido_y_escribiendo(message_id: str):
         pass
 
 
-async def enviar_respuesta_natural(telefono_destino: str, texto_completo: str, message_id: str):
+async def enviar_respuesta_natural(
+    telefono_destino: str,
+    texto_completo: str,
+    message_id: str,
+    detener_si_control_humano: bool = False,
+):
     """
     Envía la respuesta del bot simulando una escritura más humana:
     - Divide el texto en partes (por doble salto de línea, si existen;
@@ -631,6 +636,12 @@ async def enviar_respuesta_natural(telefono_destino: str, texto_completo: str, m
         if message_id:
             await marcar_leido_y_escribiendo(message_id)
         await asyncio.sleep(tiempo_espera)
+        if detener_si_control_humano:
+            sesion_actual = obtener_sesion_existente(telefono_destino)
+            if sesion_actual and sesion_actual.atencion_humana_directa:
+                # El operador pudo tomar el chat mientras Claude estaba
+                # pensando o mientras se mostraba "escribiendo".
+                return None
         ultima_respuesta = await enviar_mensaje_whatsapp(telefono_destino, parte)
         if not ultima_respuesta.is_success:
             return ultima_respuesta
@@ -864,11 +875,13 @@ async def _procesar_mensaje_en_segundo_plano_sin_candado(mensaje: dict):
                     mensaje["telefono"], resultado["detalle_completo"], mensaje["media_id"]
                 )
 
+            respuesta_enviada = None
             if not modo_humano:
-                await enviar_respuesta_natural(
+                respuesta_enviada = await enviar_respuesta_natural(
                     mensaje["telefono"],
                     texto_respuesta_imagen,
                     mensaje.get("message_id") or "",
+                    detener_si_control_humano=True,
                 )
 
             # Guardamos la imagen en el historial de la sesión para que
@@ -884,8 +897,14 @@ async def _procesar_mensaje_en_segundo_plano_sin_candado(mensaje: dict):
                 whatsapp_message_id=mensaje.get("message_id"),
                 contexto_ia=contexto_ia,
             )
-            if not modo_humano:
-                agregar_al_historial(sesion.telefono, "assistant", texto_respuesta_imagen)
+            if respuesta_enviada is not None and respuesta_enviada.is_success:
+                agregar_al_historial(
+                    sesion.telefono,
+                    "assistant",
+                    texto_respuesta_imagen,
+                    whatsapp_message_id=extraer_id_mensaje_meta(respuesta_enviada),
+                    estado_entrega="accepted",
+                )
 
             sesion_actualizada = obtener_o_crear_sesion(mensaje["telefono"])
             motivo_actual = sesion_actualizada.motivo_escalamiento
@@ -963,8 +982,6 @@ async def _procesar_mensaje_en_segundo_plano_sin_candado(mensaje: dict):
             mensaje["texto"],
             whatsapp_message_id=mensaje.get("message_id"),
         )
-        agregar_al_historial(sesion.telefono, "assistant", texto_respuesta)
-
         sesion_actualizada = obtener_o_crear_sesion(mensaje["telefono"])
         print(f"[DEBUG] necesita_atencion_humana = {sesion_actualizada.necesita_atencion_humana}")
         motivo_actual = sesion_actualizada.motivo_escalamiento
@@ -989,7 +1006,20 @@ async def _procesar_mensaje_en_segundo_plano_sin_candado(mensaje: dict):
                 sesion_actualizada.direccion_domicilio,
             )
 
-        await enviar_respuesta_natural(mensaje["telefono"], texto_respuesta, mensaje["message_id"])
+        respuesta_enviada = await enviar_respuesta_natural(
+            mensaje["telefono"],
+            texto_respuesta,
+            mensaje["message_id"],
+            detener_si_control_humano=True,
+        )
+        if respuesta_enviada is not None and respuesta_enviada.is_success:
+            agregar_al_historial(
+                sesion.telefono,
+                "assistant",
+                texto_respuesta,
+                whatsapp_message_id=extraer_id_mensaje_meta(respuesta_enviada),
+                estado_entrega="accepted",
+            )
 
     except Exception as error:
         import traceback
@@ -1034,7 +1064,14 @@ async def procesar_respuesta_de_asesor(telefono_asesor: str, numero_cliente: str
 
         texto_redactado = redactar_respuesta_de_asesor(texto_cliente_original, solucion_del_asesor)
 
-        agregar_al_historial(numero_cliente, "assistant", texto_redactado)
+        agregar_al_historial(
+            numero_cliente,
+            "humano",
+            texto_redactado,
+            autor_tipo="humano",
+            operador=(telefono_asesor if telefono_asesor != "panel" else "panel"),
+            modo_envio="asistido_bruno",
+        )
         await enviar_respuesta_natural(numero_cliente, texto_redactado, message_id="")
 
         actualizar_sesion(numero_cliente, necesita_atencion_humana=False, motivo_escalamiento=None)

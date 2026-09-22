@@ -628,6 +628,9 @@ def agregar_al_historial(
     whatsapp_message_id: str | None = None,
     estado_entrega: str | None = None,
     contexto_ia: str | None = None,
+    autor_tipo: str | None = None,
+    operador: str | None = None,
+    modo_envio: str | None = None,
 ):
     """
     Agrega un mensaje al historial de la conversación, y recorta
@@ -646,6 +649,15 @@ def agregar_al_historial(
             "content": contenido,
             "timestamp": datetime.utcnow().isoformat(timespec="milliseconds") + "Z",
         }
+        # ``role`` conserva la compatibilidad con el historial de Claude.
+        # Estos campos identifican quién originó realmente el mensaje. Son
+        # necesarios porque una respuesta iniciada por un trabajador puede
+        # ser redactada por Bruno, pero no deja de ser una acción humana.
+        autor_inferido = autor_tipo or {
+            "user": "cliente",
+            "assistant": "bruno",
+            "humano": "humano",
+        }.get(rol, "sistema")
         metadatos = {
             "tipo": tipo,
             "media_id": media_id,
@@ -655,6 +667,9 @@ def agregar_al_historial(
             # Información estructurada para que Bruno recuerde lo leído
             # en una imagen sin mostrar ese texto técnico en el panel.
             "contexto_ia": contexto_ia,
+            "autor_tipo": autor_inferido,
+            "operador": operador,
+            "modo_envio": modo_envio,
         }
         mensaje.update({clave: valor for clave, valor in metadatos.items() if valor})
         historial.append(mensaje)

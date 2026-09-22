@@ -1699,11 +1699,20 @@ def normalizar_historial_para_claude(historial: list | None) -> list[dict]:
         contenido = _contenido_historial_para_ia(item)
         if not contenido:
             continue
+        autor_tipo = str(item.get("autor_tipo") or "").strip().lower()
+        rol_historial = item.get("role")
+        if rol_historial == "humano" or autor_tipo in {"humano", "plantilla"}:
+            operador = str(item.get("operador") or "equipo de Cúbico").strip()
+            contenido = (
+                "[CONTEXTO: este mensaje fue enviado por "
+                f"{operador}, no por Bruno. Recuerda su contenido, pero no "
+                f"imites automáticamente su tono.] {contenido}"
+            )
         mensajes.append(
             {
                 "role": (
                     "assistant"
-                    if item.get("role") in {"assistant", "humano"}
+                    if rol_historial in {"assistant", "humano"}
                     else "user"
                 ),
                 "content": contenido,

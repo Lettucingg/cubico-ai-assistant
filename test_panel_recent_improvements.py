@@ -126,23 +126,40 @@ def test_exportacion_distingue_cliente_bruno_y_equipo():
             "role": "assistant",
             "content": "Hola Arthur, ¿cómo te ayudo?",
             "timestamp": "2026-09-21T17:31:00Z",
+            "autor_tipo": "bruno",
         },
         {
             "role": "humano",
             "content": "Ya revisamos tu solicitud.",
             "timestamp": "2026-09-21T17:32:00Z",
             "estado_entrega": "delivered",
+            "autor_tipo": "humano",
+            "operador": "alexander",
+            "modo_envio": "asistido_bruno",
         },
     ], ["Arthur"])
 
     assert "21/09/2026 12:30 PM" in texto
     assert "Cliente:" in texto
     assert "Bruno:" in texto
-    assert "Equipo de Cúbico:" in texto
+    assert "Equipo de Cúbico — alexander (redacción asistida por Bruno):" in texto
     assert "Arthur" not in texto
     assert "arthur@example.com" not in texto
     assert "6000-1234" not in texto
     assert "Estado: delivered" in texto
+
+
+def test_exportacion_no_atribuye_a_bruno_respuestas_antiguas_ambiguas():
+    texto = _crear_exportacion_conversacion([
+        {
+            "role": "assistant",
+            "content": "Mensaje histórico",
+            "timestamp": "2026-09-21T17:31:00Z",
+        },
+    ])
+
+    assert "Respuesta saliente (origen antiguo no registrado):" in texto
+    assert "Bruno: Mensaje histórico" not in texto
 
 
 def test_anonimizacion_oculta_enlaces_facturas_y_codigos_largos():
@@ -164,3 +181,12 @@ def test_acciones_secundarias_no_saturan_la_cabecera_del_chat():
     assert 'id="enviar-propuesta-chat" data-chat-action' in html
     assert 'id="export-chat" data-chat-action' in html
     assert "cerrarMenuAccionesChat" in html
+
+
+def test_panel_muestra_quien_envio_cada_respuesta():
+    html = _html()
+    assert "etiquetaAutorMensaje" in html
+    assert "Equipo · " in html
+    assert "m.operador" in html
+    assert "asistido por Bruno" in html
+    assert "Salida anterior · origen sin registrar" in html

@@ -143,7 +143,6 @@ def _crear_exportacion_conversacion(
     nombres: list[str] | None = None,
 ) -> str:
     """Crea un TXT legible y anonimizado para revisar la calidad de Bruno."""
-    roles = {"user": "Cliente", "assistant": "Bruno", "humano": "Equipo de Cúbico"}
     tipos = {"image": "Imagen", "audio": "Audio", "document": "Documento"}
     lineas = [
         "CÚBICO — CONVERSACIÓN ANONIMIZADA",
@@ -153,7 +152,26 @@ def _crear_exportacion_conversacion(
         "",
     ]
     for mensaje in historial:
-        rol = roles.get(str(mensaje.get("role") or ""), "Sistema")
+        role = str(mensaje.get("role") or "")
+        autor_tipo = str(mensaje.get("autor_tipo") or "").strip().lower()
+        operador = str(mensaje.get("operador") or "").strip()
+        modo_envio = str(mensaje.get("modo_envio") or "").strip().lower()
+        if role == "user" or autor_tipo == "cliente":
+            rol = "Cliente"
+        elif autor_tipo == "bruno":
+            rol = "Bruno"
+        elif autor_tipo == "humano" or role == "humano":
+            rol = f"Equipo de Cúbico — {operador}" if operador else "Equipo de Cúbico"
+            if modo_envio == "asistido_bruno":
+                rol += " (redacción asistida por Bruno)"
+        elif autor_tipo == "plantilla":
+            rol = f"Plantilla enviada por {operador}" if operador else "Notificación automática"
+        elif role == "assistant":
+            # Los historiales antiguos no registraban quién inició el envío.
+            # Es más honesto indicar la ambigüedad que atribuírselo a Bruno.
+            rol = "Respuesta saliente (origen antiguo no registrado)"
+        else:
+            rol = "Sistema"
         contenido = _anonimizar_texto_exportado(
             mensaje.get("content") or "",
             nombres,
@@ -900,10 +918,13 @@ async def responder_cliente(
         raise HTTPException(status_code=502, detail="Meta no pudo enviar el mensaje")
     agregar_al_historial(
         telefono,
-        "assistant",
+        "humano",
         texto_redactado,
         whatsapp_message_id=extraer_id_mensaje_meta(respuesta_meta),
         estado_entrega="accepted",
+        autor_tipo="humano",
+        operador=usuario,
+        modo_envio="asistido_bruno",
     )
 
     actualizar_sesion(telefono, necesita_atencion_humana=False, motivo_escalamiento=None)
@@ -1031,6 +1052,9 @@ async def enviar_audio_desde_panel(
         mime_type=mime_meta,
         whatsapp_message_id=extraer_id_mensaje_meta(respuesta_envio),
         estado_entrega="accepted",
+        autor_tipo="humano",
+        operador=usuario,
+        modo_envio="directo",
     )
     return {"status": "enviado"}
 
@@ -1113,6 +1137,9 @@ async def enviar_archivo_desde_panel(
         mime_type=mime_type,
         whatsapp_message_id=extraer_id_mensaje_meta(respuesta_envio),
         estado_entrega="accepted",
+        autor_tipo="humano",
+        operador=usuario,
+        modo_envio="directo",
     )
     return {"ok": True}
 
@@ -1145,6 +1172,9 @@ async def enviar_plantilla_saludo(
         whatsapp_message_id=extraer_id_mensaje_meta(respuesta_envio),
         estado_entrega="accepted",
         contexto_ia=contexto_plantilla_saludo(nombre),
+        autor_tipo="plantilla",
+        operador=usuario,
+        modo_envio="plantilla",
     )
     return {"ok": True}
 
@@ -1219,6 +1249,9 @@ async def enviar_plantilla_propuesta(
             empresa_limpia,
             nombre_archivo,
         ),
+        autor_tipo="plantilla",
+        operador=usuario,
+        modo_envio="plantilla",
     )
     return {"ok": True}
 
@@ -1304,5 +1337,8 @@ async def enviar_directo(
         mensaje,
         whatsapp_message_id=extraer_id_mensaje_meta(respuesta_meta),
         estado_entrega="accepted",
+        autor_tipo="humano",
+        operador=usuario,
+        modo_envio="directo",
     )
     return {"status": "enviado"}
