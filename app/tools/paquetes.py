@@ -1,11 +1,10 @@
 from app.db.database import SessionLocal
-from app.db.models import ClienteCBC
-from app.tools.clientes import filtro_cliente_activo_por_codigo
+from app.tools.clientes import buscar_identidad_activa_por_codigo
 
 
 def consultar_paquetes_por_codigo(codigo_cliente: str) -> dict:
     """
-    Busca un cliente por su código CBC (ej: "CBC-0001") y devuelve
+    Busca una persona o agencia por su código y devuelve
     la lista de sus paquetes.
 
     Esta función es una "herramienta" que Claude va a poder invocar
@@ -18,10 +17,8 @@ def consultar_paquetes_por_codigo(codigo_cliente: str) -> dict:
     """
     db = SessionLocal()
     try:
-        cliente = (
-            db.query(ClienteCBC)
-            .filter(*filtro_cliente_activo_por_codigo(codigo_cliente))
-            .first()
+        tipo_cliente, cliente, codigo_normalizado = buscar_identidad_activa_por_codigo(
+            db, codigo_cliente
         )
 
         if cliente is None:
@@ -42,7 +39,13 @@ def consultar_paquetes_por_codigo(codigo_cliente: str) -> dict:
 
         return {
             "encontrado": True,
-            "cliente": f"{cliente.nombre} {cliente.apellido or ''}".strip(),
+            "cliente": (
+                f"{cliente.nombre} {getattr(cliente, 'apellido', '') or ''}".strip()
+                if tipo_cliente == "cbc"
+                else str(cliente.nombre).strip()
+            ),
+            "tipo_cliente": tipo_cliente,
+            "codigo_cliente": codigo_normalizado,
             "cantidad_paquetes": len(paquetes),
             "paquetes": paquetes,
         }
