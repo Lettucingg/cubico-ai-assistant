@@ -153,3 +153,14 @@ def test_anonimizacion_oculta_enlaces_facturas_y_codigos_largos():
     assert "https://" not in texto
     assert "FAC-00039" not in texto
     assert "1ZAC2780YW66858393" not in texto
+
+
+
+def test_acciones_secundarias_no_saturan_la_cabecera_del_chat():
+    html = _html()
+    assert 'id="chat-actions-toggle"' in html
+    assert 'id="chat-actions-menu"' in html
+    assert 'id="reactivar-chat" data-chat-action' in html
+    assert 'id="enviar-propuesta-chat" data-chat-action' in html
+    assert 'id="export-chat" data-chat-action' in html
+    assert "cerrarMenuAccionesChat" in html
