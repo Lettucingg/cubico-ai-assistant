@@ -2,7 +2,12 @@
 
 from pathlib import Path
 
-from app.api.panel import _detectar_mime_archivo, _nombre_archivo_seguro
+from app.api.panel import (
+    _anonimizar_texto_exportado,
+    _crear_exportacion_conversacion,
+    _detectar_mime_archivo,
+    _nombre_archivo_seguro,
+)
 from app.core.config import settings
 
 
@@ -97,3 +102,65 @@ def test_flujo_de_pago_explica_cada_paso_al_operador():
     assert "4. Confirmar entrega al cliente" in html
     assert "Pago registrado; el saldo de facturación fue actualizado" in html
     assert "Comprobante revisado; no se registró un pago duplicado" in html
+
+
+
+def test_panel_permite_exportar_una_conversacion_anonimizada():
+    html = _html()
+    assert 'id="export-chat"' in html
+    assert "/panel/conversacion/${encodeURIComponent(telActivo)}/exportar" in html
+    assert "revísalo antes de compartirlo" in html
+
+
+def test_exportacion_distingue_cliente_bruno_y_equipo():
+    texto = _crear_exportacion_conversacion([
+        {
+            "role": "user",
+            "content": (
+                "Hola, soy Arthur. Mi correo es arthur@example.com "
+                "y mi teléfono 507 6000-1234."
+            ),
+            "timestamp": "2026-09-21T17:30:00Z",
+        },
+        {
+            "role": "assistant",
+            "content": "Hola Arthur, ¿cómo te ayudo?",
+            "timestamp": "2026-09-21T17:31:00Z",
+        },
+        {
+            "role": "humano",
+            "content": "Ya revisamos tu solicitud.",
+            "timestamp": "2026-09-21T17:32:00Z",
+            "estado_entrega": "delivered",
+        },
+    ], ["Arthur"])
+
+    assert "21/09/2026 12:30 PM" in texto
+    assert "Cliente:" in texto
+    assert "Bruno:" in texto
+    assert "Equipo de Cúbico:" in texto
+    assert "Arthur" not in texto
+    assert "arthur@example.com" not in texto
+    assert "6000-1234" not in texto
+    assert "Estado: delivered" in texto
+
+
+def test_anonimizacion_oculta_enlaces_facturas_y_codigos_largos():
+    texto = _anonimizar_texto_exportado(
+        "Revisa https://cubico.com/cliente/123, la factura FAC-00039 "
+        "y el tracking 1ZAC2780YW66858393."
+    )
+    assert "https://" not in texto
+    assert "FAC-00039" not in texto
+    assert "1ZAC2780YW66858393" not in texto
+
+
+
+def test_acciones_secundarias_no_saturan_la_cabecera_del_chat():
+    html = _html()
+    assert 'id="chat-actions-toggle"' in html
+    assert 'id="chat-actions-menu"' in html
+    assert 'id="reactivar-chat" data-chat-action' in html
+    assert 'id="enviar-propuesta-chat" data-chat-action' in html
+    assert 'id="export-chat" data-chat-action' in html
+    assert "cerrarMenuAccionesChat" in html
