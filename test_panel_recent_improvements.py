@@ -64,6 +64,13 @@ def test_propuesta_pide_contacto_y_empresa_para_las_dos_variables_de_meta():
     assert "form.append('empresa',empresa)" in html
 
 
+def test_propuesta_se_puede_enviar_desde_cualquier_conversacion():
+    html = _html()
+    assert 'id="enviar-propuesta-chat"' in html
+    assert "document.getElementById('enviar-propuesta-chat').disabled=!activo" in html
+    assert "abrirModalPropuesta(telActivo,(conv&&conv.nombre)||'','')" in html
+
+
 def test_perfil_distingue_agencia_de_cliente_personal():
     html = _html()
     assert "conv.tipo_cliente_verificado==='agencia'" in html
