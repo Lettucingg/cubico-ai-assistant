@@ -62,3 +62,10 @@ def test_propuesta_pide_contacto_y_empresa_para_las_dos_variables_de_meta():
     assert 'id="propuesta-empresa"' in html
     assert "form.append('nombre',nombre)" in html
     assert "form.append('empresa',empresa)" in html
+
+
+def test_perfil_distingue_agencia_de_cliente_personal():
+    html = _html()
+    assert "conv.tipo_cliente_verificado==='agencia'" in html
+    assert "Agencia verificada" in html
+    assert "Cliente verificado" in html
