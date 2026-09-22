@@ -76,3 +76,24 @@ def test_perfil_distingue_agencia_de_cliente_personal():
     assert "conv.tipo_cliente_verificado==='agencia'" in html
     assert "Agencia verificada" in html
     assert "Cliente verificado" in html
+
+
+def test_medios_expirados_no_muestran_error_global_del_servidor():
+    html = _html()
+    assert "notificarErrores=true" in html
+    assert "r.status>=500&&creds&&notificarErrores" in html
+    assert "audio.dataset.mediaId)}`,false)" in html
+    assert "img.dataset.chatMediaId)}`,false)" in html
+    assert "encodeURIComponent(s.telefono),false)" in html
+    assert "Imagen no disponible; puede haber expirado en WhatsApp" in html
+
+
+def test_flujo_de_pago_explica_cada_paso_al_operador():
+    html = _html()
+    assert "Pasos para completar el caso" in html
+    assert "Primero compara el comprobante con la factura" in html
+    assert "1. Revisar comprobante y registrar pago" in html
+    assert "2. Confirmar paquetes listos" in html
+    assert "4. Confirmar entrega al cliente" in html
+    assert "Pago registrado; el saldo de facturación fue actualizado" in html
+    assert "Comprobante revisado; no se registró un pago duplicado" in html
