@@ -90,7 +90,7 @@
           <aside class="chat-list"><div class="pane-head"><div class="pane-head-row"><h2>Conversaciones</h2><select class="filter" id="filtro-select"><option>Todas</option><option>Necesitan humano</option><option>Bruno atendiendo</option></select></div><input class="chat-search" id="chat-search" placeholder="Buscar conversación…" /></div><div class="chat-items" id="chat-items">
             <div style="padding:30px 16px;text-align:center;color:var(--muted);font-size:12px">Cargando conversaciones…</div>
           </div></aside>
-          <section class="conversation"><header class="conv-head"><div class="conv-person"><button class="mobile-chat-back" id="mobile-chat-back" aria-label="Volver a conversaciones">‹</button><div class="person" id="conv-avatar">—</div><div><b id="conv-name">Selecciona una conversación</b><small><i class="dot"></i><span id="conv-status-line">Elige un chat de la lista</span></small></div></div><div class="conv-actions"><button class="btn" id="resolve" disabled>✓ Resolver</button><button class="btn dark" id="takeover" disabled>Tomar control</button><button class="btn" id="reactivar-chat" disabled>Reactivar chat</button><span id="extra-actions" style="display:contents"></span></div></header><div class="messages" id="messages"><div class="day">Selecciona una conversación para ver su historial</div></div><footer class="composer"><div class="attach-menu" id="attach-menu"><button class="attach-option" type="button" data-attach-kind="image"><span class="attach-option-icon">▧</span><span><b>Foto</b><small>JPG o PNG</small></span></button><button class="attach-option" type="button" data-attach-kind="document"><span class="attach-option-icon">PDF</span><span><b>Documento</b><small>Archivo PDF</small></span></button></div><div class="attach-preview" id="attach-preview" style="display:none"></div><div class="compose-row"><button class="voice" id="voice" aria-label="Grabar mensaje de voz">●</button><button class="attach" id="attach-btn" aria-label="Añadir foto o documento" title="Añadir archivo" disabled>＋</button><input type="file" id="attach-image-input" accept="image/jpeg,image/png" style="display:none"/><input type="file" id="attach-pdf-input" accept="application/pdf,.pdf" style="display:none"/><input class="compose-input" id="message-input" placeholder="Escribe como Cúbico…" disabled/><button class="send" id="send" aria-label="Enviar" disabled>➤</button></div><div class="compose-foot"><span id="mode-label">Selecciona una conversación para comenzar</span><span>Enter para enviar</span></div></footer></section>
+          <section class="conversation"><header class="conv-head"><div class="conv-person"><button class="mobile-chat-back" id="mobile-chat-back" aria-label="Volver a conversaciones">‹</button><div class="person" id="conv-avatar">—</div><div><b id="conv-name">Selecciona una conversación</b><small><i class="dot"></i><span id="conv-status-line">Elige un chat de la lista</span></small></div></div><div class="conv-actions"><button class="btn" id="resolve" disabled>✓ Resolver</button><button class="btn dark" id="takeover" disabled>Tomar control</button><button class="btn" id="reactivar-chat" disabled>Reactivar chat</button><button class="btn" id="enviar-propuesta-chat" disabled>📄 Enviar propuesta</button><span id="extra-actions" style="display:contents"></span></div></header><div class="messages" id="messages"><div class="day">Selecciona una conversación para ver su historial</div></div><footer class="composer"><div class="attach-menu" id="attach-menu"><button class="attach-option" type="button" data-attach-kind="image"><span class="attach-option-icon">▧</span><span><b>Foto</b><small>JPG o PNG</small></span></button><button class="attach-option" type="button" data-attach-kind="document"><span class="attach-option-icon">PDF</span><span><b>Documento</b><small>Archivo PDF</small></span></button></div><div class="attach-preview" id="attach-preview" style="display:none"></div><div class="compose-row"><button class="voice" id="voice" aria-label="Grabar mensaje de voz">●</button><button class="attach" id="attach-btn" aria-label="Añadir foto o documento" title="Añadir archivo" disabled>＋</button><input type="file" id="attach-image-input" accept="image/jpeg,image/png" style="display:none"/><input type="file" id="attach-pdf-input" accept="application/pdf,.pdf" style="display:none"/><input class="compose-input" id="message-input" placeholder="Escribe como Cúbico…" disabled/><button class="send" id="send" aria-label="Enviar" disabled>➤</button></div><div class="compose-foot"><span id="mode-label">Selecciona una conversación para comenzar</span><span>Enter para enviar</span></div></footer></section>
           <aside class="customer"><div class="customer-head"><h3>Contexto del cliente</h3></div><div class="profile"><div class="person" id="profile-avatar">—</div><h3 id="profile-name">—</h3><p id="profile-code">—</p><span class="risk" id="profile-risk">Sin conversación</span></div><div class="detail-block"><h4>Información</h4><div class="detail"><span>Teléfono</span><b id="profile-phone">—</b></div><div class="detail"><span>Estado</span><b id="profile-estado">—</b></div></div></aside>
         </div>
       </section>
@@ -337,6 +337,7 @@
       voice.disabled=!activo||!navigator.mediaDevices||typeof MediaRecorder==='undefined';
       document.getElementById('attach-btn').disabled=!activo;
       document.getElementById('reactivar-chat').disabled=!activo;
+      document.getElementById('enviar-propuesta-chat').disabled=!activo;
     }
 
     function actualizarEncabezadoChat(conv){
@@ -462,13 +463,18 @@
 
     let telefonoPropuestaActivo=null;
     function abrirModalPropuesta(telefono,nombreContacto,empresa){
-      if(!telefono){say('Esta oportunidad no tiene un teléfono asociado');return}
+      if(!telefono){say('No hay una conversación seleccionada');return}
       telefonoPropuestaActivo=telefono;
       document.getElementById('propuesta-contacto').value=nombreContacto||'';
       document.getElementById('propuesta-empresa').value=empresa||'';
       document.getElementById('propuesta-pdf').value='';
       abrirModal('modal-propuesta');
     }
+    document.getElementById('enviar-propuesta-chat').addEventListener('click',()=>{
+      if(!telActivo)return;
+      const conv=convs.find(c=>c.telefono===telActivo);
+      abrirModalPropuesta(telActivo,(conv&&conv.nombre)||'','');
+    });
     document.getElementById('propuesta-cancelar').addEventListener('click',()=>cerrarModal('modal-propuesta'));
     document.getElementById('propuesta-enviar').addEventListener('click',async()=>{
       if(!telefonoPropuestaActivo)return;
@@ -493,6 +499,10 @@
         if(r.ok&&datos&&datos.ok){
           say('Propuesta enviada');
           cerrarModal('modal-propuesta');
+          if(telefonoPropuestaActivo===telActivo){
+            try{const rh=await apiGet(`/panel/conversacion/${telActivo}`);if(rh.ok)renderMensajes((await rh.json()).historial)}catch(e){}
+          }
+          recargarConversaciones();
         }else{
           say((datos&&(datos.motivo||datos.detail))||'No se pudo enviar la propuesta');
         }
