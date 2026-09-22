@@ -832,6 +832,7 @@ async def _procesar_mensaje_en_segundo_plano_sin_candado(mensaje: dict):
                         mensaje["telefono"],
                         sesion.codigo_cliente_verificado,
                         sesion.obtener_historial(),
+                        sesion.tipo_cliente_verificado,
                     )
 
             if resultado["es_comprobante"]:
@@ -953,6 +954,7 @@ async def _procesar_mensaje_en_segundo_plano_sin_candado(mensaje: dict):
             mensaje["telefono"],
             sesion.codigo_cliente_verificado,
             sesion.obtener_historial(),
+            sesion.tipo_cliente_verificado,
         )
 
         agregar_al_historial(
