@@ -348,8 +348,9 @@
       document.getElementById('conv-status-line').textContent='WhatsApp · '+conv.telefono+' · '+formatTokens((uso.input_tokens||0)+(uso.output_tokens||0))+' tokens · '+formatMoney(uso.costo_usd||0);
       document.getElementById('profile-avatar').textContent=initials(nombre);
       document.getElementById('profile-name').textContent=nombre;
-      document.getElementById('profile-code').textContent=conv.codigo_cliente_verificado?('Cliente '+conv.codigo_cliente_verificado):'Sin código verificado';
-      document.getElementById('profile-risk').textContent=conv.codigo_cliente_verificado?'Cliente verificado':'No verificado';
+      const esAgencia=conv.tipo_cliente_verificado==='agencia';
+      document.getElementById('profile-code').textContent=conv.codigo_cliente_verificado?((esAgencia?'Agencia ':'Cliente ')+conv.codigo_cliente_verificado):'Sin código verificado';
+      document.getElementById('profile-risk').textContent=conv.codigo_cliente_verificado?(esAgencia?'Agencia verificada':'Cliente verificado'):'No verificado';
       document.getElementById('profile-phone').textContent=conv.telefono;
       document.getElementById('profile-estado').textContent=conv.estado||'—';
 
