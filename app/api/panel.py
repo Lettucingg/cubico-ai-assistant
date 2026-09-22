@@ -1,8 +1,10 @@
 import asyncio
 import json
+import re
 import secrets
 import shutil
 from datetime import datetime
+from zoneinfo import ZoneInfo
 
 import httpx
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, Response, UploadFile
@@ -67,6 +69,76 @@ class OportunidadPayload(BaseModel):
 class SaludoPlantillaPayload(BaseModel):
     telefono: str
     nombre: str
+
+
+ZONA_PANAMA = ZoneInfo("America/Panama")
+
+
+def _anonimizar_texto_exportado(texto: str, nombres: list[str] | None = None) -> str:
+    """Retira identificadores comunes antes de compartir una conversación."""
+    resultado = str(texto or "")
+    resultado = re.sub(r"https?://\S+", "[enlace oculto]", resultado, flags=re.IGNORECASE)
+    resultado = re.sub(
+        r"\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b",
+        "[correo oculto]",
+        resultado,
+        flags=re.IGNORECASE,
+    )
+    resultado = re.sub(
+        r"(?<!\w)(?:\+?\d[\s().-]*){7,15}(?!\w)",
+        "[teléfono oculto]",
+        resultado,
+    )
+    resultado = re.sub(r"\bCBC[-\s]?\d+\b", "[código de cliente oculto]", resultado, flags=re.IGNORECASE)
+    resultado = re.sub(
+        r"\b(?=[A-Z0-9-]{10,}\b)(?=[A-Z0-9-]*\d)[A-Z0-9-]+\b",
+        "[código oculto]",
+        resultado,
+        flags=re.IGNORECASE,
+    )
+    for nombre in sorted({n.strip() for n in nombres or [] if n and n.strip()}, key=len, reverse=True):
+        resultado = re.sub(re.escape(nombre), "[nombre del cliente]", resultado, flags=re.IGNORECASE)
+    return resultado.strip()
+
+
+def _fecha_exportada(timestamp: str | None) -> str:
+    if not timestamp:
+        return "Fecha no disponible"
+    try:
+        fecha = datetime.fromisoformat(str(timestamp).replace("Z", "+00:00"))
+        if fecha.tzinfo is None:
+            fecha = fecha.replace(tzinfo=ZoneInfo("UTC"))
+        return fecha.astimezone(ZONA_PANAMA).strftime("%d/%m/%Y %I:%M %p")
+    except (TypeError, ValueError):
+        return "Fecha no disponible"
+
+
+def _crear_exportacion_conversacion(historial: list[dict], nombres: list[str] | None = None) -> str:
+    """Crea un TXT legible y anonimizado para revisar la calidad de Bruno."""
+    roles = {"user": "Cliente", "assistant": "Bruno", "humano": "Equipo de Cúbico"}
+    tipos = {"image": "Imagen", "audio": "Audio", "document": "Documento"}
+    lineas = [
+        "CÚBICO — CONVERSACIÓN ANONIMIZADA",
+        "Uso: revisión de calidad de Bruno",
+        "Los identificadores comunes fueron ocultados automáticamente.",
+        "Revisa el archivo antes de compartirlo por si el cliente escribió otros datos personales.",
+        "",
+    ]
+    for mensaje in historial:
+        rol = roles.get(str(mensaje.get("role") or ""), "Sistema")
+        contenido = _anonimizar_texto_exportado(mensaje.get("content") or "", nombres)
+        tipo = tipos.get(str(mensaje.get("tipo") or ""))
+        if tipo and tipo.lower() not in contenido.lower():
+            contenido = f"[{tipo}] {contenido}".strip()
+        if not contenido:
+            contenido = f"[{tipo or 'Mensaje sin texto'}]"
+        estado = str(mensaje.get("estado_entrega") or "").strip()
+        error = _anonimizar_texto_exportado(mensaje.get("error_entrega") or "", nombres)
+        detalle = f" | Estado: {estado}" if estado else ""
+        if error:
+            detalle += f" | Error: {error}"
+        lineas.append(f"[{_fecha_exportada(mensaje.get('timestamp'))}] {rol}: {contenido}{detalle}")
+    return "\n".join(lineas) + "\n"
 
 
 def _ultimo_mensaje_cliente_en(historial: list[dict]) -> datetime | None:
@@ -672,6 +744,38 @@ def obtener_conversacion(telefono: str, usuario: str = Depends(verificar_credenc
         "telefono": sesion.telefono,
         "historial": sesion.obtener_historial(),
     }
+
+
+@router.get("/conversacion/{telefono}/exportar")
+def exportar_conversacion(telefono: str, usuario: str = Depends(verificar_credenciales_panel)):
+    """Descarga una copia TXT anonimizada sin modificar el historial original."""
+    sesion = obtener_sesion_existente(telefono)
+    if sesion is None:
+        raise HTTPException(status_code=404, detail="No existe ninguna conversación con ese teléfono")
+
+    nombres = []
+    if sesion.codigo_cliente_verificado:
+        try:
+            info = obtener_nombre_completo_cliente(sesion.codigo_cliente_verificado)
+            if info.get("encontrado") and info.get("nombre_completo"):
+                nombre_completo = str(info["nombre_completo"]).strip()
+                nombres.append(nombre_completo)
+                nombres.extend(parte for parte in nombre_completo.split() if len(parte) >= 4)
+        except Exception:
+            # La exportación debe seguir disponible aunque falle temporalmente
+            # la consulta de datos del cliente.
+            pass
+
+    contenido = _crear_exportacion_conversacion(sesion.obtener_historial(), nombres)
+    fecha = datetime.now(ZONA_PANAMA).strftime("%Y%m%d")
+    return Response(
+        content=contenido.encode("utf-8-sig"),
+        media_type="text/plain; charset=utf-8",
+        headers={
+            "Content-Disposition": f'attachment; filename="conversacion-cubico-{fecha}.txt"',
+            "Cache-Control": "no-store",
+        },
+    )
 
 
 @router.get("/audio/{telefono}/{media_id}")

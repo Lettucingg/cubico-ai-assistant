@@ -90,7 +90,7 @@
           <aside class="chat-list"><div class="pane-head"><div class="pane-head-row"><h2>Conversaciones</h2><select class="filter" id="filtro-select"><option>Todas</option><option>Necesitan humano</option><option>Bruno atendiendo</option></select></div><input class="chat-search" id="chat-search" placeholder="Buscar conversación…" /></div><div class="chat-items" id="chat-items">
             <div style="padding:30px 16px;text-align:center;color:var(--muted);font-size:12px">Cargando conversaciones…</div>
           </div></aside>
-          <section class="conversation"><header class="conv-head"><div class="conv-person"><button class="mobile-chat-back" id="mobile-chat-back" aria-label="Volver a conversaciones">‹</button><div class="person" id="conv-avatar">—</div><div><b id="conv-name">Selecciona una conversación</b><small><i class="dot"></i><span id="conv-status-line">Elige un chat de la lista</span></small></div></div><div class="conv-actions"><button class="btn" id="resolve" disabled>✓ Resolver</button><button class="btn dark" id="takeover" disabled>Tomar control</button><button class="btn" id="reactivar-chat" disabled>Reactivar chat</button><span id="extra-actions" style="display:contents"></span></div></header><div class="messages" id="messages"><div class="day">Selecciona una conversación para ver su historial</div></div><footer class="composer"><div class="attach-menu" id="attach-menu"><button class="attach-option" type="button" data-attach-kind="image"><span class="attach-option-icon">▧</span><span><b>Foto</b><small>JPG o PNG</small></span></button><button class="attach-option" type="button" data-attach-kind="document"><span class="attach-option-icon">PDF</span><span><b>Documento</b><small>Archivo PDF</small></span></button></div><div class="attach-preview" id="attach-preview" style="display:none"></div><div class="compose-row"><button class="voice" id="voice" aria-label="Grabar mensaje de voz">●</button><button class="attach" id="attach-btn" aria-label="Añadir foto o documento" title="Añadir archivo" disabled>＋</button><input type="file" id="attach-image-input" accept="image/jpeg,image/png" style="display:none"/><input type="file" id="attach-pdf-input" accept="application/pdf,.pdf" style="display:none"/><input class="compose-input" id="message-input" placeholder="Escribe como Cúbico…" disabled/><button class="send" id="send" aria-label="Enviar" disabled>➤</button></div><div class="compose-foot"><span id="mode-label">Selecciona una conversación para comenzar</span><span>Enter para enviar</span></div></footer></section>
+          <section class="conversation"><header class="conv-head"><div class="conv-person"><button class="mobile-chat-back" id="mobile-chat-back" aria-label="Volver a conversaciones">‹</button><div class="person" id="conv-avatar">—</div><div><b id="conv-name">Selecciona una conversación</b><small><i class="dot"></i><span id="conv-status-line">Elige un chat de la lista</span></small></div></div><div class="conv-actions"><button class="btn" id="export-chat" title="Descargar una copia anonimizada" disabled>↓ Exportar</button><button class="btn" id="resolve" disabled>✓ Resolver</button><button class="btn dark" id="takeover" disabled>Tomar control</button><button class="btn" id="reactivar-chat" disabled>Reactivar chat</button><span id="extra-actions" style="display:contents"></span></div></header><div class="messages" id="messages"><div class="day">Selecciona una conversación para ver su historial</div></div><footer class="composer"><div class="attach-menu" id="attach-menu"><button class="attach-option" type="button" data-attach-kind="image"><span class="attach-option-icon">▧</span><span><b>Foto</b><small>JPG o PNG</small></span></button><button class="attach-option" type="button" data-attach-kind="document"><span class="attach-option-icon">PDF</span><span><b>Documento</b><small>Archivo PDF</small></span></button></div><div class="attach-preview" id="attach-preview" style="display:none"></div><div class="compose-row"><button class="voice" id="voice" aria-label="Grabar mensaje de voz">●</button><button class="attach" id="attach-btn" aria-label="Añadir foto o documento" title="Añadir archivo" disabled>＋</button><input type="file" id="attach-image-input" accept="image/jpeg,image/png" style="display:none"/><input type="file" id="attach-pdf-input" accept="application/pdf,.pdf" style="display:none"/><input class="compose-input" id="message-input" placeholder="Escribe como Cúbico…" disabled/><button class="send" id="send" aria-label="Enviar" disabled>➤</button></div><div class="compose-foot"><span id="mode-label">Selecciona una conversación para comenzar</span><span>Enter para enviar</span></div></footer></section>
           <aside class="customer"><div class="customer-head"><h3>Contexto del cliente</h3></div><div class="profile"><div class="person" id="profile-avatar">—</div><h3 id="profile-name">—</h3><p id="profile-code">—</p><span class="risk" id="profile-risk">Sin conversación</span></div><div class="detail-block"><h4>Información</h4><div class="detail"><span>Teléfono</span><b id="profile-phone">—</b></div><div class="detail"><span>Estado</span><b id="profile-estado">—</b></div></div></aside>
         </div>
       </section>
@@ -337,7 +337,25 @@
       voice.disabled=!activo||!navigator.mediaDevices||typeof MediaRecorder==='undefined';
       document.getElementById('attach-btn').disabled=!activo;
       document.getElementById('reactivar-chat').disabled=!activo;
+      document.getElementById('export-chat').disabled=!activo;
     }
+
+    async function exportarConversacion(){
+      if(!telActivo)return;
+      const boton=document.getElementById('export-chat');
+      boton.disabled=true;boton.textContent='Exportando…';
+      try{
+        const r=await apiGet(`/panel/conversacion/${encodeURIComponent(telActivo)}/exportar`);
+        if(!r.ok){let detalle='No se pudo exportar la conversación';try{detalle=(await r.json()).detail||detalle}catch(e){}throw Error(detalle)}
+        const url=URL.createObjectURL(await r.blob()),enlace=document.createElement('a');
+        enlace.href=url;enlace.download=`conversacion-cubico-${new Date().toISOString().slice(0,10)}.txt`;
+        document.body.appendChild(enlace);enlace.click();enlace.remove();URL.revokeObjectURL(url);
+        say('Conversación anonimizada descargada');
+      }catch(e){say(e.message||'No se pudo exportar la conversación')}
+      finally{boton.disabled=!telActivo;boton.textContent='↓ Exportar'}
+    }
+
+    document.getElementById('export-chat').addEventListener('click',exportarConversacion);
 
     function actualizarEncabezadoChat(conv){
       if(!conv)return;
