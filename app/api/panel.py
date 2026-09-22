@@ -31,7 +31,11 @@ from app.tools.facturas import (
     consultar_facturas_por_codigo,
     registrar_pago_factura_desde_panel,
 )
-from app.ai.orchestrator import redactar_respuesta_de_asesor
+from app.ai.orchestrator import (
+    contexto_plantilla_propuesta,
+    contexto_plantilla_saludo,
+    redactar_respuesta_de_asesor,
+)
 from app.api.whatsapp import (
     enviar_audio_whatsapp,
     enviar_documento_whatsapp,
@@ -989,6 +993,7 @@ async def enviar_plantilla_saludo(
         f"[Plantilla enviada: saludo a {nombre}]",
         whatsapp_message_id=extraer_id_mensaje_meta(respuesta_envio),
         estado_entrega="accepted",
+        contexto_ia=contexto_plantilla_saludo(nombre),
     )
     return {"ok": True}
 
@@ -1058,6 +1063,11 @@ async def enviar_plantilla_propuesta(
         mime_type="application/pdf",
         whatsapp_message_id=extraer_id_mensaje_meta(respuesta_envio),
         estado_entrega="accepted",
+        contexto_ia=contexto_plantilla_propuesta(
+            nombre_limpio,
+            empresa_limpia,
+            nombre_archivo,
+        ),
     )
     return {"ok": True}
 
