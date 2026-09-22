@@ -32,6 +32,7 @@ class Sesion(BaseSesiones):
     estado = Column(String, default="esperando_codigo")
     codigo_cliente_temporal = Column(String, nullable=True)
     codigo_cliente_verificado = Column(String, nullable=True)
+    tipo_cliente_verificado = Column(String, nullable=True)  # cbc | agencia
     historial_json = Column(Text, default="[]")
     necesita_atencion_humana = Column(Boolean, default=False)
     motivo_escalamiento = Column(Text, nullable=True)
