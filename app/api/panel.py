@@ -203,6 +203,7 @@ def listar_conversaciones(usuario: str = Depends(verificar_credenciales_panel)):
             "telefono": sesion.telefono,
             "nombre": nombre,
             "codigo_cliente_verificado": sesion.codigo_cliente_verificado,
+            "tipo_cliente_verificado": sesion.tipo_cliente_verificado,
             "estado": sesion.estado,
             "necesita_atencion_humana": sesion.necesita_atencion_humana,
             "aviso_retiro_pendiente": sesion.aviso_retiro_pendiente,

@@ -4,8 +4,8 @@ from decimal import Decimal
 from sqlalchemy import func
 
 from app.db.database import SessionLocal
-from app.db.models import ClienteCBC, Factura, Pago
-from app.tools.clientes import filtro_cliente_activo_por_codigo
+from app.db.models import Factura, Pago
+from app.tools.clientes import buscar_identidad_activa_por_codigo
 
 
 def _dinero(valor) -> Decimal:
@@ -30,7 +30,7 @@ def _saldo_factura(factura: Factura) -> Decimal:
 
 def consultar_facturas_por_codigo(codigo_cliente: str) -> dict:
     """
-    Busca un cliente por su código CBC y devuelve sus facturas,
+    Busca una persona o agencia por su código y devuelve sus facturas,
     incluyendo cuáles están pendientes de pago y el saldo total
     adeudado.
 
@@ -40,10 +40,8 @@ def consultar_facturas_por_codigo(codigo_cliente: str) -> dict:
     """
     db = SessionLocal()
     try:
-        cliente = (
-            db.query(ClienteCBC)
-            .filter(*filtro_cliente_activo_por_codigo(codigo_cliente))
-            .first()
+        tipo_cliente, cliente, codigo_normalizado = buscar_identidad_activa_por_codigo(
+            db, codigo_cliente
         )
 
         if cliente is None:
@@ -85,7 +83,13 @@ def consultar_facturas_por_codigo(codigo_cliente: str) -> dict:
 
         return {
             "encontrado": True,
-            "cliente": f"{cliente.nombre} {cliente.apellido or ''}".strip(),
+            "cliente": (
+                f"{cliente.nombre} {getattr(cliente, 'apellido', '') or ''}".strip()
+                if tipo_cliente == "cbc"
+                else str(cliente.nombre).strip()
+            ),
+            "tipo_cliente": tipo_cliente,
+            "codigo_cliente": codigo_normalizado,
             "cantidad_facturas": len(facturas),
             "saldo_pendiente_total": round(saldo_pendiente_total, 2),
             "facturas": facturas,
@@ -110,18 +114,21 @@ def registrar_pago_factura_desde_panel(
 
     db = SessionLocal()
     try:
-        cliente = (
-            db.query(ClienteCBC)
-            .filter(*filtro_cliente_activo_por_codigo(codigo_cliente))
-            .first()
+        tipo_cliente, cliente, _ = buscar_identidad_activa_por_codigo(
+            db, codigo_cliente
         )
         if cliente is None:
             raise ValueError("El cliente no existe en facturación")
 
+        filtro_propietario_factura = (
+            Factura.cliente_cbc_id == cliente.id
+            if tipo_cliente == "cbc"
+            else Factura.agencia_id == cliente.id
+        )
         factura = (
             db.query(Factura)
             .filter(
-                Factura.cliente_cbc_id == cliente.id,
+                filtro_propietario_factura,
                 func.upper(Factura.codigo) == codigo_factura.strip().upper(),
             )
             .with_for_update()
@@ -141,10 +148,15 @@ def registrar_pago_factura_desde_panel(
         referencia_limpia = (referencia or "").strip()
         referencia_util = referencia_limpia.lower() not in {"", "no visible", "no especificado"}
         if referencia_util:
+            filtro_propietario_pago = (
+                Pago.cliente_cbc_id == cliente.id
+                if tipo_cliente == "cbc"
+                else Pago.agencia_id == cliente.id
+            )
             duplicado = (
                 db.query(Pago)
                 .filter(
-                    Pago.cliente_cbc_id == cliente.id,
+                    filtro_propietario_pago,
                     Pago.referencia == referencia_limpia,
                     Pago.anulado.isnot(True),
                 )
@@ -164,8 +176,9 @@ def registrar_pago_factura_desde_panel(
 
         db.add(Pago(
             factura_id=factura.id,
-            tipo_cliente="cbc",
-            cliente_cbc_id=cliente.id,
+            tipo_cliente=tipo_cliente,
+            cliente_cbc_id=cliente.id if tipo_cliente == "cbc" else None,
+            agencia_id=cliente.id if tipo_cliente == "agencia" else None,
             monto=importe,
             metodo=(metodo or "otro").strip().lower(),
             referencia=referencia_limpia if referencia_util else None,

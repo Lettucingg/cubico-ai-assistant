@@ -11,10 +11,10 @@ from app.tools.facturas import consultar_facturas_por_codigo
 from app.tools.cotizador import calcular_costo_envio
 from app.tools.ptyfreight import consultar_tracking
 from app.tools.clientes import (
-    verificar_cliente,
+    verificar_identidad_cliente,
     obtener_nombre_completo_cliente,
     verificar_correo_registrado,
-    normalizar_codigo_cbc,
+    normalizar_codigo_cliente,
 )
 from app.db.session_store import (
     actualizar_sesion,
@@ -362,7 +362,7 @@ Cliente:
 "tienen paquetes míos?"
 
 Si necesita verificar:
-"Pásame tu código CBC y el correo registrado y reviso."
+"Pásame tu código de cliente o agencia y el correo registrado y reviso."
 
 Cliente:
 "no puedo entrar"
@@ -688,16 +688,16 @@ Ejemplos:
 - saldo
 - información asociada a su cuenta
 
-Si necesita datos personales y no existe un código previamente verificado en el contexto, solicita:
+Si necesita datos personales y no existe una identidad previamente verificada en el contexto, solicita:
 
-- código CBC
+- código de cliente (CBC para una persona o el código propio si es una agencia)
 - correo registrado
 
 Hazlo naturalmente.
 
 Ejemplo:
 
-"Pásame tu código CBC y el correo registrado y lo reviso."
+"Pásame tu código de cliente o agencia y el correo registrado y lo reviso."
 
 Cuando los proporcione utiliza verificar_identidad_cliente.
 
@@ -1069,8 +1069,8 @@ HERRAMIENTAS = [
     {
         "name": "verificar_identidad_cliente",
         "description": (
-            "Verifica la identidad de un cliente usando su código CBC "
-            "y su correo electrónico registrado. Úsala antes de consultar "
+            "Verifica la identidad de una persona o agencia usando su código "
+            "de cliente y su correo electrónico registrado. Úsala antes de consultar "
             "paquetes, facturas u otros datos personales si el cliente "
             "todavía no está verificado en esta conversación."
         ),
@@ -1079,7 +1079,10 @@ HERRAMIENTAS = [
             "properties": {
                 "codigo_cliente": {
                     "type": "string",
-                    "description": "Código CBC del cliente, ej: CBC-0001",
+                    "description": (
+                        "Código del cliente: CBC-0001 para una persona o el "
+                        "código propio de la agencia, por ejemplo SFE"
+                    ),
                 },
                 "email": {
                     "type": "string",
@@ -1111,15 +1114,15 @@ HERRAMIENTAS = [
     {
         "name": "consultar_paquetes_por_codigo",
         "description": (
-            "Busca los paquetes de un cliente YA VERIFICADO utilizando "
-            "su código CBC."
+            "Busca los paquetes de una persona o agencia YA VERIFICADA "
+            "utilizando su código de cliente."
         ),
         "input_schema": {
             "type": "object",
             "properties": {
                 "codigo_cliente": {
                     "type": "string",
-                    "description": "Código CBC del cliente, ej: CBC-0001",
+                    "description": "Código verificado de persona o agencia",
                 }
             },
             "required": ["codigo_cliente"],
@@ -1128,15 +1131,15 @@ HERRAMIENTAS = [
     {
         "name": "consultar_facturas_por_codigo",
         "description": (
-            "Busca las facturas y saldo pendiente de un cliente "
-            "YA VERIFICADO utilizando su código CBC."
+            "Busca las facturas y saldo pendiente de una persona o agencia "
+            "YA VERIFICADA utilizando su código de cliente."
         ),
         "input_schema": {
             "type": "object",
             "properties": {
                 "codigo_cliente": {
                     "type": "string",
-                    "description": "Código CBC del cliente, ej: CBC-0001",
+                    "description": "Código verificado de persona o agencia",
                 }
             },
             "required": ["codigo_cliente"],
@@ -1217,8 +1220,8 @@ HERRAMIENTAS = [
     {
         "name": "obtener_direccion_miami_personalizada",
         "description": (
-            "Genera la dirección de Miami personalizada con nombre completo "
-            "y código CBC del cliente. Úsala SOLO cuando el cliente ya "
+            "Genera la dirección de Miami personalizada con nombre y código "
+            "de la persona o agencia. Úsala SOLO cuando ya "
             "está verificado y solicita su dirección de Miami, indicando "
             "el tipo_envio correspondiente ('aereo' u 'ocean')."
         ),
@@ -1227,7 +1230,7 @@ HERRAMIENTAS = [
             "properties": {
                 "codigo_cliente": {
                     "type": "string",
-                    "description": "Código CBC verificado del cliente",
+                    "description": "Código verificado de persona o agencia",
                 },
                 "tipo_envio": {
                     "type": "string",
@@ -1241,8 +1244,8 @@ HERRAMIENTAS = [
         "name": "obtener_direccion_china_personalizada",
         "description": (
             "Genera la dirección de la bodega en China (aérea u ocean) "
-            "personalizada con el código CBC del cliente. Úsala SOLO "
-            "cuando el cliente ya está verificado y solicita su "
+            "personalizada con el código de la persona o agencia. Úsala SOLO "
+            "cuando ya está verificada y solicita su "
             "dirección de China."
         ),
         "input_schema": {
@@ -1250,7 +1253,7 @@ HERRAMIENTAS = [
             "properties": {
                 "codigo_cliente": {
                     "type": "string",
-                    "description": "Código CBC verificado del cliente",
+                    "description": "Código verificado de persona o agencia",
                 },
                 "tipo_envio": {
                     "type": "string",
@@ -1323,7 +1326,7 @@ HERRAMIENTAS = [
             "properties": {
                 "codigo_cliente": {
                     "type": "string",
-                    "description": "Código CBC del cliente verificado",
+                    "description": "Código verificado de persona o agencia",
                 }
             },
             "required": ["codigo_cliente"],
@@ -1346,7 +1349,7 @@ HERRAMIENTAS = [
             "properties": {
                 "codigo_cliente": {
                     "type": "string",
-                    "description": "Código CBC del cliente verificado",
+                    "description": "Código verificado de persona o agencia",
                 },
                 "direccion": {
                     "type": "string",
@@ -1372,7 +1375,7 @@ HERRAMIENTAS = [
             "properties": {
                 "codigo_cliente": {
                     "type": "string",
-                    "description": "Código CBC del cliente verificado",
+                    "description": "Código verificado de persona o agencia",
                 },
                 "codigo_factura": {
                     "type": "string",
@@ -1733,6 +1736,7 @@ def generar_respuesta(
     telefono: str,
     codigo_cliente: str = None,
     historial: list = None,
+    tipo_cliente: str = None,
 ) -> str:
     """
     Genera una respuesta de Bruno usando Claude y el historial de la
@@ -1747,7 +1751,7 @@ def generar_respuesta(
     if codigo_cliente:
         try:
             resultado_nombre = obtener_nombre_completo_cliente(
-                normalizar_codigo_cbc(codigo_cliente)
+                normalizar_codigo_cliente(codigo_cliente)
             )
 
             if resultado_nombre.get("encontrado"):
@@ -1775,19 +1779,25 @@ def generar_respuesta(
         return respuesta_fija
 
     def _verificar_identidad(codigo_cliente: str, email: str):
-        codigo_cliente = normalizar_codigo_cbc(codigo_cliente)
+        codigo_cliente = normalizar_codigo_cliente(codigo_cliente)
         email = email.strip().lower()
+        resultado = verificar_identidad_cliente(codigo_cliente, email)
 
-        if verificar_cliente(codigo_cliente, email):
+        if resultado.get("verificado"):
+            codigo_verificado = resultado["codigo_cliente"]
+            tipo_verificado = resultado["tipo_cliente"]
             actualizar_sesion(
                 telefono,
                 estado="verificado",
-                codigo_cliente_verificado=codigo_cliente,
+                codigo_cliente_verificado=codigo_verificado,
+                tipo_cliente_verificado=tipo_verificado,
             )
 
             return {
                 "verificado": True,
-                "codigo_cliente": codigo_cliente,
+                "codigo_cliente": codigo_verificado,
+                "tipo_cliente": tipo_verificado,
+                "nombre": resultado.get("nombre_completo"),
             }
 
         return {
@@ -1817,7 +1827,7 @@ def generar_respuesta(
     def _obtener_direccion_miami_personalizada(
         codigo_cliente: str, tipo_envio: str
     ):
-        codigo_normalizado = normalizar_codigo_cbc(codigo_cliente)
+        codigo_normalizado = normalizar_codigo_cliente(codigo_cliente)
         tipo_normalizado = tipo_envio.strip().lower()
 
         if tipo_normalizado not in ("aereo", "ocean"):
@@ -1858,7 +1868,7 @@ def generar_respuesta(
     def _obtener_direccion_china_personalizada(
         codigo_cliente: str, tipo_envio: str
     ):
-        codigo_normalizado = normalizar_codigo_cbc(codigo_cliente)
+        codigo_normalizado = normalizar_codigo_cliente(codigo_cliente)
         tipo_normalizado = tipo_envio.strip().lower()
 
         if tipo_normalizado not in ("aereo", "ocean"):
@@ -1895,7 +1905,7 @@ def generar_respuesta(
         }
 
     def _avisar_retiro(codigo_cliente: str):
-        codigo_normalizado = normalizar_codigo_cbc(codigo_cliente)
+        codigo_normalizado = normalizar_codigo_cliente(codigo_cliente)
 
         resultado_paquetes = consultar_paquetes_por_codigo(
             codigo_normalizado
@@ -1950,7 +1960,7 @@ def generar_respuesta(
         }
 
     def _solicitar_entrega_domicilio(codigo_cliente: str, direccion: str = None):
-        codigo_normalizado = normalizar_codigo_cbc(codigo_cliente)
+        codigo_normalizado = normalizar_codigo_cliente(codigo_cliente)
 
         resultado_facturas = consultar_facturas_por_codigo(codigo_normalizado)
 
@@ -2148,14 +2158,15 @@ def generar_respuesta(
     # Añadimos información interna sobre la sesión sin mostrársela
     # directamente al cliente.
     if codigo_cliente:
-        codigo_normalizado = normalizar_codigo_cbc(codigo_cliente)
+        codigo_normalizado = normalizar_codigo_cliente(codigo_cliente)
+        tipo_verificado = tipo_cliente or "cliente"
 
         texto_para_claude = (
             f"{prefijo_razonamiento}\n\n"
             "[CONTEXTO INTERNO — NO mencionar al cliente: "
-            "este cliente ya fue verificado correctamente. "
+            f"esta identidad ya fue verificada correctamente como {tipo_verificado}. "
             f"Su código es {codigo_normalizado}. "
-            "No vuelvas a pedir código CBC ni correo durante esta "
+            "No vuelvas a pedir código de cliente, código CBC ni correo durante esta "
             "conversación. Puedes utilizar directamente las herramientas "
             "que requieran un cliente verificado.]\n\n"
             f"{contexto_oportunidad}\n\n{texto_cliente}"
