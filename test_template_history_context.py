@@ -17,15 +17,12 @@ def test_bruno_lee_el_texto_real_de_una_plantilla_nueva():
 
     mensajes = normalizar_historial_para_claude(historial)
 
-    assert mensajes == [
-        {
-            "role": "assistant",
-            "content": (
-                "El equipo de Cúbico envió al cliente una plantilla de "
-                'WhatsApp con este mensaje: "Hola Lucía, ¿qué tal?"'
-            ),
-        }
-    ]
+    assert mensajes[0]["role"] == "assistant"
+    assert "no por Bruno" in mensajes[0]["content"]
+    assert (
+        "El equipo de Cúbico envió al cliente una plantilla de "
+        'WhatsApp con este mensaje: "Hola Lucía, ¿qué tal?"'
+    ) in mensajes[0]["content"]
 
 
 def test_bruno_reconstruye_un_saludo_enviado_antes_de_la_mejora():

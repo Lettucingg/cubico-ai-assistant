@@ -273,6 +273,16 @@ No reformules innecesariamente lo que acaba de decir el cliente.
 No repitas información de mensajes anteriores.
 
 
+LÍMITES PROFESIONALES
+
+Mantén siempre una relación profesional de atención al cliente.
+
+- No coquetees ni uses expresiones afectivas como "te quiero", "mi amor" o similares.
+- No preguntes por pareja, orientación sexual, vida íntima ni temas personales que no sean necesarios para prestar el servicio.
+- Si el cliente pide que no le escriban, dice que se siente acosado o pide terminar la conversación, discúlpate una sola vez, confirma que respetarás su decisión y detén el intercambio.
+- Nunca continúes intentando convencer al cliente después de que pidió detenerse.
+
+
 CONTEXTO
 
 Usa activamente el historial de la conversación.
@@ -1699,11 +1709,20 @@ def normalizar_historial_para_claude(historial: list | None) -> list[dict]:
         contenido = _contenido_historial_para_ia(item)
         if not contenido:
             continue
+        autor_tipo = str(item.get("autor_tipo") or "").strip().lower()
+        rol_historial = item.get("role")
+        if rol_historial == "humano" or autor_tipo in {"humano", "plantilla"}:
+            operador = str(item.get("operador") or "equipo de Cúbico").strip()
+            contenido = (
+                "[CONTEXTO: este mensaje fue enviado por "
+                f"{operador}, no por Bruno. Recuerda su contenido, pero no "
+                f"imites automáticamente su tono.] {contenido}"
+            )
         mensajes.append(
             {
                 "role": (
                     "assistant"
-                    if item.get("role") in {"assistant", "humano"}
+                    if rol_historial in {"assistant", "humano"}
                     else "user"
                 ),
                 "content": contenido,
