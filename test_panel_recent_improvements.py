@@ -211,3 +211,14 @@ def test_panel_recomienda_un_siguiente_paso_al_operador():
     assert "1. Revisar el pago" in html
     assert "Continuar el domicilio" in html
     assert "Continuar el retiro" in html
+
+
+def test_acciones_operativas_son_accesibles_desde_celular():
+    html = _html()
+    assert 'id="mobile-customer-toggle"' in html
+    assert "👤 Cliente y acciones" in html
+    assert 'id="customer-panel"' in html
+    assert 'id="customer-close"' in html
+    assert "customer.mobile-open" in html
+    assert "abrirPanelCliente" in html
+    assert "cerrarPanelCliente" in html
