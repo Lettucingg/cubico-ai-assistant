@@ -92,3 +92,61 @@ def test_bruno_cancela_envio_si_humano_toma_control_mientras_escribe(monkeypatch
 
     assert resultado is None
     assert enviados == []
+
+
+def test_detector_de_limite_corta_frases_de_acoso_o_no_contacto():
+    assert whatsapp.respuesta_para_limite_del_cliente("No me escribas más")
+    assert whatsapp.respuesta_para_limite_del_cliente("Me estás acosando")
+    assert whatsapp.respuesta_para_limite_del_cliente("Necesito una cotización") is None
+
+
+def test_limite_del_cliente_no_llega_a_claude(monkeypatch):
+    sesion = SimpleNamespace(telefono="50760000000", atencion_humana_directa=False)
+    guardados = []
+    cambios = {}
+    enviados = []
+
+    monkeypatch.setattr(whatsapp, "obtener_o_crear_sesion", lambda _telefono: sesion)
+    monkeypatch.setattr(
+        whatsapp,
+        "generar_respuesta",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("No debe llamar a Claude")),
+    )
+    monkeypatch.setattr(
+        whatsapp,
+        "agregar_al_historial",
+        lambda telefono, rol, contenido, **meta: guardados.append((telefono, rol, contenido, meta)),
+    )
+    monkeypatch.setattr(
+        whatsapp,
+        "actualizar_sesion",
+        lambda telefono, **valores: cambios.update(telefono=telefono, **valores),
+    )
+
+    async def notificar(*_args, **_kwargs):
+        return None
+
+    async def enviar(telefono, texto):
+        enviados.append((telefono, texto))
+        return SimpleNamespace(is_success=True)
+
+    monkeypatch.setattr(whatsapp, "notificar_equipo_escalamiento", notificar)
+    monkeypatch.setattr(whatsapp, "enviar_mensaje_whatsapp", enviar)
+    monkeypatch.setattr(whatsapp, "extraer_id_mensaje_meta", lambda _respuesta: "wamid-stop")
+
+    import asyncio
+
+    asyncio.run(
+        whatsapp._procesar_mensaje_en_segundo_plano_sin_candado(
+            {
+                "telefono": "50760000000",
+                "texto": "Déjame tranquilo, no me escribas",
+                "tipo": "text",
+                "message_id": "wamid-in",
+            }
+        )
+    )
+
+    assert cambios["motivo_escalamiento"] == "Cliente pidió detener la conversación"
+    assert len(enviados) == 1
+    assert [item[1] for item in guardados] == ["user", "assistant"]

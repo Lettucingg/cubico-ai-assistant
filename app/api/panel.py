@@ -28,6 +28,7 @@ from app.db.session_store import (
 from app.services.push_notifications import push_configurado
 from app.tools.clientes import obtener_nombre_completo_cliente
 from app.tools.comprobantes import descargar_imagen_de_whatsapp
+from app.tools.paquetes import consultar_paquetes_por_codigo
 from app.tools.transcripcion import descargar_audio_de_whatsapp
 from app.tools.facturas import (
     consultar_facturas_por_codigo,
@@ -524,6 +525,188 @@ def _exigir_factura_pagada(sesion) -> dict:
     return facturas
 
 
+def _exigir_identidad_verificada(sesion) -> str:
+    codigo = str(sesion.codigo_cliente_verificado or "").strip()
+    if not codigo:
+        raise HTTPException(
+            status_code=409,
+            detail="Primero verifica manualmente al cliente o agencia.",
+        )
+    return codigo
+
+
+def _trackings_listos(codigo_cliente: str) -> list[str]:
+    """Obtiene de la base real los paquetes notificados que pueden gestionarse."""
+    try:
+        resultado = consultar_paquetes_por_codigo(codigo_cliente)
+    except Exception as error:
+        raise HTTPException(
+            status_code=502,
+            detail="No se pudieron consultar los paquetes en la base de datos.",
+        ) from error
+    if not resultado.get("encontrado"):
+        raise HTTPException(status_code=404, detail="El cliente ya no existe en la base de datos.")
+    return [
+        str(paquete.get("tracking")).strip()
+        for paquete in resultado.get("paquetes", [])
+        if paquete.get("tracking") and paquete.get("estado_cargo") == "notificado"
+    ]
+
+
+@router.post("/operacion/{telefono}")
+def control_operativo_manual(
+    telefono: str,
+    body: dict,
+    usuario: str = Depends(verificar_credenciales_panel),
+):
+    """Permite recuperar desde el panel un flujo que Bruno no terminó."""
+    sesion = obtener_sesion_existente(telefono)
+    if sesion is None:
+        raise HTTPException(status_code=404, detail="No existe esa conversación")
+
+    accion = str(body.get("accion") or "").strip().lower()
+    if accion == "verificar":
+        codigo_solicitado = str(body.get("codigo") or "").strip()
+        if not codigo_solicitado:
+            raise HTTPException(status_code=400, detail="Escribe el código del cliente o agencia")
+        try:
+            identidad = obtener_nombre_completo_cliente(codigo_solicitado)
+        except Exception as error:
+            raise HTTPException(
+                status_code=502,
+                detail="No se pudo comprobar el código en la base de datos",
+            ) from error
+        if not identidad.get("encontrado"):
+            raise HTTPException(
+                status_code=404,
+                detail="Ese código no corresponde a un cliente o agencia activa",
+            )
+        codigo = identidad["codigo_cliente"]
+        codigo_anterior = str(sesion.codigo_cliente_verificado or "").strip()
+        if codigo_anterior and codigo_anterior != codigo and not body.get("confirmar_reemplazo"):
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    f"La conversación ya está asociada a {codigo_anterior}. "
+                    "Confirma el reemplazo para continuar."
+                ),
+            )
+        actualizar_sesion(
+            telefono,
+            estado="verificado",
+            codigo_cliente_temporal=None,
+            codigo_cliente_verificado=codigo,
+            tipo_cliente_verificado=identidad.get("tipo_cliente") or "cbc",
+        )
+        return {
+            "status": "ok",
+            "accion": accion,
+            "codigo": codigo,
+            "tipo_cliente": identidad.get("tipo_cliente") or "cbc",
+            "nombre": identidad.get("nombre_completo"),
+            "operador": usuario,
+        }
+
+    cancelaciones = {
+        "cancelar_retiro": {
+            "aviso_retiro_pendiente": False,
+            "paquetes_a_retirar": None,
+            "paquetes_preparados": False,
+        },
+        "cancelar_domicilio": {
+            "solicitud_domicilio_pendiente": False,
+            "direccion_domicilio": None,
+            "paquetes_a_domicilio": None,
+            "paquetes_preparados": False,
+            "domicilio_coordinado": False,
+        },
+        "cancelar_pago": {
+            "pago_reportado": False,
+            "pago_confirmado": False,
+            "metodo_pago_reportado": None,
+            "monto_pago_reportado": None,
+            "referencia_pago_reportado": None,
+            "fecha_pago_reportado": None,
+            "comprobante_media_id": None,
+        },
+    }
+    if accion in cancelaciones:
+        actualizar_sesion(telefono, **cancelaciones[accion])
+        return {"status": "ok", "accion": accion, "operador": usuario}
+
+    if accion in {"crear_retiro", "crear_domicilio"}:
+        codigo = _exigir_identidad_verificada(sesion)
+        trackings = _trackings_listos(codigo)
+        if not trackings:
+            raise HTTPException(
+                status_code=409,
+                detail="No hay paquetes notificados disponibles para crear esta solicitud",
+            )
+        reiniciar = {
+            "entregado": False,
+            "paquetes_preparados": False,
+            "domicilio_coordinado": False,
+        }
+        if accion == "crear_retiro":
+            actualizar_sesion(
+                telefono,
+                **reiniciar,
+                aviso_retiro_pendiente=True,
+                solicitud_domicilio_pendiente=False,
+                paquetes_a_retirar=", ".join(trackings),
+                paquetes_a_domicilio=None,
+            )
+            tipo = "retiro"
+        else:
+            direccion = " ".join(str(body.get("direccion") or "").split()).strip()
+            if not direccion:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Escribe la dirección exacta para crear el domicilio",
+                )
+            actualizar_sesion(
+                telefono,
+                **reiniciar,
+                aviso_retiro_pendiente=False,
+                solicitud_domicilio_pendiente=True,
+                direccion_domicilio=direccion,
+                paquetes_a_retirar=None,
+                paquetes_a_domicilio=", ".join(trackings),
+            )
+            tipo = "domicilio"
+        return {
+            "status": "ok",
+            "accion": accion,
+            "tipo": tipo,
+            "trackings": trackings,
+            "operador": usuario,
+        }
+
+    if accion == "pago_por_comprobar":
+        monto = body.get("monto")
+        if monto is not None and monto != "":
+            try:
+                monto = round(float(monto), 2)
+            except (TypeError, ValueError) as error:
+                raise HTTPException(status_code=400, detail="El monto no es válido") from error
+            if monto <= 0:
+                raise HTTPException(status_code=400, detail="El monto debe ser mayor que cero")
+        else:
+            monto = None
+        actualizar_sesion(
+            telefono,
+            pago_reportado=True,
+            pago_confirmado=False,
+            monto_pago_reportado=monto,
+            metodo_pago_reportado=(str(body.get("metodo") or "").strip() or "Revisión manual"),
+            referencia_pago_reportado=(str(body.get("referencia") or "").strip() or None),
+            fecha_pago_reportado=(str(body.get("fecha") or "").strip() or None),
+        )
+        return {"status": "ok", "accion": accion, "operador": usuario}
+
+    raise HTTPException(status_code=400, detail="Acción operativa inválida")
+
+
 @router.get("/solicitudes")
 def listar_solicitudes(usuario: str = Depends(verificar_credenciales_panel)):
     """Retiros, domicilios y comprobantes generados desde WhatsApp."""
@@ -588,7 +771,11 @@ def listar_solicitudes(usuario: str = Depends(verificar_credenciales_panel)):
                 detalle_paquetes = sesion.paquetes_a_domicilio
                 direccion = sesion.direccion_domicilio
             else:
-                detalle_paquetes = ", ".join(paquetes_factura) or "Comprobante recibido por WhatsApp"
+                detalle_paquetes = ", ".join(paquetes_factura) or (
+                    "Comprobante recibido por WhatsApp"
+                    if sesion.comprobante_media_id
+                    else "Pago marcado manualmente para revisión"
+                )
                 direccion = "No aplica"
 
             solicitudes.append({

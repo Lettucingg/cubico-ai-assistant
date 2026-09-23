@@ -450,6 +450,32 @@ def detectar_posible_queja(texto: str) -> bool:
     return any(palabra in texto_normalizado for palabra in PALABRAS_CLAVE_ESCALAMIENTO)
 
 
+FRASES_DETENER_CONVERSACION = (
+    "no me escribas",
+    "no me escriban",
+    "deja de escribirme",
+    "dejen de escribirme",
+    "para de escribirme",
+    "paren de escribirme",
+    "déjame tranquilo",
+    "dejame tranquilo",
+    "déjame tranquila",
+    "dejame tranquila",
+    "me estás acosando",
+    "me estas acosando",
+    "no quiero que me contacten",
+    "no me contacten",
+)
+
+
+def respuesta_para_limite_del_cliente(texto: str) -> str | None:
+    """Corta el diálogo sin depender de la interpretación del modelo."""
+    texto_normalizado = " ".join(str(texto or "").lower().split())
+    if any(frase in texto_normalizado for frase in FRASES_DETENER_CONVERSACION):
+        return "Entiendo. Disculpa la molestia; no continuaré la conversación."
+    return None
+
+
 async def notificar_equipo_escalamiento(telefono_cliente: str, texto_cliente: str, motivo: str):
     """
     Notifica a los números del equipo cuando una conversación necesita
@@ -932,6 +958,36 @@ async def _procesar_mensaje_en_segundo_plano_sin_candado(mensaje: dict):
                 mensaje["texto"],
                 whatsapp_message_id=mensaje.get("message_id"),
             )
+            return
+
+        respuesta_limite = respuesta_para_limite_del_cliente(mensaje["texto"])
+        if respuesta_limite:
+            motivo_limite = "Cliente pidió detener la conversación"
+            agregar_al_historial(
+                sesion.telefono,
+                "user",
+                mensaje["texto"],
+                whatsapp_message_id=mensaje.get("message_id"),
+            )
+            actualizar_sesion(
+                mensaje["telefono"],
+                necesita_atencion_humana=True,
+                motivo_escalamiento=motivo_limite,
+            )
+            await notificar_equipo_escalamiento(
+                mensaje["telefono"], mensaje["texto"], motivo_limite
+            )
+            respuesta_enviada = await enviar_mensaje_whatsapp(
+                mensaje["telefono"], respuesta_limite
+            )
+            if respuesta_enviada.is_success:
+                agregar_al_historial(
+                    sesion.telefono,
+                    "assistant",
+                    respuesta_limite,
+                    whatsapp_message_id=extraer_id_mensaje_meta(respuesta_enviada),
+                    estado_entrega="accepted",
+                )
             return
 
         # Motivo bajo el cual el equipo ya fue notificado (None si no había
