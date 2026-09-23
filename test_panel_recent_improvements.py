@@ -190,3 +190,24 @@ def test_panel_muestra_quien_envio_cada_respuesta():
     assert "m.operador" in html
     assert "asistido por Bruno" in html
     assert "Salida anterior · origen sin registrar" in html
+
+
+def test_chat_tiene_desplazamiento_visible_y_botones_de_inicio_y_final():
+    html = _html()
+    assert "overflow-y:scroll" in html
+    assert "touch-action:pan-y" in html
+    assert 'id="chat-scroll-top"' in html
+    assert 'id="chat-scroll-bottom"' in html
+    assert "actualizarControlesScroll" in html
+    assert "messagesEl.scrollTo({top:0" in html
+    assert "messagesEl.scrollTo({top:messagesEl.scrollHeight" in html
+
+
+def test_panel_recomienda_un_siguiente_paso_al_operador():
+    html = _html()
+    assert 'id="next-step-card"' in html
+    assert "actualizarSiguientePaso" in html
+    assert "1. Verificar al cliente" in html
+    assert "1. Revisar el pago" in html
+    assert "Continuar el domicilio" in html
+    assert "Continuar el retiro" in html

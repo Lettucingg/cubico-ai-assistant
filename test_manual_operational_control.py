@@ -138,5 +138,4 @@ def test_panel_expone_controles_manuales_sin_saturar_cabecera():
     assert 'id="manual-pickup"' in html
     assert 'id="manual-delivery"' in html
     assert 'id="manual-payment"' in html
-    assert "Control operativo manual" in html
-
+    assert "Acciones manuales" in html
