@@ -58,9 +58,9 @@ class Settings(BaseSettings):
     # --- Datos privados del negocio (no publicar en GitHub) ---
     CUBICO_TEAM_COMMAND_NUMBERS_JSON: str = "[]"
     CUBICO_NOTIFICATION_NUMBERS_JSON: str = "[]"
-    # ID de un grupo creado con la API oficial de grupos de WhatsApp.
-    # Un enlace de invitación o el nombre de un grupo normal no sirve aquí.
-    CUBICO_TEAM_REPORT_GROUP_ID: str = ""
+    # Lista separada de números del equipo para los dos informes diarios.
+    # No reutilizar los destinatarios de alertas operativas.
+    CUBICO_TEAM_REPORT_NUMBERS_JSON: str = "[]"
     CUBICO_TEAM_REPORT_TEMPLATE: str = ""
     CUBICO_TEAM_REPORT_TEMPLATE_LANGUAGE: str = "es"
     CUBICO_PAYMENT_ACCOUNT: str = ""

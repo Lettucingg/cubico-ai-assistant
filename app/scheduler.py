@@ -1,4 +1,6 @@
 import logging
+import json
+import re
 import httpx
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -35,11 +37,19 @@ scheduler = AsyncIOScheduler(timezone=ZONA_HORARIA)
 
 
 async def _informe_equipo(tipo: str):
-    grupo = settings.CUBICO_TEAM_REPORT_GROUP_ID.strip()
     plantilla = settings.CUBICO_TEAM_REPORT_TEMPLATE.strip()
-    if not grupo or not plantilla:
-        log.warning("Informe %s omitido: falta grupo o plantilla aprobada", tipo)
+    try:
+        numeros = json.loads(settings.CUBICO_TEAM_REPORT_NUMBERS_JSON)
+    except (ValueError, TypeError):
+        log.error("Informe %s omitido: CUBICO_TEAM_REPORT_NUMBERS_JSON inválido", tipo)
         return
+    if not isinstance(numeros, list) or not numeros or not plantilla:
+        log.warning("Informe %s omitido: faltan destinatarios individuales o plantilla aprobada", tipo)
+        return
+    if any(not isinstance(numero, str) or not re.fullmatch(r"[1-9][0-9]{7,14}", numero) for numero in numeros):
+        log.error("Informe %s omitido: los teléfonos deben estar en formato internacional sin signos", tipo)
+        return
+    numeros = list(dict.fromkeys(numeros))
 
     try:
         datos = datos_informe()
@@ -63,31 +73,32 @@ async def _informe_equipo(tipo: str):
             "Cúbico · Informe de jornada: no se pudo consultar la base de datos. "
             f"Meta: {estado}. Revisar https://bot.cubico.com.pa/admin"
         )
-        payload = {
-            "messaging_product": "whatsapp",
-            "recipient_type": "group",
-            "to": grupo,
-            "type": "template",
-            "template": {
-                "name": plantilla,
-                "language": {"code": settings.CUBICO_TEAM_REPORT_TEMPLATE_LANGUAGE},
-                "components": [{"type": "body", "parameters": [{"type": "text", "text": mensaje}]}],
-            },
-        }
-        respuesta = await cliente.post(url, headers=headers, json=payload)
-        if not respuesta.is_success:
-            log.error("Informe %s rechazado por Meta (HTTP %s): %s", tipo, respuesta.status_code, respuesta.text[:500])
-            respuesta.raise_for_status()
-        log.info("Informe %s aceptado por Meta para el grupo configurado", tipo)
+        for numero in numeros:
+            payload = {
+                "messaging_product": "whatsapp",
+                "to": numero,
+                "type": "template",
+                "template": {
+                    "name": plantilla,
+                    "language": {"code": settings.CUBICO_TEAM_REPORT_TEMPLATE_LANGUAGE},
+                    "components": [{"type": "body", "parameters": [{"type": "text", "text": mensaje}]}],
+                },
+            }
+            try:
+                respuesta = await cliente.post(url, headers=headers, json=payload)
+                respuesta.raise_for_status()
+                log.info("Informe %s aceptado por Meta para destinatario terminado en %s", tipo, numero[-4:])
+            except httpx.HTTPError as error:
+                log.error("Informe %s falló para destinatario terminado en %s: %s", tipo, numero[-4:], error)
 
 
 async def enviar_ping_diario():
-    """Informe de apertura para el grupo configurado a las 8:00 de Panamá."""
+    """Informe individual de apertura a las 8:00 de Panamá."""
     await _informe_equipo("mañana")
 
 
 async def resumen_fin_dia():
-    """Informe de cierre para el grupo configurado a las 17:00 de Panamá."""
+    """Informe individual de cierre a las 17:00 de Panamá."""
     await _informe_equipo("cierre")
 
 
