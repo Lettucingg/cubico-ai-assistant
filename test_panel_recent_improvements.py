@@ -117,14 +117,14 @@ def test_exportacion_distingue_cliente_bruno_y_equipo():
         {
             "role": "user",
             "content": (
-                "Hola, soy Arthur. Mi correo es arthur@example.com "
-                "y mi teléfono 507 6000-1234."
+                "Hola, soy PersonaDePrueba. Mi correo es prueba@example.com "
+                "y mi teléfono 000 0000-0000."
             ),
             "timestamp": "2026-09-21T17:30:00Z",
         },
         {
             "role": "assistant",
-            "content": "Hola Arthur, ¿cómo te ayudo?",
+            "content": "Hola PersonaDePrueba, ¿cómo te ayudo?",
             "timestamp": "2026-09-21T17:31:00Z",
             "autor_tipo": "bruno",
         },
@@ -134,18 +134,18 @@ def test_exportacion_distingue_cliente_bruno_y_equipo():
             "timestamp": "2026-09-21T17:32:00Z",
             "estado_entrega": "delivered",
             "autor_tipo": "humano",
-            "operador": "alexander",
+            "operador": "operador_prueba",
             "modo_envio": "asistido_bruno",
         },
-    ], ["Arthur"])
+    ], ["PersonaDePrueba"])
 
     assert "21/09/2026 12:30 PM" in texto
     assert "Cliente:" in texto
     assert "Bruno:" in texto
-    assert "Equipo de Cúbico — alexander (redacción asistida por Bruno):" in texto
-    assert "Arthur" not in texto
-    assert "arthur@example.com" not in texto
-    assert "6000-1234" not in texto
+    assert "Equipo de Cúbico — operador_prueba (redacción asistida por Bruno):" in texto
+    assert "PersonaDePrueba" not in texto
+    assert "prueba@example.com" not in texto
+    assert "0000-0000" not in texto
     assert "Estado: delivered" in texto
 
 
@@ -164,12 +164,12 @@ def test_exportacion_no_atribuye_a_bruno_respuestas_antiguas_ambiguas():
 
 def test_anonimizacion_oculta_enlaces_facturas_y_codigos_largos():
     texto = _anonimizar_texto_exportado(
-        "Revisa https://cubico.com/cliente/123, la factura FAC-00039 "
-        "y el tracking 1ZAC2780YW66858393."
+        "Revisa https://example.com/cliente/demo, la factura FAC-00000 "
+        "y el tracking PRUEBA1234567890."
     )
     assert "https://" not in texto
-    assert "FAC-00039" not in texto
-    assert "1ZAC2780YW66858393" not in texto
+    assert "FAC-00000" not in texto
+    assert "PRUEBA1234567890" not in texto
 
 
 
@@ -222,3 +222,28 @@ def test_acciones_operativas_son_accesibles_desde_celular():
     assert "customer.mobile-open" in html
     assert "abrirPanelCliente" in html
     assert "cerrarPanelCliente" in html
+
+
+def test_resumen_ofrece_accesos_directos_con_el_filtro_correcto():
+    html = _html()
+    assert 'data-summary-view="chats" data-chat-filter="humano"' in html
+    assert 'data-summary-view="packages" data-package-filter="all"' in html
+    assert 'data-summary-view="costs"' in html
+    assert 'data-package-filter="pickup"' in html
+    assert 'data-package-filter="delivery"' in html
+    assert 'data-package-filter="payment"' in html
+    assert 'data-package-filter="ready"' in html
+    assert "abrirAccesoDirecto" in html
+
+
+def test_indicadores_operativos_y_comerciales_son_filtros_tocables():
+    html = _html()
+    assert 'data-package-filter-link="pickup"' in html
+    assert 'data-package-filter-link="payment"' in html
+    assert 'data-opportunity-filter-link="new"' in html
+    assert 'data-opportunity-filter-link="review"' in html
+    assert 'data-opportunity-filter-link="sent"' in html
+    assert 'data-opportunity-filter-link="won"' in html
+    assert "aplicarFiltroSolicitud" in html
+    assert "aplicarFiltroOportunidad" in html
+    assert "scrollIntoView({behavior:'smooth',block:'start'})" in html
