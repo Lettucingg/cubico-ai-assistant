@@ -1,8 +1,10 @@
 import asyncio
 import json
+import logging
 import re
 import secrets
 import shutil
+import traceback
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
@@ -51,6 +53,7 @@ from app.api.whatsapp import (
 )
 
 router = APIRouter(prefix="/panel", tags=["panel"])
+logger = logging.getLogger(__name__)
 
 security = HTTPBasic()
 
@@ -878,6 +881,16 @@ def actualizar_estado_solicitud(
                 except ValueError as error:
                     raise HTTPException(status_code=409, detail=str(error)) from error
                 except Exception as error:
+                    # No incluir SQL ni parámetros: contienen datos financieros.
+                    origen = getattr(error, "orig", None)
+                    traza = traceback.extract_tb(error.__traceback__)
+                    logger.error(
+                        "Fallo al registrar pago: %s, origen=%s, codigo=%s, traza=%s",
+                        type(error).__name__,
+                        type(origen).__name__ if origen is not None else "ninguno",
+                        getattr(origen, "pgcode", None) or getattr(origen, "sqlstate", None),
+                        [(frame.name, frame.lineno) for frame in traza[-6:]],
+                    )
                     raise HTTPException(
                         status_code=502,
                         detail="No se pudo registrar el pago en facturación",
