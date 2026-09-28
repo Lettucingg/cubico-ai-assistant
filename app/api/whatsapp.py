@@ -26,6 +26,7 @@ from app.tools.comprobantes import (
     analizar_imagen_cliente,
     detectar_mime_imagen,
     extraer_campos_comprobante,
+    parsear_monto_comprobante,
 )
 from app.tools.clientes import obtener_nombre_completo_cliente
 from app.tools.paquetes import consultar_paquetes_por_codigo
@@ -874,13 +875,7 @@ async def _procesar_mensaje_en_segundo_plano_sin_candado(mensaje: dict):
 
             if resultado["es_comprobante"]:
                 campos = extraer_campos_comprobante(resultado["detalle_completo"])
-                monto_encontrado = re.search(
-                    r"\d+(?:[.,]\d{1,2})?", campos.get("monto", "")
-                )
-                monto = (
-                    float(monto_encontrado.group(0).replace(",", "."))
-                    if monto_encontrado else None
-                )
+                monto = parsear_monto_comprobante(campos.get("monto"))
                 obtener_o_crear_sesion(mensaje["telefono"])
                 actualizar_sesion(
                     mensaje["telefono"],

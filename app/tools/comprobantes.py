@@ -218,3 +218,23 @@ def extraer_campos_comprobante(detalle_completo: str) -> dict:
             campos[clave] = valor.strip() or "No especificado"
 
     return campos
+
+
+def parsear_monto_comprobante(valor: str | None) -> float | None:
+    """Interpreta USD con separadores de miles y decimales de ambos formatos."""
+    if not valor or "no visible" in valor.lower() or "no especificado" in valor.lower():
+        return None
+    coincidencia = re.search(
+        r"(?<!\d)(?:\d{1,3}(?:[.,\s]\d{3})+(?:[.,]\d{1,2})?|\d+(?:[.,]\d{1,2})?)(?!\d)",
+        valor,
+    )
+    if not coincidencia:
+        return None
+    numero = coincidencia.group(0).replace(" ", "")
+    separador = max(numero.rfind("."), numero.rfind(","))
+    if separador >= 0 and len(numero) - separador - 1 in (1, 2):
+        numero = numero[:separador].replace(".", "").replace(",", "") + "." + numero[separador + 1:]
+    else:
+        numero = numero.replace(".", "").replace(",", "")
+    monto = float(numero)
+    return monto if monto > 0 else None

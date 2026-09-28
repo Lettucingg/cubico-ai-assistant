@@ -882,10 +882,14 @@ def actualizar_estado_solicitud(
                         status_code=502,
                         detail="No se pudo registrar el pago en facturación",
                     ) from error
-            elif tipo != "pago":
+            elif (
+                not facturas.get("encontrado")
+                or facturas.get("cantidad_facturas", 0) < 1
+                or float(facturas.get("saldo_pendiente_total") or 0) > .01
+            ):
                 raise HTTPException(
                     status_code=409,
-                    detail="No se puede confirmar para esta entrega: falta una factura asociada",
+                    detail="No se puede revisar el comprobante: falta una factura asociada o aún existe saldo pendiente",
                 )
         elif tipo != "pago":
             raise HTTPException(
