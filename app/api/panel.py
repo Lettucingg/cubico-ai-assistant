@@ -803,7 +803,8 @@ def listar_solicitudes(usuario: str = Depends(verificar_credenciales_panel)):
                 "pago_reportado": bool(sesion.pago_reportado),
                 "pago_confirmado": pago_confirmado_panel,
                 "pago_confirmado_sistema": pago_confirmado_sistema,
-                "requiere_factura": tipo != "pago" and not tiene_facturas,
+                "requiere_verificacion": not bool(sesion.codigo_cliente_verificado),
+                "requiere_factura": bool(sesion.codigo_cliente_verificado) and not tiene_facturas,
                 "pago_resuelto": (
                     pago_confirmado_sistema
                     if tipo != "pago"
@@ -904,7 +905,7 @@ def actualizar_estado_solicitud(
                     status_code=409,
                     detail="No se puede revisar el comprobante: falta una factura asociada o aún existe saldo pendiente",
                 )
-        elif tipo != "pago":
+        else:
             raise HTTPException(
                 status_code=409,
                 detail="Primero debe verificarse el cliente y asociarse una factura",
