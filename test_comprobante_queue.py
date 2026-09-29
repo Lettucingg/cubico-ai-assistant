@@ -73,6 +73,40 @@ def test_comprobante_con_retiro_no_se_duplica(monkeypatch):
     assert [solicitud["tipo"] for solicitud in solicitudes] == ["retiro"]
 
 
+def test_retiro_sin_cliente_verificado_indica_verificacion_y_bloquea_pago(monkeypatch):
+    sesion = _sesion(
+        codigo_cliente_verificado=None, entregado=False, aviso_retiro_pendiente=True
+    )
+    monkeypatch.setattr(panel, "listar_todas_sesiones", lambda limite=500: [sesion])
+    monkeypatch.setattr(panel, "obtener_sesion_existente", lambda _telefono: sesion)
+
+    caso = panel.listar_solicitudes(usuario="tester")[0]
+    assert caso["requiere_verificacion"] is True
+    assert caso["requiere_factura"] is False
+    with pytest.raises(HTTPException) as error:
+        panel.actualizar_estado_solicitud(
+            sesion.telefono, {"tipo": "retiro", "accion": "confirmar_pago"}, usuario="tester"
+        )
+    assert error.value.status_code == 409
+    assert sesion.pago_confirmado is False
+
+
+def test_comprobante_solo_pago_sin_cliente_no_se_archiva(monkeypatch):
+    sesion = _sesion(codigo_cliente_verificado=None)
+    monkeypatch.setattr(panel, "listar_todas_sesiones", lambda limite=500: [sesion])
+    monkeypatch.setattr(panel, "obtener_sesion_existente", lambda _telefono: sesion)
+
+    caso = panel.listar_solicitudes(usuario="tester")[0]
+    assert caso["tipo"] == "pago"
+    assert caso["requiere_verificacion"] is True
+    with pytest.raises(HTTPException) as error:
+        panel.actualizar_estado_solicitud(
+            sesion.telefono, {"tipo": "pago", "accion": "confirmar_pago"}, usuario="tester"
+        )
+    assert error.value.status_code == 409
+    assert sesion.pago_confirmado is False
+
+
 def test_comprobante_de_factura_ya_pagada_permite_preparar_retiro(monkeypatch):
     sesion = _sesion(entregado=False, aviso_retiro_pendiente=True)
     monkeypatch.setattr(panel, "obtener_sesion_existente", lambda _telefono: sesion)
