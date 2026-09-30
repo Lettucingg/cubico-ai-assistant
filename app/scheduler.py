@@ -1,6 +1,5 @@
 import logging
-import json
-import re
+import asyncio
 import httpx
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -9,7 +8,8 @@ from apscheduler.triggers.interval import IntervalTrigger
 
 from app.api.whatsapp import enviar_mensaje_whatsapp, notificar_equipo_domicilio
 from app.core.config import settings
-from app.services.daily_reports import datos_informe, informe_manana, informe_cierre
+from app.services.daily_reports import datos_informe, informe_manana, informe_cierre, guardar_informe, usuarios_informes
+from app.services.push_notifications import notificar_informe_push
 from app.db.session_store import (
     listar_sesiones_con_factura_pendiente,
     actualizar_sesion,
@@ -37,59 +37,44 @@ scheduler = AsyncIOScheduler(timezone=ZONA_HORARIA)
 
 
 async def _informe_equipo(tipo: str):
-    plantilla = settings.CUBICO_TEAM_REPORT_TEMPLATE.strip()
     try:
-        numeros = json.loads(settings.CUBICO_TEAM_REPORT_NUMBERS_JSON)
+        usuarios = usuarios_informes()
     except (ValueError, TypeError):
-        log.error("Informe %s omitido: CUBICO_TEAM_REPORT_NUMBERS_JSON inválido", tipo)
+        log.error("Informe %s omitido: usuarios del panel inválidos", tipo)
         return
-    if not isinstance(numeros, list) or not numeros or not plantilla:
-        log.warning("Informe %s omitido: faltan destinatarios individuales o plantilla aprobada", tipo)
+    if not usuarios:
+        log.warning("Informe %s omitido: no hay usuarios destinatarios", tipo)
         return
-    if any(not isinstance(numero, str) or not re.fullmatch(r"[1-9][0-9]{7,14}", numero) for numero in numeros):
-        log.error("Informe %s omitido: los teléfonos deben estar en formato internacional sin signos", tipo)
-        return
-    numeros = list(dict.fromkeys(numeros))
-
     try:
-        datos = datos_informe()
+        datos = await asyncio.to_thread(datos_informe)
     except Exception:
-        log.exception("No se pudo consultar la base de datos para el informe %s", tipo)
+        log.exception("No se pudieron consultar los datos del informe %s", tipo)
         datos = None
-    url = f"https://graph.facebook.com/v21.0/{settings.WHATSAPP_PHONE_NUMBER_ID}/messages"
-    headers = {"Authorization": f"Bearer {settings.WHATSAPP_TOKEN}"}
     async with httpx.AsyncClient(timeout=12) as cliente:
         try:
             comprobacion = await cliente.get(
                 f"https://graph.facebook.com/v21.0/{settings.WHATSAPP_PHONE_NUMBER_ID}",
-                headers=headers,
+                headers={"Authorization": f"Bearer {settings.WHATSAPP_TOKEN}"},
             )
             estado = "conexión con Meta disponible" if comprobacion.is_success else "sin confirmar conexión con Meta"
         except httpx.HTTPError:
             estado = "sin confirmar conexión con Meta"
-        mensaje = (
-            (informe_manana if tipo == "mañana" else informe_cierre)(datos, estado)
-            if datos is not None else
-            "Cúbico · Informe de jornada: no se pudo consultar la base de datos. "
-            f"Meta: {estado}. Revisar https://bot.cubico.com.pa/admin"
-        )
-        for numero in numeros:
-            payload = {
-                "messaging_product": "whatsapp",
-                "to": numero,
-                "type": "template",
-                "template": {
-                    "name": plantilla,
-                    "language": {"code": settings.CUBICO_TEAM_REPORT_TEMPLATE_LANGUAGE},
-                    "components": [{"type": "body", "parameters": [{"type": "text", "text": mensaje}]}],
-                },
-            }
-            try:
-                respuesta = await cliente.post(url, headers=headers, json=payload)
-                respuesta.raise_for_status()
-                log.info("Informe %s aceptado por Meta para destinatario terminado en %s", tipo, numero[-4:])
-            except httpx.HTTPError as error:
-                log.error("Informe %s falló para destinatario terminado en %s: %s", tipo, numero[-4:], error)
+    mensaje = (
+        (informe_manana if tipo == "mañana" else informe_cierre)(datos, estado)
+        if datos is not None else
+        "Cúbico · Informe de jornada: no se pudo consultar la base de datos de conversaciones. "
+        f"Meta: {estado}. Revisar https://bot.cubico.com.pa/admin"
+    )
+    try:
+        informe, nuevo = await asyncio.to_thread(guardar_informe, tipo, mensaje)
+        if not nuevo:
+            log.info("Informe %s ya guardado hoy; no se repite el aviso", tipo)
+            return
+        resultado = await notificar_informe_push(informe, usuarios)
+        log.info("Informe %s guardado: %s avisos push enviados; configurado=%s",
+                 tipo, resultado["enviadas"], resultado["configurado"])
+    except Exception:
+        log.exception("No se pudo guardar o notificar el informe %s", tipo)
 
 
 async def enviar_ping_diario():
