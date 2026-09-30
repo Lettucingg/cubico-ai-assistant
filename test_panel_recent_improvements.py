@@ -96,7 +96,7 @@ def test_medios_expirados_no_muestran_error_global_del_servidor():
 def test_flujo_de_pago_explica_cada_paso_al_operador():
     html = _html()
     assert "Pasos para completar el caso" in html
-    assert "Primero compara el comprobante con la factura" in html
+    assert "Comprueba el ingreso en Yappy o en el banco" in html
     assert "1. Revisar comprobante y registrar pago" in html
     assert "2. Confirmar paquetes listos" in html
     assert "4. Confirmar entrega al cliente" in html
