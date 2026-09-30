@@ -58,6 +58,7 @@ class Sesion(BaseSesiones):
     referencia_pago_reportado = Column(String, nullable=True)
     fecha_pago_reportado = Column(String, nullable=True)
     comprobante_media_id = Column(String, nullable=True)
+    revisiones_comprobante_json = Column(Text, nullable=True)
     solicitud_actualizada_en = Column(DateTime, nullable=True)
 
     def obtener_historial(self):
