@@ -6,6 +6,19 @@ from sqlalchemy.orm import sessionmaker
 from app.db.database import Base
 from app.db.models import ClienteCBC, Factura, Pago, Paquete
 import app.tools.facturas as facturas
+import pytest
+
+
+@pytest.mark.parametrize("metodo", [None, "otro", "", "tarjeta"])
+def test_metodo_no_permitido_no_registra_pago(tmp_path, metodo):
+    fabrica = _crear_escenario(tmp_path)
+    with pytest.raises(ValueError, match="método de pago válido"):
+        facturas.registrar_pago_factura_desde_panel(
+            "CBC-TEST", "FAC-TEST", 10, metodo, "REF-INVALIDA"
+        )
+    with fabrica() as db:
+        assert db.query(Pago).count() == 0
+        assert db.query(Factura).one().estado == "pendiente"
 
 
 def _crear_escenario(tmp_path, total=10):
@@ -48,6 +61,7 @@ def test_pago_total_actualiza_factura_y_paquete(tmp_path):
     assert db.query(Factura).one().estado == "pagado"
     assert db.query(Paquete).one().estado_pago == "pagado"
     assert float(db.query(Pago).one().monto) == 10
+    assert db.query(Pago).one().tipo_pago == "completo"
     db.close()
 
 
@@ -60,6 +74,7 @@ def test_pago_parcial_deja_saldo_y_paquete_pendiente(tmp_path):
     db = fabrica()
     assert db.query(Factura).one().estado == "parcial"
     assert db.query(Paquete).one().estado_pago == "pendiente"
+    assert db.query(Pago).one().tipo_pago == "parcial"
     db.close()
 
 
