@@ -166,7 +166,8 @@ class Pago(Base):
     cliente_cbc_id = Column(Integer, ForeignKey("clientes_cbc.id"), nullable=True)
     agencia_id = Column(Integer, ForeignKey("agencias.id"), nullable=True)
     monto = Column(Numeric)
-    metodo = Column(String)  # yappy | ach | efectivo | otro
+    metodo = Column(String(10), nullable=False)  # yappy | ach | efectivo
+    tipo_pago = Column(String(20), nullable=False)  # completo | parcial | abono | adelanto
     referencia = Column(String)
     fecha_pago = Column(DateTime)
     anulado = Column(Boolean, default=False)
