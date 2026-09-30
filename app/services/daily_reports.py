@@ -93,16 +93,16 @@ def informe_manana(datos: dict, estado_api: str) -> str:
         f"{datos['domicilios_pendientes']} domicilios"
     )
     return (
-        f"Cúbico · Inicio de jornada ({datos['fecha']})\n"
+        f"Cúbico · Estado de Bruno y pendientes ({datos['fecha']})\n"
         f"Conexión de Bruno: {estado_api}. Conversaciones: disponibles.\n"
-        f"Pendientes al iniciar: {pendientes}.\n"
+        f"Pendientes actuales: {pendientes}.\n"
         "Panel: https://bot.cubico.com.pa/admin"
     )
 
 
 def informe_cierre(datos: dict, estado_api: str) -> str:
     return (
-        f"Cúbico · Cierre ({datos['fecha']})\n"
+        f"Cúbico · Resumen operativo ({datos['fecha']})\n"
         f"Bruno ahora: {estado_api}.\n"
         f"Hoy: {datos['conversaciones_hoy']} conversaciones con actividad · "
         f"{datos['oportunidades_nuevas']} oportunidades nuevas · "

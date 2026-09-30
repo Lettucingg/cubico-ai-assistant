@@ -53,10 +53,11 @@ def _enviar_a_dispositivos(payload: dict, usuarios: set[str] | None = None) -> d
 
 async def notificar_informe_push(informe: dict, usuarios: set[str]) -> dict:
     payload = {
-        "title": "Cúbico · " + ("Inicio de jornada" if informe["tipo"] == "mañana" else "Cierre del día"),
+        "title": "Cúbico · " + ("Estado de Bruno y pendientes" if informe["tipo"] == "mañana" else "Resumen operativo"),
         "body": "Tu informe está listo. Toca para revisar el estado de Bruno y los pendientes.",
         "url": f"/admin?informe={informe['id']}",
         "tag": f"cubico-informe-{informe['id']}",
+        "informe_id": informe["id"],
     }
     return await asyncio.to_thread(_enviar_a_dispositivos, payload, usuarios)
 

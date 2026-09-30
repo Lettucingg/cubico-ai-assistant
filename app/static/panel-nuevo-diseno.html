@@ -1003,12 +1003,12 @@
     let informesDiarios=[];
     async function cargarInformesDiarios(){
       const card=document.getElementById('daily-reports-card');
-      try{const r=await apiGet('/panel/informes-diarios',false);if(!r.ok){card.style.display='none';informesDiarios=[];return}informesDiarios=await r.json();card.style.display='block';document.getElementById('daily-reports-list').innerHTML=informesDiarios.length?informesDiarios.slice(0,6).map(i=>'<button class="btn daily-report-open" style="margin:4px" data-id="'+i.id+'">'+esc(i.tipo==='mañana'?'Inicio de jornada':'Cierre del día')+' · '+esc(new Date(i.creado_en).toLocaleDateString('es-PA',{timeZone:'America/Panama'}))+'</button>').join(''):'<p style="font-size:12px;color:var(--muted)">El primer informe aparecerá en el próximo horario programado. Activa las notificaciones de este dispositivo en Configuración.</p>'}catch(e){card.style.display='none'}
+      try{const r=await apiGet('/panel/informes-diarios',false);if(!r.ok){card.style.display='none';informesDiarios=[];return}informesDiarios=await r.json();card.style.display='block';document.getElementById('daily-reports-list').innerHTML=informesDiarios.length?informesDiarios.slice(0,6).map(i=>'<button class="btn daily-report-open" style="margin:4px" data-id="'+i.id+'">'+esc(i.tipo==='mañana'?'Estado de Bruno y pendientes':'Resumen operativo')+' · '+esc(new Date(i.creado_en).toLocaleDateString('es-PA',{timeZone:'America/Panama'}))+'</button>').join(''):'<p style="font-size:12px;color:var(--muted)">El primer informe aparecerá en el próximo horario programado. Activa las notificaciones de este dispositivo en Configuración.</p>'}catch(e){card.style.display='none'}
     }
     function abrirInformeDiario(id){
       const informe=informesDiarios.find(i=>String(i.id)===String(id));
       if(!informe){say('Informe no disponible en el historial reciente');return}
-      document.getElementById('daily-report-title').textContent=informe.tipo==='mañana'?'Inicio de jornada':'Cierre del día';
+      document.getElementById('daily-report-title').textContent=informe.tipo==='mañana'?'Estado de Bruno y pendientes':'Resumen operativo';
       document.getElementById('daily-report-content').textContent=informe.contenido;
       abrirModal('modal-informe-diario');
     }
