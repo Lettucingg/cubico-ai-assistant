@@ -18,7 +18,9 @@ self.addEventListener('push', event => {
 
   event.waitUntil((async () => {
     const ventanas = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-    if (ventanas.some(cliente => cliente.visibilityState === 'visible')) return;
+    // Los chats ya tienen avisos dentro del panel. Los informes diarios
+    // necesitan su aviso también si hay una ventana visible.
+    if (!data.informe_id && ventanas.some(cliente => cliente.visibilityState === 'visible')) return;
     await self.registration.showNotification(data.title || 'Cúbico Control', {
       body: data.body || 'Tienes una alerta nueva.',
       icon: '/static/logo.png',
