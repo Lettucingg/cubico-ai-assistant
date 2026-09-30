@@ -70,7 +70,7 @@
     <main>
       <header class="topbar"><div class="title"><h1 id="page-title">Buenos días</h1><p id="page-sub">Esto es lo que está pasando en Cúbico hoy.</p></div><div class="top-actions"><input class="search" id="global-search" placeholder="Buscar chat, cliente o paquete…" aria-label="Buscar"/><button class="icon-btn" id="notifications" aria-label="Notificaciones" title="Ver alertas y activar notificaciones">🔔<span class="notification-count" id="notification-count">0</span></button><div class="avatar" id="settings-shortcut" role="button" tabindex="0" aria-label="Abrir configuración" title="Configuración">—</div></div></header>
 
-      <section class="view active" id="overview">
+      <section class="view active" id="overview"><article class="card" id="daily-reports-card" style="display:none;padding:16px;margin-bottom:14px"><h3 style="margin:0 0 6px">Informes de Bruno</h3><p style="color:var(--muted);font-size:12px">Inicio 8:00 a. m. · Cierre 5:00 p. m. · Hora de Panamá</p><div id="daily-reports-list"></div></article>
         <div class="demo-note">● Mensajes cada 5 segundos · métricas cada 30 segundos</div>
         <div class="kpis">
           <button type="button" class="card kpi click-card" data-summary-view="chats" aria-label="Abrir las conversaciones de hoy"><div class="kpi-top"><span>Conversaciones hoy</span><span class="kpi-icon">◫</span></div><div class="kpi-value" id="kpi-conversations">—</div><div class="delta neutral">Ver conversaciones</div></button>
@@ -120,6 +120,7 @@
   <div class="lightbox" id="image-lightbox" role="dialog" aria-label="Vista ampliada del comprobante"><button type="button" id="close-lightbox" aria-label="Cerrar">×</button><img id="lightbox-image" alt="Comprobante ampliado"></div>
   <div class="modal-overlay" id="modal-saludo" role="dialog" aria-label="Reactivar chat"><div class="card modal-box"><h3>Reactivar chat</h3><label for="saludo-nombre">Nombre del cliente</label><input type="text" id="saludo-nombre" placeholder="Nombre del cliente"/><div class="modal-actions"><button class="btn" type="button" id="saludo-cancelar">Cancelar</button><button class="btn dark" type="button" id="saludo-enviar">Enviar saludo</button></div></div></div>
   <div class="modal-overlay" id="modal-propuesta" role="dialog" aria-label="Enviar propuesta"><div class="card modal-box"><h3>Enviar propuesta</h3><label for="propuesta-contacto">Nombre de la persona de contacto</label><input type="text" id="propuesta-contacto" placeholder="Ej. Alexander"/><label for="propuesta-empresa">Empresa</label><input type="text" id="propuesta-empresa" placeholder="Ej. Arthur English Bookstore"/><label for="propuesta-pdf">Documento PDF</label><input type="file" id="propuesta-pdf" accept="application/pdf,.pdf"/><div class="modal-actions"><button class="btn" type="button" id="propuesta-cancelar">Cancelar</button><button class="btn dark" type="button" id="propuesta-enviar">Enviar propuesta</button></div></div></div>
+  <div class="modal-overlay" id="modal-informe-diario" role="dialog" aria-label="Informe de Bruno"><div class="card modal-box"><h3 id="daily-report-title">Informe de Bruno</h3><pre id="daily-report-content" style="white-space:pre-wrap;font-family:inherit;line-height:1.6;font-size:14px;max-height:60dvh;overflow:auto"></pre><div class="modal-actions"><button class="btn" type="button" id="daily-report-close">Cerrar</button></div></div></div>
   <div class="modal-overlay" id="modal-verificar-manual" role="dialog" aria-label="Verificar cliente manualmente"><div class="card modal-box"><h3>Verificar manualmente</h3><p style="font-size:12px;color:var(--muted);line-height:1.5">Escribe el código real del cliente o agencia. Se comprobará en la base de datos antes de asociarlo al chat.</p><label for="manual-code">Código de cliente o agencia</label><input type="text" id="manual-code" placeholder="CBC-0001 o código de agencia"/><div class="modal-actions"><button class="btn" type="button" id="manual-verify-cancel">Cancelar</button><button class="btn dark" type="button" id="manual-verify-save">Verificar y asociar</button></div></div></div>
   <div class="modal-overlay" id="modal-operacion-manual" role="dialog" aria-label="Crear operación manual"><div class="card modal-box"><h3 id="manual-operation-title">Crear solicitud</h3><p id="manual-operation-help" style="font-size:12px;color:var(--muted);line-height:1.5"></p><div id="manual-address-field"><label for="manual-address">Dirección exacta</label><textarea id="manual-address" rows="3" placeholder="Dirección completa de entrega"></textarea></div><div id="manual-payment-fields"><label for="manual-amount">Monto reportado (opcional)</label><input type="number" id="manual-amount" min="0.01" step="0.01" placeholder="0.00"/><label for="manual-method">Método (opcional)</label><input type="text" id="manual-method" placeholder="Yappy, transferencia, efectivo…"/><label for="manual-reference">Referencia (opcional)</label><input type="text" id="manual-reference" placeholder="Número de referencia"/></div><div class="modal-actions"><button class="btn" type="button" id="manual-operation-cancel">Cancelar</button><button class="btn dark" type="button" id="manual-operation-save">Crear caso</button></div></div></div>
   <script>
@@ -241,6 +242,8 @@
         await refrescarPanel();
         actualizarEstadoNotificaciones();
         await actualizarEstadoPush();
+        const informePendiente=new URLSearchParams(location.search).get('informe');
+        if(informePendiente){await cargarInformesDiarios();showView('overview');abrirInformeDiario(informePendiente);history.replaceState({},'',location.pathname)}
         const telefonoPendiente=new URLSearchParams(location.search).get('telefono');
         if(telefonoPendiente){showView('chats');await abrirChat(telefonoPendiente);history.replaceState({},'',location.pathname)}
         iniciarAutoRefresh();
@@ -997,7 +1000,22 @@
     const formatTokens=n=>{n=Number(n||0);return n>=1000000?(n/1000000).toFixed(1)+' M':n>=1000?(n/1000).toFixed(1)+' k':String(n)};
     function tiempoTranscurrido(fecha){if(!fecha)return'—';const s=Math.max(0,(Date.now()-new Date(fecha).getTime())/1000);if(s<60)return'Menos de 1 min';if(s<3600)return Math.floor(s/60)+' min';if(s<86400)return Math.floor(s/3600)+' h';return Math.floor(s/86400)+' d'}
 
+    let informesDiarios=[];
+    async function cargarInformesDiarios(){
+      const card=document.getElementById('daily-reports-card');
+      try{const r=await apiGet('/panel/informes-diarios',false);if(!r.ok){card.style.display='none';informesDiarios=[];return}informesDiarios=await r.json();card.style.display='block';document.getElementById('daily-reports-list').innerHTML=informesDiarios.length?informesDiarios.slice(0,6).map(i=>'<button class="btn daily-report-open" style="margin:4px" data-id="'+i.id+'">'+esc(i.tipo==='mañana'?'Inicio de jornada':'Cierre del día')+' · '+esc(new Date(i.creado_en).toLocaleDateString('es-PA',{timeZone:'America/Panama'}))+'</button>').join(''):'<p style="font-size:12px;color:var(--muted)">El primer informe aparecerá en el próximo horario programado. Activa las notificaciones de este dispositivo en Configuración.</p>'}catch(e){card.style.display='none'}
+    }
+    function abrirInformeDiario(id){
+      const informe=informesDiarios.find(i=>String(i.id)===String(id));
+      if(!informe){say('Informe no disponible en el historial reciente');return}
+      document.getElementById('daily-report-title').textContent=informe.tipo==='mañana'?'Inicio de jornada':'Cierre del día';
+      document.getElementById('daily-report-content').textContent=informe.contenido;
+      abrirModal('modal-informe-diario');
+    }
+    document.getElementById('daily-reports-list').addEventListener('click',e=>{const btn=e.target.closest('.daily-report-open');if(btn)abrirInformeDiario(btn.dataset.id)});
+    document.getElementById('daily-report-close').addEventListener('click',()=>cerrarModal('modal-informe-diario'));
     async function cargarResumen(){
+      await cargarInformesDiarios();
       try{
         const r=await apiGet('/panel/resumen');if(!r.ok)return;const d=await r.json();
         document.getElementById('kpi-conversations').textContent=d.conversaciones_hoy;
