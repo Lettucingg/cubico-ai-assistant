@@ -1,6 +1,7 @@
 """Comprueba que ningún comprobante dependa de un retiro o domicilio."""
 
 from datetime import datetime
+import json
 from types import SimpleNamespace
 
 import pytest
@@ -8,6 +9,47 @@ from fastapi import HTTPException
 
 from app.api import panel
 from app.tools.comprobantes import parsear_monto_comprobante
+
+
+@pytest.mark.parametrize("accion", ["pago_no_recibido", "comprobante_incorrecto"])
+def test_revision_guarda_nota_sin_confirmar_ni_registrar_pago(monkeypatch, accion):
+    caso = _sesion(revisiones_comprobante_json=json.dumps([{"nota": "Anterior"}]))
+    cambios = {}
+    monkeypatch.setattr(panel, "obtener_sesion_existente", lambda telefono: caso)
+    monkeypatch.setattr(panel, "actualizar_sesion", lambda telefono, **datos: cambios.update(datos))
+    def no_registrar(*args, **kwargs):
+        pytest.fail("Una revisión no debe modificar facturación")
+    monkeypatch.setattr(panel, "registrar_pago_factura_desde_panel", no_registrar)
+    resultado = panel.actualizar_estado_solicitud(caso.telefono, {
+        "accion": accion, "tipo": "pago", "nota": "No aparece el ingreso",
+        "comprobante_media_id": caso.comprobante_media_id,
+    }, usuario="teresa")
+    assert resultado["status"] == "ok"
+    assert set(cambios) == {"revisiones_comprobante_json"}
+    revisiones = json.loads(cambios["revisiones_comprobante_json"])
+    assert revisiones[0]["nota"] == "Anterior"
+    assert revisiones[-1]["usuario"] == "teresa"
+    assert revisiones[-1]["accion"] == accion
+    assert revisiones[-1]["comprobante_media_id"] == caso.comprobante_media_id
+    assert caso.pago_confirmado is False
+
+
+@pytest.mark.parametrize("nota,media,confirmado,codigo", [
+    ("", "MEDIA-TEST", False, 400),
+    ("x" * 1001, "MEDIA-TEST", False, 400),
+    ("Revisado", "ANTERIOR", False, 409),
+    ("Revisado", "MEDIA-TEST", True, 409),
+])
+def test_revision_invalida_no_se_guarda(monkeypatch, nota, media, confirmado, codigo):
+    caso = _sesion(pago_confirmado=confirmado)
+    monkeypatch.setattr(panel, "obtener_sesion_existente", lambda telefono: caso)
+    monkeypatch.setattr(panel, "actualizar_sesion", lambda *a, **k: pytest.fail("No debe guardar"))
+    with pytest.raises(HTTPException) as error:
+        panel.actualizar_estado_solicitud(caso.telefono, {
+            "accion": "pago_no_recibido", "tipo": "retiro", "nota": nota,
+            "comprobante_media_id": media,
+        }, usuario="teresa")
+    assert error.value.status_code == codigo
 
 
 def _sesion(**cambios):
