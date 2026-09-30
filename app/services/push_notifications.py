@@ -17,13 +17,15 @@ def push_configurado() -> bool:
     return bool(webpush and settings.PUSH_VAPID_PUBLIC_KEY.strip() and ruta.is_file())
 
 
-def _enviar_a_dispositivos(payload: dict) -> dict:
+def _enviar_a_dispositivos(payload: dict, usuarios: set[str] | None = None) -> dict:
     if not push_configurado():
         return {"enviadas": 0, "eliminadas": 0, "configurado": False}
 
     enviadas = 0
     eliminadas = 0
     for suscripcion in listar_suscripciones_push():
+        if usuarios is not None and suscripcion["usuario"] not in usuarios:
+            continue
         try:
             webpush(
                 subscription_info={
@@ -47,6 +49,16 @@ def _enviar_a_dispositivos(payload: dict) -> dict:
             print(f"Error inesperado enviando Web Push: {type(error).__name__}: {error}")
 
     return {"enviadas": enviadas, "eliminadas": eliminadas, "configurado": True}
+
+
+async def notificar_informe_push(informe: dict, usuarios: set[str]) -> dict:
+    payload = {
+        "title": "Cúbico · " + ("Inicio de jornada" if informe["tipo"] == "mañana" else "Cierre del día"),
+        "body": "Tu informe está listo. Toca para revisar el estado de Bruno y los pendientes.",
+        "url": f"/admin?informe={informe['id']}",
+        "tag": f"cubico-informe-{informe['id']}",
+    }
+    return await asyncio.to_thread(_enviar_a_dispositivos, payload, usuarios)
 
 
 async def notificar_panel_push(telefono: str, nombre: str | None, texto: str) -> dict:
