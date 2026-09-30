@@ -813,6 +813,8 @@ def listar_solicitudes(usuario: str = Depends(verificar_credenciales_panel)):
                 "paquetes_preparados": bool(sesion.paquetes_preparados),
                 "domicilio_coordinado": bool(sesion.domicilio_coordinado),
                 "tiene_comprobante": bool(sesion.comprobante_media_id),
+                "comprobante_media_id": sesion.comprobante_media_id,
+                "revisiones_comprobante": json.loads(getattr(sesion, "revisiones_comprobante_json", None) or "[]"),
                 "actualizado_en": (
                     (sesion.solicitud_actualizada_en or sesion.actualizado_en).isoformat() + "Z"
                     if (sesion.solicitud_actualizada_en or sesion.actualizado_en) else None
@@ -836,6 +838,23 @@ def actualizar_estado_solicitud(
     tipo = body.get("tipo")
     if tipo not in {"retiro", "domicilio", "pago"}:
         raise HTTPException(status_code=400, detail="Tipo de solicitud inválido")
+    if accion in {"pago_no_recibido", "comprobante_incorrecto"}:
+        if not sesion.pago_reportado or sesion.pago_confirmado:
+            raise HTTPException(status_code=409, detail="No hay un comprobante pendiente de revisión")
+        nota = str(body.get("nota") or "").strip()
+        if not nota or len(nota) > 1000:
+            raise HTTPException(status_code=400, detail="Escribe una nota interna de entre 1 y 1000 caracteres")
+        if body.get("comprobante_media_id") != sesion.comprobante_media_id:
+            raise HTTPException(status_code=409, detail="El comprobante cambió; recarga el caso antes de revisarlo")
+        revisiones = json.loads(getattr(sesion, "revisiones_comprobante_json", None) or "[]")
+        revisiones.append({
+            "accion": accion, "nota": nota, "usuario": usuario,
+            "fecha": datetime.utcnow().isoformat() + "Z",
+            "comprobante_media_id": sesion.comprobante_media_id,
+            "referencia": sesion.referencia_pago_reportado,
+        })
+        actualizar_sesion(telefono, revisiones_comprobante_json=json.dumps(revisiones, ensure_ascii=False))
+        return {"status": "ok", "accion": accion, "tipo": tipo}
     if tipo == "pago" and accion != "confirmar_pago":
         raise HTTPException(status_code=400, detail="Este caso solamente permite confirmar el pago")
 
