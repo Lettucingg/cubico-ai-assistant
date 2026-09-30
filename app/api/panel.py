@@ -28,6 +28,7 @@ from app.db.session_store import (
     actualizar_oportunidad_comercial,
 )
 from app.services.push_notifications import push_configurado
+from app.services.daily_reports import listar_informes, usuarios_informes
 from app.tools.clientes import obtener_nombre_completo_cliente
 from app.tools.comprobantes import descargar_imagen_de_whatsapp
 from app.tools.paquetes import consultar_paquetes_por_codigo
@@ -255,6 +256,13 @@ def _validar_operador_conversacion(
             detail="Debes tomar el control de esta conversación antes de enviar directamente.",
         )
     return sesion
+
+
+@router.get("/informes-diarios")
+def informes_diarios_panel(usuario: str = Depends(verificar_credenciales_panel)):
+    if usuario not in usuarios_informes():
+        raise HTTPException(status_code=403, detail="Estos informes son para los usuarios autorizados")
+    return listar_informes()
 
 
 @router.get("/push/config")
