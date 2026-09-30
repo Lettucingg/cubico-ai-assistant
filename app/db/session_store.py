@@ -123,6 +123,16 @@ class OportunidadComercial(BaseSesiones):
     cerrada_en = Column(DateTime, nullable=True)
 
 
+class InformeDiario(BaseSesiones):
+    __tablename__ = "informes_diarios"
+
+    id = Column(Integer, primary_key=True)
+    clave = Column(String, unique=True, nullable=False)
+    tipo = Column(String, nullable=False)
+    contenido = Column(Text, nullable=False)
+    creado_en = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
 BaseSesiones.metadata.create_all(engine_sesiones)
 
 
