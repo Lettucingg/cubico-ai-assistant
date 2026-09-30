@@ -111,6 +111,9 @@ def registrar_pago_factura_desde_panel(
     importe = _dinero(monto)
     if importe <= 0:
         raise ValueError("El comprobante no tiene un monto válido")
+    metodo_normalizado = (metodo or "").strip().lower()
+    if metodo_normalizado not in {"yappy", "ach", "efectivo"}:
+        raise ValueError("Selecciona un método de pago válido: Yappy, ACH o efectivo")
 
     db = SessionLocal()
     try:
@@ -180,7 +183,8 @@ def registrar_pago_factura_desde_panel(
             cliente_cbc_id=cliente.id if tipo_cliente == "cbc" else None,
             agencia_id=cliente.id if tipo_cliente == "agencia" else None,
             monto=importe,
-            metodo=(metodo or "otro").strip().lower(),
+            metodo=metodo_normalizado,
+            tipo_pago="completo" if importe == saldo_antes else "parcial",
             referencia=referencia_limpia if referencia_util else None,
             fecha_pago=fecha_pago,
             anulado=False,
