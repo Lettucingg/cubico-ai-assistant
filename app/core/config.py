@@ -63,6 +63,8 @@ class Settings(BaseSettings):
     CUBICO_TEAM_REPORT_NUMBERS_JSON: str = "[]"
     CUBICO_TEAM_REPORT_TEMPLATE: str = ""
     CUBICO_TEAM_REPORT_TEMPLATE_LANGUAGE: str = "es"
+    # Los informes diarios se envían por Web Push a estos usuarios del panel.
+    CUBICO_TEAM_REPORT_USERS_JSON: str = '["alexander", "luis", "teresa"]'
     CUBICO_PAYMENT_ACCOUNT: str = ""
     CUBICO_PAYMENT_YAPPY: str = ""
     CUBICO_MIAMI_STREET: str = ""
