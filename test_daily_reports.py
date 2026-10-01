@@ -52,7 +52,7 @@ def test_informe_usa_push_sin_post_whatsapp(monkeypatch):
         return httpx.Response(200)
     original = httpx.AsyncClient
     monkeypatch.setattr(scheduler.httpx, "AsyncClient", lambda **k: original(transport=httpx.MockTransport(manejador)))
-    def guardar(tipo, contenido):
+    def guardar(tipo, contenido, datos=None, estado_meta=None):
         guardados.append(contenido)
         return {"id": 1, "tipo": tipo}, True
     async def avisar(informe, usuarios):
@@ -102,3 +102,47 @@ def test_informes_exigen_usuario_autorizado(monkeypatch):
     with pytest.raises(HTTPException) as error:
         panel.informes_diarios_panel(usuario="pepo")
     assert error.value.status_code == 403
+
+
+def test_informe_guarda_fotografia_y_conserva_texto_antiguo(tmp_path, monkeypatch):
+    from app.db.session_store import InformeDiario
+    engine = create_engine(f"sqlite:///{tmp_path / 'visual.db'}")
+    InformeDiario.__table__.create(engine)
+    monkeypatch.setattr(daily_reports, "SessionSesiones", sessionmaker(bind=engine))
+    datos = {"conversaciones_hoy": 12, "pagos_pendientes": 3}
+    visual, _ = daily_reports.guardar_informe("cierre", "Resumen original", datos, "conexión con Meta disponible")
+    datos["pagos_pendientes"] = 99
+    recuperado = daily_reports.listar_informes()[0]
+    assert recuperado["datos"]["pagos_pendientes"] == 3
+    assert recuperado["contenido"] == "Resumen original"
+    antiguo, _ = daily_reports.guardar_informe("mañana", "Texto anterior")
+    assert antiguo["contenido"] == "Texto anterior"
+    assert "datos" not in antiguo
+
+
+def test_aviso_resume_pendientes_sin_asegurar_estado_ia(monkeypatch):
+    payloads = []
+    def enviar(payload, usuarios):
+        payloads.append(payload)
+        return {"enviadas": 1}
+    monkeypatch.setattr(push_notifications, "_enviar_a_dispositivos", enviar)
+    informe = {"id": 8, "tipo": "cierre", "estado_meta": "sin confirmar conexión con Meta", "datos": {
+        "humanos_pendientes": 2, "pagos_pendientes": 1, "retiros_pendientes": 4,
+        "domicilios_pendientes": 0, "conversaciones_hoy": 12, "oportunidades_nuevas": 3}}
+    asyncio.run(push_notifications.notificar_informe_push(informe, {"alexander"}))
+    assert "12 chats hoy" in payloads[0]["body"]
+    assert "1 pagos" in payloads[0]["body"]
+    assert "Revisar conexión" in payloads[0]["body"]
+
+
+def test_informe_antiguo_se_presenta_sin_consultar_datos_actuales():
+    from types import SimpleNamespace
+    datos = {"fecha":"01/10/2026", "humanos_pendientes":2, "pagos_pendientes":4,
+             "retiros_pendientes":3, "domicilios_pendientes":1,
+             "conversaciones_hoy":28, "oportunidades_nuevas":3, "costo_hoy":.42}
+    fila = SimpleNamespace(id=1, tipo="cierre", creado_en=datetime(2026,10,1,22),
+                           contenido=daily_reports.informe_cierre(datos, "conexión con Meta disponible"))
+    informe = daily_reports._serializar_informe(fila)
+    assert informe["datos"]["conversaciones_hoy"] == 28
+    assert informe["datos"]["pagos_pendientes"] == 4
+    assert informe["estado_meta"] == "conexión con Meta disponible"
