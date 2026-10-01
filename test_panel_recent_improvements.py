@@ -215,8 +215,11 @@ def test_panel_recomienda_un_siguiente_paso_al_operador():
 
 def test_acciones_operativas_son_accesibles_desde_celular():
     html = _html()
-    assert 'id="mobile-customer-toggle"' in html
-    assert "👤 Cliente y acciones" in html
+    assert 'id="chat-actions-toggle" aria-controls="customer-panel"' in html
+    assert "Gestionar conversación" in html
+    assert 'role="tablist"' in html
+    assert 'id="management-cliente" role="tabpanel"' in html
+    assert 'id="management-chat" role="tabpanel"' in html
     assert 'id="customer-panel"' in html
     assert 'id="customer-close"' in html
     assert "customer.mobile-open" in html
