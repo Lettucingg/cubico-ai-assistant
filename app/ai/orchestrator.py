@@ -7,7 +7,7 @@ from anthropic import Anthropic
 
 from app.core.config import settings
 from app.tools.paquetes import consultar_paquetes_por_codigo
-from app.tools.facturas import consultar_facturas_por_codigo
+from app.tools.facturas import consultar_facturas_por_codigo, consultar_ultimo_pago_por_codigo
 from app.tools.cotizador import calcular_costo_envio
 from app.tools.ptyfreight import consultar_tracking
 from app.tools.clientes import (
@@ -876,13 +876,28 @@ No inventes montos, tarifas ni distancias de ese cobro adicional, y no afirmes q
 
 CONFIRMACIÓN DE ENVÍOS Y PAGOS
 
-Si consultas las facturas de un cliente verificado (consultar_facturas_por_codigo) y encuentras una factura pendiente de pago, informa el saldo con naturalidad.
+Si pregunta cuánto debe, consulta consultar_facturas_por_codigo y responde primero
+el saldo_pendiente_total actual, incluyendo abonos parciales. No sustituyas el monto
+por instrucciones para pagar ni respondas basándote en montos de mensajes anteriores.
+Si pregunta también por paquetes para retirar, consulta consultar_paquetes_por_codigo
+y contesta ambas preguntas en el mismo mensaje. Solo estado_cargo="notificado"
+significa listo para retirar; "entregado" ya fue entregado.
 
-Además, utiliza marcar_pago_pendiente_seguimiento con el código de esa factura.
+Para "cuándo hice mi último pago", utiliza consultar_ultimo_pago_por_codigo.
+fecha_emision es la fecha de factura: NUNCA es evidencia de fecha de pago.
+Incluye pagos parciales y abonos. Si no hay fecha registrada, dilo con claridad;
+no la deduzcas de una factura pagada. Si historial_fechas_incompleto es true,
+di "el último pago con fecha registrada" y aclara que hay otros sin fecha.
 
-Esto permite avisarle automáticamente al cliente cuando el pago quede confirmado, sin que tenga que volver a preguntar.
+Una consulta de saldo no solicita por sí sola avisos automáticos. Utiliza
+marcar_pago_pendiente_seguimiento solo si el cliente pide seguimiento del pago.
+No prometas "te aviso cuando pagues" ni "apenas se confirme te aviso" por defecto.
+Incluso con seguimiento guardado, no garantices que llegará un mensaje: depende
+de la ventana de mensajería disponible de WhatsApp.
 
-No menciones este seguimiento como algo técnico o interno; simplemente continúa la conversación con naturalidad.
+Si el cliente insiste porque no contestaste, vuelve a consultar el dato necesario
+y responde a esa pregunta directamente. No repitas instrucciones de pago ni
+"inténtalo de nuevo" como sustituto de resolver la consulta.
 
 
 DIRECCIÓN PERSONALIZADA
@@ -1142,7 +1157,8 @@ HERRAMIENTAS = [
         "name": "consultar_facturas_por_codigo",
         "description": (
             "Busca las facturas y saldo pendiente de una persona o agencia "
-            "YA VERIFICADA utilizando su código de cliente."
+            "YA VERIFICADA utilizando su código de cliente. Devuelve el saldo actual; "
+            "la fecha de emisión NO indica cuándo se pagó."
         ),
         "input_schema": {
             "type": "object",
@@ -1152,6 +1168,15 @@ HERRAMIENTAS = [
                     "description": "Código verificado de persona o agencia",
                 }
             },
+            "required": ["codigo_cliente"],
+        },
+    },
+    {
+        "name": "consultar_ultimo_pago_por_codigo",
+        "description": "Consulta la fecha real del último pago o abono de una persona o agencia YA VERIFICADA. No deduce la fecha de una factura pagada.",
+        "input_schema": {
+            "type": "object",
+            "properties": {"codigo_cliente": {"type": "string", "description": "Código verificado de persona o agencia"}},
             "required": ["codigo_cliente"],
         },
     },
@@ -1376,9 +1401,9 @@ HERRAMIENTAS = [
         "name": "marcar_pago_pendiente_seguimiento",
         "description": (
             "Guarda un recordatorio para avisarle automáticamente al cliente "
-            "cuando su pago se confirme. Úsala SIEMPRE que le informes a un "
-            "cliente verificado que una factura suya aparece pendiente de "
-            "pago (después de consultar_facturas_por_codigo)."
+            "cuando su pago se confirme, si la ventana de WhatsApp lo permite. "
+            "Úsala solo si el cliente pide seguimiento, después de consultar "
+            "su factura pendiente. Consultar un saldo no autoriza seguimiento."
         ),
         "input_schema": {
             "type": "object",
@@ -2091,6 +2116,13 @@ def generar_respuesta(
             ),
         }
 
+    def _consultar_ultimo_pago(codigo_cliente: str):
+        sesion = obtener_sesion_existente(telefono)
+        verificado = sesion.codigo_cliente_verificado if sesion else None
+        if not verificado or normalizar_codigo_cliente(codigo_cliente) != normalizar_codigo_cliente(verificado):
+            return {"error": True, "mensaje": "Primero verifica la identidad; consulta únicamente el código de esta conversación."}
+        return consultar_ultimo_pago_por_codigo(verificado)
+
     def _marcar_pago_pendiente_seguimiento(codigo_cliente: str, codigo_factura: str):
         actualizar_sesion(
             telefono,
@@ -2101,8 +2133,8 @@ def generar_respuesta(
         return {
             "marcado": True,
             "mensaje": (
-                "Quedó guardado; se le avisará al cliente automáticamente "
-                "cuando el pago se confirme."
+                "Seguimiento guardado. No garantices el aviso: "
+                "depende de la ventana de mensajería de WhatsApp."
             ),
         }
 
@@ -2124,6 +2156,7 @@ def generar_respuesta(
         "verificar_correo_registrado": verificar_correo_registrado,
         "consultar_paquetes_por_codigo": consultar_paquetes_por_codigo,
         "consultar_facturas_por_codigo": consultar_facturas_por_codigo,
+        "consultar_ultimo_pago_por_codigo": _consultar_ultimo_pago,
         "calcular_costo_envio": calcular_costo_envio,
         "consultar_tracking": consultar_tracking,
         "registrar_oportunidad_comercial": _registrar_oportunidad_comercial,
