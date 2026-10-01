@@ -48,7 +48,7 @@
       </div>
       <div style="margin-bottom:18px">
         <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:6px">Contraseña</label>
-        <input id="login-pass" type="password" autocomplete="current-password" style="width:100%;border:1px solid var(--line);border-radius:10px;padding:10px 12px;outline:none;background:var(--bg)"/>
+        <div style="position:relative"><input id="login-pass" type="password" autocomplete="current-password" style="width:100%;border:1px solid var(--line);border-radius:10px;padding:10px 78px 10px 12px;outline:none;background:var(--bg)"/><button id="login-pass-toggle" type="button" aria-controls="login-pass" aria-label="Mostrar contraseña" aria-pressed="false" style="position:absolute;right:5px;top:50%;transform:translateY(-50%);min-height:36px;padding:6px 10px;border:0;border-radius:7px;background:transparent;color:var(--ink);font:inherit;font-size:12px;cursor:pointer">Ver</button></div>
       </div>
       <button class="btn dark" id="login-btn" style="width:100%;padding:12px;justify-content:center;text-align:center">Entrar</button>
       <div id="login-err" style="display:none;margin-top:12px;font-size:12px;color:var(--red);background:var(--red2);padding:9px;border-radius:8px;text-align:center"></div>
@@ -253,6 +253,7 @@
       }catch(e){err.textContent='Error de conexión';err.style.display='block'}
     }
     document.getElementById('login-btn').addEventListener('click',login);
+    document.getElementById('login-pass-toggle').addEventListener('click',()=>{const campo=document.getElementById('login-pass'),boton=document.getElementById('login-pass-toggle'),visible=campo.type==='password';campo.type=visible?'text':'password';boton.textContent=visible?'Ocultar':'Ver';boton.setAttribute('aria-label',visible?'Ocultar contraseña':'Mostrar contraseña');boton.setAttribute('aria-pressed',String(visible))});
     document.getElementById('login-pass').addEventListener('keydown',e=>{if(e.key==='Enter')login()});
     document.getElementById('login-user').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('login-pass').focus()});
 
