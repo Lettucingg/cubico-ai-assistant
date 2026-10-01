@@ -1,6 +1,7 @@
 """Informes breves para el equipo, a partir del estado persistido de Bruno."""
 
 import json
+import re
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
@@ -21,17 +22,51 @@ def usuarios_informes() -> set[str]:
 
 
 def _serializar_informe(fila) -> dict:
-    return {"id": fila.id, "tipo": fila.tipo, "contenido": fila.contenido,
-            "creado_en": fila.creado_en.isoformat() + "Z"}
+    resultado = {"id": fila.id, "tipo": fila.tipo, "contenido": fila.contenido,
+                 "creado_en": fila.creado_en.isoformat() + "Z"}
+    # Conserva los informes antiguos y guarda la fotografía del día sin
+    # requerir una migración ni reconstruir métricas con datos actuales.
+    try:
+        documento = json.loads(fila.contenido)
+    except (ValueError, TypeError):
+        # Los informes ya guardados contienen estos números explícitos.
+        # Solo se presenta como tarjetas si están presentes los cuatro.
+        datos = {}
+        for campo, etiqueta in (("humanos_pendientes", "atención humana"),
+                                ("pagos_pendientes", "pagos"),
+                                ("retiros_pendientes", "retiros"),
+                                ("domicilios_pendientes", "domicilios")):
+            coincidencia = re.search(r"(\d+) " + etiqueta, fila.contenido)
+            if not coincidencia:
+                return resultado
+            datos[campo] = int(coincidencia[1])
+        for campo, patron in (("conversaciones_hoy", r"(\d+) conversaciones con actividad"),
+                              ("oportunidades_nuevas", r"(\d+) oportunidades nuevas"),
+                              ("costo_hoy", r"IA \$(\d+(?:\.\d+)?)")):
+            coincidencia = re.search(patron, fila.contenido)
+            if fila.tipo != "mañana" and not coincidencia:
+                return resultado
+            if coincidencia:
+                datos[campo] = float(coincidencia[1]) if campo == "costo_hoy" else int(coincidencia[1])
+        resultado.update(datos=datos, estado_meta=("conexión con Meta disponible"
+                         if "conexión con Meta disponible" in fila.contenido else "sin confirmar conexión con Meta"))
+        return resultado
+    if isinstance(documento, dict) and documento.get("version") == 1:
+        resultado.update(contenido=documento["texto"], datos=documento["datos"],
+                         estado_meta=documento["estado_meta"])
+    return resultado
 
 
-def guardar_informe(tipo: str, contenido: str) -> tuple[dict, bool]:
+def guardar_informe(tipo: str, contenido: str, datos: dict | None = None,
+                    estado_meta: str | None = None) -> tuple[dict, bool]:
     clave = datetime.now(PANAMA).strftime("%Y-%m-%d") + ":" + tipo
     with SessionSesiones() as db:
         anterior = db.query(InformeDiario).filter(InformeDiario.clave == clave).first()
         if anterior:
             return _serializar_informe(anterior), False
-        fila = InformeDiario(clave=clave, tipo=tipo, contenido=contenido)
+        almacenado = json.dumps({"version": 1, "texto": contenido, "datos": datos,
+                                 "estado_meta": estado_meta}, ensure_ascii=False) if datos is not None else contenido
+        fila = InformeDiario(clave=clave, tipo=tipo, contenido=almacenado)
         db.add(fila)
         db.commit()
         return _serializar_informe(fila), True

@@ -66,7 +66,7 @@ async def _informe_equipo(tipo: str):
         f"Meta: {estado}. Revisar https://bot.cubico.com.pa/admin"
     )
     try:
-        informe, nuevo = await asyncio.to_thread(guardar_informe, tipo, mensaje)
+        informe, nuevo = await asyncio.to_thread(guardar_informe, tipo, mensaje, datos, estado)
         if not nuevo:
             log.info("Informe %s ya guardado hoy; no se repite el aviso", tipo)
             return
