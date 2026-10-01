@@ -51,14 +51,14 @@ def consultar_facturas_por_codigo(codigo_cliente: str) -> dict:
             }
 
         facturas = []
-        saldo_pendiente_total = 0.0
+        saldo_pendiente_total = Decimal("0.00")
 
         for factura in cliente.facturas:
             total = _dinero(factura.total)
             saldo_factura = _saldo_factura(factura)
 
             if not _factura_esta_pagada(factura):
-                saldo_pendiente_total += float(saldo_factura)
+                saldo_pendiente_total += saldo_factura
 
             facturas.append({
                 "codigo": factura.codigo,
@@ -91,10 +91,36 @@ def consultar_facturas_por_codigo(codigo_cliente: str) -> dict:
             "tipo_cliente": tipo_cliente,
             "codigo_cliente": codigo_normalizado,
             "cantidad_facturas": len(facturas),
-            "saldo_pendiente_total": round(saldo_pendiente_total, 2),
+            "saldo_pendiente_total": float(saldo_pendiente_total),
             "facturas": facturas,
         }
 
+    finally:
+        db.close()
+
+
+def consultar_ultimo_pago_por_codigo(codigo_cliente: str) -> dict:
+    """Consulta pagos reales del propietario; nunca usa la emisión de factura."""
+    db = SessionLocal()
+    try:
+        tipo, cliente, codigo = buscar_identidad_activa_por_codigo(db, codigo_cliente)
+        if cliente is None:
+            return {"encontrado": False, "mensaje": "No se encontró el cliente verificado."}
+        pagos = [p for p in cliente.pagos if not p.anulado]
+        fechados = [p for p in pagos if p.fecha_pago is not None]
+        if not fechados:
+            return {"encontrado": True, "codigo_cliente": codigo, "ultimo_pago": None,
+                    "fecha_disponible": False,
+                    "mensaje": "No hay una fecha de pago registrada. Una factura pagada no permite deducir cuándo se pagó."}
+        pago = max(fechados, key=lambda p: (p.fecha_pago, p.id))
+        # Si hay movimientos sin fecha, no podemos ordenar todo el historial.
+        incompleto = len(fechados) != len(pagos)
+        return {"encontrado": True, "codigo_cliente": codigo, "tipo_cliente": tipo,
+                "fecha_disponible": True, "historial_fechas_incompleto": incompleto,
+                "ultimo_pago": {"fecha_pago": pago.fecha_pago.strftime("%Y-%m-%d"),
+                                "monto": float(_dinero(pago.monto)), "metodo": pago.metodo,
+                                "factura": pago.factura.codigo if pago.factura else None},
+                "mensaje": "Último pago con fecha registrada; existen otros pagos sin fecha." if incompleto else "Último pago registrado, incluyendo abonos parciales."}
     finally:
         db.close()
 
