@@ -124,13 +124,16 @@ def test_formato_pty_publico_se_lee_y_cachea_sin_inventar_entrega(monkeypatch):
     assert "PTY" not in resultado["estado"]
     assert resultado["registros_proveedor"] == [
         {"estado": "Recibido en Miami", "fecha_ingreso_proveedor": "2026-09-21T08:59:46-05:00", "procesado_por_proveedor": True},
-        {"estado": "Recibido en Miami", "fecha_ingreso_proveedor": "2026-09-23T14:19:00-05:00", "procesado_por_proveedor": False},
+        {"identificacion_incorrecta": True, "estado": "Recibido en Miami", "fecha_ingreso_proveedor": "2026-09-23T14:19:00-05:00", "procesado_por_proveedor": False},
     ]
     assert resultado["ubicacion"] == "Miami"
     assert resultado["disponibilidad_local_confirmada"] is False
     assert resultado["entrega_cliente_confirmada"] is False
     assert ptyfreight.consultar_tracking("TRACK-PTY") == resultado
     assert len(llamadas) == 1
+    assert resultado["identificacion_incorrecta"] is True
+    assert resultado["requiere_revision_humana"] is True
+    assert "mal identificado" in resultado["advertencia_cliente"]
 
 
 def test_formato_ptyfreight_anterior_se_conserva():
@@ -208,3 +211,28 @@ def test_registros_discordantes_no_eligen_una_ubicacion_sin_confirmar():
     assert [r["estado"] for r in resultado["registros_proveedor"]] == [
         "Recibido en Miami", "En tránsito",
     ]
+
+
+@pytest.mark.parametrize("campo", ["ware_house", "warehouse_number"])
+@pytest.mark.parametrize("valor", ["SACO 162 MALID", "malid", "SACO_malid", "MALID-162"])
+def test_malid_advierta_sin_ocultar_miami(campo, valor):
+    resultado = ptyfreight._mapear_respuesta({
+        "fuente": "pty", "pty": {"status": "ok", "packages": [{"state": 0, campo: valor}]},
+    })
+    assert resultado["ubicacion"] == "Miami"
+    assert resultado["requiere_revision_humana"] is True
+    assert "mal identificado" in resultado["advertencia_cliente"]
+    assert "PTY" not in resultado["advertencia_cliente"]
+    assert "MALID" not in resultado["advertencia_cliente"]
+
+
+@pytest.mark.parametrize("valor", ["10", "SACO 162", "NORMALID", None, 10])
+def test_bodega_sin_malid_no_marca_identificacion_incorrecta(valor):
+    resultado = ptyfreight._mapear_respuesta({
+        "fuente": "pty", "pty": {"status": "ok", "packages": [
+            {"state": 0, "ware_house": valor, "is_unknown": True},
+        ]},
+    })
+    assert "identificacion_incorrecta" not in resultado
+    assert "advertencia_cliente" not in resultado
+    assert "requiere_revision_humana" not in resultado
