@@ -754,8 +754,13 @@ Según la fuente que devuelva:
   encontramos el registro pero necesitamos confirmar su ubicación actual.
   Utiliza escalar_a_humano antes de decir que el equipo revisará el caso.
   Las fechas de ingreso no son fechas de entrega ni indican dónde está hoy.
-  No interpretes state, ware_house ni procesado
-  como ubicación, llegada a Miami, salida hacia Panamá o entrega al cliente.
+  Usa el estado y la ubicación ya traducidos por la herramienta. Si indica
+  "Recibido en Miami" y ubicacion="Miami", responde directamente que figura
+  como recibido en Miami; no escales solo porque entrega_cliente_confirmada
+  sea false. No digas que llegó a Panamá ni que está listo para retirar.
+  No interpretes por tu cuenta códigos de bodega o procesamiento como ubicación.
+  Si los registros muestran estados distintos o desconocidos, no elijas uno
+  como el estado actual sin confirmación del equipo.
   Si necesita un estado más preciso que el disponible, utiliza escalar_a_humano
   con el tracking y el motivo "Tracking PTY sin estado de entrega confirmado".
 - fuente="china": estado del paquete todavía en la bodega de China.

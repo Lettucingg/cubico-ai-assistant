@@ -120,13 +120,15 @@ def test_formato_pty_publico_se_lee_y_cachea_sin_inventar_entrega(monkeypatch):
     assert resultado["encontrado"] is True
     assert resultado["fuente"] == "ptyfreight"
     assert resultado.get("error") is not True
-    assert "entrega al cliente no confirmadas" in resultado["estado"]
+    assert resultado["estado"] == "Recibido en Miami"
     assert "PTY" not in resultado["estado"]
     assert resultado["registros_proveedor"] == [
-        {"fecha_ingreso_proveedor": "2026-09-21T08:59:46-05:00", "procesado_por_proveedor": True},
-        {"fecha_ingreso_proveedor": "2026-09-23T14:19:00-05:00", "procesado_por_proveedor": False},
+        {"estado": "Recibido en Miami", "fecha_ingreso_proveedor": "2026-09-21T08:59:46-05:00", "procesado_por_proveedor": True},
+        {"estado": "Recibido en Miami", "fecha_ingreso_proveedor": "2026-09-23T14:19:00-05:00", "procesado_por_proveedor": False},
     ]
-    assert "ubicacion" not in resultado
+    assert resultado["ubicacion"] == "Miami"
+    assert resultado["disponibilidad_local_confirmada"] is False
+    assert resultado["entrega_cliente_confirmada"] is False
     assert ptyfreight.consultar_tracking("TRACK-PTY") == resultado
     assert len(llamadas) == 1
 
@@ -160,3 +162,49 @@ def test_error_de_formato_no_se_cachea_y_permite_recuperacion(monkeypatch):
     assert ptyfreight.consultar_tracking("TRACK-PTY")["error"] is True
     assert "TRACK-PTY" not in ptyfreight._cache_tracking
     assert ptyfreight.consultar_tracking("TRACK-PTY")["encontrado"] is True
+
+
+@pytest.mark.parametrize("state", [0, "0"])
+def test_estado_cero_coincide_con_la_pagina_de_cubico(state):
+    resultado = ptyfreight._mapear_respuesta({
+        "fuente": "pty", "pty": {"status": "ok", "packages": [{"state": state}]},
+    })
+    assert resultado["encontrado"] is True
+    assert resultado["estado"] == "Recibido en Miami"
+    assert resultado["ubicacion"] == "Miami"
+
+
+@pytest.mark.parametrize("state", [1, 2, 3, 4])
+def test_otros_estados_no_inventan_panama_retiro_ni_entrega(state):
+    resultado = ptyfreight._mapear_respuesta({
+        "fuente": "pty", "pty": {"status": "ok", "packages": [{"state": state}]},
+    })
+    assert resultado["encontrado"] is True
+    assert "ubicacion" not in resultado
+    assert resultado["disponibilidad_local_confirmada"] is False
+    assert resultado["entrega_cliente_confirmada"] is False
+    assert "PTY" not in resultado["estado"]
+    if state in (3, 4):
+        assert "sin confirmar" in resultado["estado"]
+
+
+@pytest.mark.parametrize("state", [False, True, None, 99, "99", 0.0])
+def test_estado_desconocido_no_se_convierte_en_miami(state):
+    datos = _respuesta_pty_publica()
+    for registro in datos["pty"]["packages"]:
+        registro["state"] = state
+    resultado = ptyfreight._mapear_respuesta(datos)
+    assert resultado["encontrado"] is True
+    assert "ubicacion" not in resultado
+    assert "pendiente de confirmar" in resultado["estado"]
+
+
+def test_registros_discordantes_no_eligen_una_ubicacion_sin_confirmar():
+    datos = _respuesta_pty_publica()
+    datos["pty"]["packages"][1]["state"] = 2
+    resultado = ptyfreight._mapear_respuesta(datos)
+    assert "ubicacion" not in resultado
+    assert "pendiente de confirmar" in resultado["estado"]
+    assert [r["estado"] for r in resultado["registros_proveedor"]] == [
+        "Recibido en Miami", "En tránsito",
+    ]

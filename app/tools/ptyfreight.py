@@ -5,6 +5,17 @@ import httpx
 TIMEOUT_SEGUNDOS = 8.0
 DURACION_CACHE_SEGUNDOS = 180  # 3 minutos
 
+# Etiquetas tomadas de /public/assets/tracking.js del sistema de Cúbico.
+# Su catálogo es provisional: solo el estado 0 indica una ubicación concreta.
+# Los estados externos 3 y 4 no prueban retiro ni entrega al cliente de Cúbico.
+ESTADOS_TRACKING = {
+    "0": "Recibido en Miami",
+    "1": "En proceso",
+    "2": "En tránsito",
+    "3": "Registro actualizado como disponible; retiro en nuestro local sin confirmar",
+    "4": "Registro marcado como entregado o cerrado; entrega al cliente sin confirmar",
+}
+
 # Caché en memoria del proceso: numero_tracking -> (guardado_en, resultado).
 # Evita golpear el endpoint unificado en cada mensaje si el cliente
 # pregunta por el mismo tracking varias veces seguidas.
@@ -144,7 +155,7 @@ def _respuesta_pty_invalida() -> dict:
 
 
 def _mapear_pty(pty: dict) -> dict:
-    """Lee el formato del endpoint público sin interpretar códigos del proveedor."""
+    """Traduce los estados con el mismo criterio de la página de tracking de Cúbico."""
     if not isinstance(pty, dict) or pty.get("status") != "ok":
         return _respuesta_pty_invalida()
     paquetes = pty.get("packages")
@@ -152,10 +163,17 @@ def _mapear_pty(pty: dict) -> dict:
         return _respuesta_pty_invalida()
 
     registros = []
+    estados = []
     for paquete in paquetes:
         if not isinstance(paquete, dict):
             return _respuesta_pty_invalida()
         registro = {}
+        estado_crudo = paquete.get("state")
+        codigo = str(estado_crudo) if type(estado_crudo) in (int, str) else None
+        estado = codigo if codigo in ESTADOS_TRACKING else None
+        estados.append(estado)
+        if estado is not None:
+            registro["estado"] = ESTADOS_TRACKING[estado]
         fecha = paquete.get("date_of_admission")
         if isinstance(fecha, str) and fecha.strip():
             registro["fecha_ingreso_proveedor"] = fecha
@@ -165,14 +183,25 @@ def _mapear_pty(pty: dict) -> dict:
             return _respuesta_pty_invalida()
         registros.append(registro)
 
-    return {
+    mismo_estado = estados[0] is not None and all(e == estados[0] for e in estados)
+    resultado = {
         "encontrado": True,
         "fuente": "ptyfreight",
-        "estado": "Tracking registrado; ubicación actual y entrega al cliente no confirmadas",
+        "estado": (
+            ESTADOS_TRACKING[estados[0]] if mismo_estado
+            else "Tracking registrado; ubicación actual pendiente de confirmar"
+        ),
+        "disponibilidad_local_confirmada": False,
+        "entrega_cliente_confirmada": False,
         "registros_proveedor": registros,
         "advertencia": (
             "Las fechas son de ingreso en el proveedor. El procesamiento no confirma "
-            "ubicación, salida hacia Panamá ni entrega. Los códigos state y ware_house "
-            "no tienen un significado documentado para esta herramienta."
+            "ubicación, salida hacia Panamá ni entrega. No interpretes códigos de "
+            "bodega como ubicaciones. Los estados disponible o cerrado no confirman "
+            "retiro en nuestro local ni entrega al cliente. Si los registros tienen "
+            "estados distintos o desconocidos, confirma con el equipo la ubicación actual."
         ),
     }
+    if mismo_estado and estados[0] == "0":
+        resultado["ubicacion"] = "Miami"
+    return resultado
