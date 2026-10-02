@@ -160,8 +160,17 @@ def _mapear_pty(pty: dict) -> dict:
     if not isinstance(pty, dict) or pty.get("status") != "ok":
         return _respuesta_pty_invalida()
     paquetes = pty.get("packages")
-    if not isinstance(paquetes, list) or not paquetes:
+    if not isinstance(paquetes, list):
         return _respuesta_pty_invalida()
+    if not paquetes:
+        return {
+            "encontrado": False,
+            "fuente": "no_encontrado",
+            "mensaje": (
+                "El tracking no aparece registrado todavía. Es posible que el paquete "
+                "aún no haya llegado a nuestras bodegas; la consulta no confirma esa causa."
+            ),
+        }
 
     registros = []
     estados = []
