@@ -74,7 +74,8 @@ def consultar_tracking(numero_tracking: str) -> dict:
         }
 
     resultado = _mapear_respuesta(datos)
-    _cache_tracking[numero_normalizado] = (time.monotonic(), resultado)
+    if not resultado.get("error"):
+        _cache_tracking[numero_normalizado] = (time.monotonic(), resultado)
 
     return resultado
 
@@ -85,6 +86,8 @@ def _mapear_respuesta(datos: dict) -> dict:
     campo "fuente" distinto según de dónde salió el dato) al formato
     que espera Bruno.
     """
+    if not isinstance(datos, dict):
+        return _respuesta_pty_invalida()
     fuente = datos.get("fuente")
 
     if fuente == "cubico":
@@ -95,6 +98,9 @@ def _mapear_respuesta(datos: dict) -> dict:
             "ruta": datos.get("ruta"),
             "fecha": datos.get("fecha_carga"),
         }
+
+    if fuente == "pty" or (fuente == "ptyfreight" and "pty" in datos):
+        return _mapear_pty(datos.get("pty"))
 
     if fuente == "ptyfreight":
         return {
@@ -124,4 +130,49 @@ def _mapear_respuesta(datos: dict) -> dict:
         "fuente": "servicio_indisponible",
         "tipo_error": "fuente_desconocida",
         "mensaje": "El servicio de tracking devolvió una fuente desconocida",
+    }
+
+
+def _respuesta_pty_invalida() -> dict:
+    return {
+        "encontrado": False,
+        "error": True,
+        "fuente": "servicio_indisponible",
+        "tipo_error": "respuesta_invalida",
+        "mensaje": "El servicio de tracking devolvió una respuesta incompleta o inválida",
+    }
+
+
+def _mapear_pty(pty: dict) -> dict:
+    """Lee el formato del endpoint público sin interpretar códigos del proveedor."""
+    if not isinstance(pty, dict) or pty.get("status") != "ok":
+        return _respuesta_pty_invalida()
+    paquetes = pty.get("packages")
+    if not isinstance(paquetes, list) or not paquetes:
+        return _respuesta_pty_invalida()
+
+    registros = []
+    for paquete in paquetes:
+        if not isinstance(paquete, dict):
+            return _respuesta_pty_invalida()
+        registro = {}
+        fecha = paquete.get("date_of_admission")
+        if isinstance(fecha, str) and fecha.strip():
+            registro["fecha_ingreso_proveedor"] = fecha
+        if isinstance(paquete.get("is_processed"), bool):
+            registro["procesado_por_proveedor"] = paquete["is_processed"]
+        if not registro:
+            return _respuesta_pty_invalida()
+        registros.append(registro)
+
+    return {
+        "encontrado": True,
+        "fuente": "ptyfreight",
+        "estado": "Tracking registrado en PTY Freight; entrega al cliente no confirmada",
+        "registros_proveedor": registros,
+        "advertencia": (
+            "Las fechas son de ingreso en el proveedor. El procesamiento no confirma "
+            "ubicación, salida hacia Panamá ni entrega. Los códigos state y ware_house "
+            "no tienen un significado documentado para esta herramienta."
+        ),
     }
