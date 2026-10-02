@@ -1,3 +1,4 @@
+import re
 import time
 
 import httpx
@@ -168,6 +169,13 @@ def _mapear_pty(pty: dict) -> dict:
         if not isinstance(paquete, dict):
             return _respuesta_pty_invalida()
         registro = {}
+        mal_identificado = any(
+            isinstance(paquete.get(campo), str)
+            and re.search(r"(?<![a-z0-9])malid(?![a-z0-9])", paquete[campo], re.IGNORECASE)
+            for campo in ("ware_house", "warehouse_number")
+        )
+        if mal_identificado:
+            registro["identificacion_incorrecta"] = True
         estado_crudo = paquete.get("state")
         codigo = str(estado_crudo) if type(estado_crudo) in (int, str) else None
         estado = codigo if codigo in ESTADOS_TRACKING else None
@@ -204,4 +212,11 @@ def _mapear_pty(pty: dict) -> dict:
     }
     if mismo_estado and estados[0] == "0":
         resultado["ubicacion"] = "Miami"
+    if any(r.get("identificacion_incorrecta") for r in registros):
+        resultado["identificacion_incorrecta"] = True
+        resultado["requiere_revision_humana"] = True
+        resultado["advertencia_cliente"] = (
+            "El paquete aparece mal identificado y necesita revisión para asociarlo "
+            "correctamente a tu cuenta."
+        )
     return resultado
