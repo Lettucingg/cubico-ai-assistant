@@ -48,6 +48,9 @@
 #enviar-propuesta-chat::before{background-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%235c5b50%22%20stroke-width%3D%221.7%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M14%203H5v18h14V8zM14%203v5h5M8%2012h8M8%2016h6%22/%3E%3C/svg%3E")}
 #export-chat::before{background-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%235c5b50%22%20stroke-width%3D%221.7%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M12%203v12m-5-5%205%205%205-5M4%2016v5h16v-5%22/%3E%3C/svg%3E")}
 @media(max-width:1100px){body.management-open{overflow:hidden}}
+
+.alert-actions{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}.alert-actions .btn{color:var(--ink);min-height:44px}.alert-tabs{display:flex;gap:8px;padding:12px 18px;border-bottom:1px solid var(--line)}.alert-tabs .btn[aria-pressed="true"]{background:var(--ink);color:white}.alert-undo{display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:12px 18px;background:#fff4cc;border-bottom:1px solid var(--line)}.alert-undo[hidden]{display:none}.alert-row>div{min-width:0}.alert-row b,.alert-row p{overflow-wrap:anywhere}
+@media(max-width:760px){.alert-row{grid-template-columns:8px minmax(0,1fr)}.alert-actions{grid-column:2;justify-content:flex-start}.alert-actions .btn{font-size:12px;padding:9px 12px}}
 </style>
 </head>
 <body>
@@ -137,7 +140,7 @@
 
       <section class="view" id="costs"><div class="kpis"><article class="card kpi"><div class="kpi-top"><span>Tokens · 30 días</span><span class="kpi-icon">T</span></div><div class="kpi-value" id="cost-tokens">—</div><div class="delta neutral" id="cost-token-detail">Entrada y salida</div></article><article class="card kpi"><div class="kpi-top"><span>Costo promedio/chat</span><span class="kpi-icon">$</span></div><div class="kpi-value" id="cost-average">—</div><div class="delta neutral">Según conversaciones con uso</div></article><article class="card kpi"><div class="kpi-top"><span>Chat más costoso</span><span class="kpi-icon">↑</span></div><div class="kpi-value" id="cost-highest">—</div><div class="delta neutral" id="cost-highest-detail">Sin datos todavía</div></article><article class="card kpi"><div class="kpi-top"><span>Costo total</span><span class="kpi-icon">◒</span></div><div class="kpi-value" id="cost-total">—</div><div class="delta neutral">Últimos 30 días</div></article></div><div class="overview-grid"><article class="card chart-card"><div class="card-head"><div><h2>Costo por día</h2><p>Uso real de Anthropic</p></div></div><div class="chart-total"><b id="cost-chart-total">$0.00</b><span>30 días</span></div><div class="chart"><svg id="cost-chart" viewBox="0 0 720 210"></svg></div></article><article class="card queue-card"><div class="card-head"><div><h2>Chats con mayor consumo</h2><p>Últimos 30 días</p></div></div><div class="queue" id="expensive-chats"><div style="color:var(--muted);font-size:12px">Cargando…</div></div></article></div></section>
 
-      <section class="view" id="alerts"><article class="card alerts" style="margin-top:0"><div class="card-head"><div><h2>Centro de alertas</h2><p>Casos reales escalados por Bruno</p></div></div><div id="alerts-list"><div style="padding:18px;color:var(--muted);font-size:12px">Cargando alertas…</div></div></article></section>
+      <section class="view" id="alerts"><article class="card alerts" style="margin-top:0"><div class="card-head"><div><h2>Centro de alertas</h2><p>Quitar un aviso no cambia pagos ni solicitudes. Puedes recuperarlo en Papelera.</p></div></div><div class="alert-tabs"><button class="btn" id="alerts-active" aria-pressed="true">Pendientes</button><button class="btn" id="alerts-trash" aria-pressed="false">Papelera (0)</button></div><div class="alert-undo" id="alert-undo" role="status" hidden><span id="alert-undo-text"></span><button class="btn" id="alert-undo-button">Deshacer</button><button class="btn" id="alert-undo-close" aria-label="Cerrar aviso">×</button></div><div id="alerts-list"><div style="padding:18px;color:var(--muted);font-size:12px">Cargando alertas…</div></div></article></section>
       <section class="view" id="settings"><article class="card alerts" style="margin-top:0"><div class="card-head"><div><h2>Conexiones del panel</h2><p>Este panel consume la API protegida del mismo backend de Bruno.</p></div></div><div class="alert-row"><i class="dot"></i><div><b>API del panel</b><p>Conectada y autenticada.</p></div><span class="status-pill ready">Operativa</span></div><div class="alert-row"><i class="dot"></i><div><b>Persistencia de conversaciones</b><p>SQLite persistente y respaldado en el VPS Hetzner.</p></div><span class="status-pill ready">Operativa</span></div><div class="alert-row"><i class="alert-dot warn"></i><div><b>Avisos mientras usas el panel</b><p id="notification-status">Actívalos para recibir avisos cuando estés en otra pestaña.</p></div><div class="setting-control"><button class="btn" id="notification-toggle">Activar notificaciones</button><button class="btn" id="sound-toggle">Sonido: activo</button></div></div><div class="alert-row"><i class="alert-dot warn"></i><div><b>Notificaciones en el celular</b><p id="push-status">Inicia sesión para comprobar la instalación.</p></div><div class="setting-control"><button class="btn" id="push-toggle">Activar en este dispositivo</button></div></div></article></section>
     </main>
   </div>
@@ -150,9 +153,10 @@
   <div class="modal-overlay" id="modal-verificar-manual" role="dialog" aria-label="Verificar cliente manualmente"><div class="card modal-box"><h3>Verificar manualmente</h3><p style="font-size:12px;color:var(--muted);line-height:1.5">Escribe el código real del cliente o agencia. Se comprobará en la base de datos antes de asociarlo al chat.</p><label for="manual-code">Código de cliente o agencia</label><input type="text" id="manual-code" placeholder="CBC-0001 o código de agencia"/><div class="modal-actions"><button class="btn" type="button" id="manual-verify-cancel">Cancelar</button><button class="btn dark" type="button" id="manual-verify-save">Verificar y asociar</button></div></div></div>
   <div class="modal-overlay" id="modal-operacion-manual" role="dialog" aria-label="Crear operación manual"><div class="card modal-box"><h3 id="manual-operation-title">Crear solicitud</h3><p id="manual-operation-help" style="font-size:12px;color:var(--muted);line-height:1.5"></p><div id="manual-address-field"><label for="manual-address">Dirección exacta</label><textarea id="manual-address" rows="3" placeholder="Dirección completa de entrega"></textarea></div><div id="manual-payment-fields"><label for="manual-amount">Monto reportado (opcional)</label><input type="number" id="manual-amount" min="0.01" step="0.01" placeholder="0.00"/><label for="manual-method">Método (opcional)</label><input type="text" id="manual-method" placeholder="Yappy, transferencia, efectivo…"/><label for="manual-reference">Referencia (opcional)</label><input type="text" id="manual-reference" placeholder="Número de referencia"/></div><div class="modal-actions"><button class="btn" type="button" id="manual-operation-cancel">Cancelar</button><button class="btn dark" type="button" id="manual-operation-save">Crear caso</button></div></div></div>
   <script src="/static/daily-report.js"></script>
+  <script src="/static/alert-management.js"></script>
   <script>
     const titles={overview:['Buenos días, Alexander','Esto es lo que está pasando en Cúbico hoy.'],chats:['Conversaciones','Supervisa a Bruno y toma el control cuando haga falta.'],packages:['Retiros y domicilios','Organiza las solicitudes que llegan directamente desde WhatsApp.'],opportunities:['Oportunidades comerciales','Bruno organiza la información; el equipo decide qué propuesta preparar.'],costs:['Costos y tokens','Entiende exactamente cuánto cuesta cada conversación.'],alerts:['Alertas','Problemas que requieren una decisión o intervención.'],settings:['Configuración','Integraciones y estado técnico de Bruno.']};
-    function showView(id){document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id===id));document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.view===id));document.getElementById('page-title').textContent=titles[id][0];document.getElementById('page-sub').textContent=titles[id][1];if(id==='packages')cargarSolicitudes();if(id==='opportunities')cargarOportunidades();if(id==='costs')cargarUso(30);window.scrollTo({top:0,behavior:'smooth'})}
+    function showView(id){document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id===id));document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.view===id));document.getElementById('page-title').textContent=titles[id][0];document.getElementById('page-sub').textContent=titles[id][1];if(id==='packages')cargarSolicitudes();if(id==='opportunities')cargarOportunidades();if(id==='costs')cargarUso(30);if(id==='alerts')cargarPapelera();window.scrollTo({top:0,behavior:'smooth'})}
     document.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>showView(b.dataset.view)));document.querySelectorAll('.open-chats').forEach(b=>b.addEventListener('click',()=>showView('chats')));
     function abrirAccesoDirecto(elemento){
       const vista=elemento.dataset.summaryView;
@@ -174,11 +178,13 @@
     const borradoresChat=new Map();
     let oportunidades=[],oportunidadActiva=null,filtroOportunidad='active';
     let modoControl={};
+    let alertasArchivadas=[],papeleraCargada=false,verPapelera=false,ultimaAlertaQuitada=null,versionPapelera=0;
+    const alertasEnProceso=new Set();
     let notificacionesInicializadas=false,sonidoActivo=true,audioContext=null,actualizandoRapido=false,pushSuscrito=false;
     const firmasUltimoCliente=new Map();
 
     function authHeaders(authCreds=creds){return {'Authorization':'Basic '+authCreds}}
-    function mostrarLogin(mensaje='Tu sesión venció. Inicia sesión nuevamente.'){creds=null;usuarioActual=null;clearInterval(refreshTimer);clearInterval(quickRefreshTimer);document.querySelector('.app').style.display='none';document.getElementById('login-overlay').style.display='flex';const err=document.getElementById('login-err');err.textContent=mensaje;err.style.display='block'}
+    function mostrarLogin(mensaje='Tu sesión venció. Inicia sesión nuevamente.'){creds=null;usuarioActual=null;alertasArchivadas=[];papeleraCargada=false;verPapelera=false;ultimaAlertaQuitada=null;document.getElementById('alert-undo').hidden=true;clearInterval(refreshTimer);clearInterval(quickRefreshTimer);document.querySelector('.app').style.display='none';document.getElementById('login-overlay').style.display='flex';const err=document.getElementById('login-err');err.textContent=mensaje;err.style.display='block'}
     async function apiRequest(path,options={},authCreds=creds,reloginOn401=true,notificarErrores=true){
       const controller=new AbortController();
       const timeout=setTimeout(()=>controller.abort(),REQUEST_TIMEOUT_MS);
@@ -265,6 +271,7 @@
         notificacionesInicializadas=false;firmasUltimoCliente.clear();
         document.getElementById('login-overlay').style.display='none';
         document.querySelector('.app').style.display='grid';
+        await cargarPapelera();
         renderLista(await r.json());
         await refrescarPanel();
         actualizarEstadoNotificaciones();
@@ -284,11 +291,11 @@
     function iniciarAutoRefresh(){clearInterval(refreshTimer);clearInterval(quickRefreshTimer);quickRefreshTimer=setInterval(refrescarMensajes,5000);refreshTimer=setInterval(refrescarDatosSecundarios,30000)}
 
     async function refrescarPanel(){
-      await Promise.all([recargarConversaciones(),recargarHistorialActivo(),cargarResumen(),cargarSolicitudes(),cargarOportunidades(),cargarUso(30)]);
+      await Promise.all([cargarPapelera(),recargarConversaciones(),recargarHistorialActivo(),cargarResumen(),cargarSolicitudes(),cargarOportunidades(),cargarUso(30)]);
     }
 
     async function refrescarMensajes(){if(actualizandoRapido||!creds)return;actualizandoRapido=true;try{await Promise.all([recargarActividad(),recargarHistorialActivo()])}finally{actualizandoRapido=false}}
-    async function refrescarDatosSecundarios(){if(!creds)return;await Promise.all([recargarConversaciones(),cargarResumen(),cargarSolicitudes(),cargarOportunidades(),cargarUso(30)])}
+    async function refrescarDatosSecundarios(){if(!creds)return;await Promise.all([cargarPapelera(),recargarConversaciones(),cargarResumen(),cargarSolicitudes(),cargarOportunidades(),cargarUso(30)])}
 
     async function recargarHistorialActivo(){
       const telefono=telActivo;
@@ -627,7 +634,7 @@
         if(window.confirm(datos.detail+' ¿Deseas reemplazarlo?'))return await enviarOperacionManual(body,true,telefonoObjetivo);
       }
       if(!r.ok)throw Error((datos&&datos.detail)||'No se pudo completar la operación');
-      await Promise.all([recargarConversaciones(),cargarSolicitudes(),cargarResumen()]);
+      await Promise.all([cargarPapelera(),recargarConversaciones(),cargarSolicitudes(),cargarResumen()]);
       const actual=convs.find(c=>c.telefono===telActivo);if(actual)actualizarEncabezadoChat(actual);
       return datos;
     }
@@ -1064,21 +1071,48 @@
       }catch(e){}
     }
 
+    async function cargarPapelera(){
+      if(!creds)return;
+      const sesion=creds,version=versionPapelera;
+      try{const r=await apiGet('/panel/alertas/papelera');if(!r.ok)throw Error();const datos=await r.json();if(creds!==sesion||version!==versionPapelera)return;alertasArchivadas=datos;papeleraCargada=true;renderAlertas()}catch(e){if(!papeleraCargada&&creds===sesion)renderAlertas()}
+    }
+    async function quitarAlerta(alerta,motivo){
+      if(alertasEnProceso.has(alerta.clave)||!papeleraCargada)return;
+      const sesion=creds;alertasEnProceso.add(alerta.clave);renderAlertas();
+      try{
+        const r=await apiPost('/panel/alertas/archivar',{clave:alerta.clave,titulo:alerta.titulo,descripcion:alerta.descripcion,motivo});if(!r.ok)throw Error();
+        const guardada=await r.json();if(creds!==sesion)return;
+        versionPapelera++;alertasArchivadas=alertasArchivadas.filter(a=>a.clave!==guardada.clave);alertasArchivadas.unshift(guardada);ultimaAlertaQuitada=guardada.id;
+        document.getElementById('alert-undo-text').textContent='Aviso movido a Papelera.';document.getElementById('alert-undo').hidden=false;
+        say('Aviso quitado. Puedes deshacerlo en Alertas.');
+      }catch(e){if(creds===sesion)say('No se pudo quitar el aviso. Intenta nuevamente.')}finally{alertasEnProceso.delete(alerta.clave);renderAlertas()}
+    }
+    async function restaurarAlerta(id){
+      const key='restore:'+id;if(alertasEnProceso.has(key))return;
+      const sesion=creds;alertasEnProceso.add(key);renderAlertas();
+      try{const r=await apiPost('/panel/alertas/'+id+'/restaurar',{});if(!r.ok)throw Error();if(creds!==sesion)return;
+        versionPapelera++;alertasArchivadas=alertasArchivadas.filter(a=>a.id!==id);if(ultimaAlertaQuitada===id){ultimaAlertaQuitada=null;document.getElementById('alert-undo').hidden=true}
+        say('Aviso restaurado. Aparecerá si el caso sigue pendiente.');
+      }catch(e){if(creds===sesion)say('No se pudo restaurar. Intenta nuevamente.')}finally{alertasEnProceso.delete(key);renderAlertas()}
+    }
+    document.getElementById('alerts-active').addEventListener('click',()=>{verPapelera=false;renderAlertas()});
+    document.getElementById('alerts-trash').addEventListener('click',()=>{verPapelera=true;renderAlertas();cargarPapelera()});
+    document.getElementById('alert-undo-button').addEventListener('click',()=>{if(ultimaAlertaQuitada!==null)restaurarAlerta(ultimaAlertaQuitada)});
+    document.getElementById('alert-undo-close').addEventListener('click',()=>{document.getElementById('alert-undo').hidden=true});
     function renderAlertas(){
-      const filas=[];
-      convs.filter(c=>c.necesita_atencion_humana).forEach(c=>filas.push(`<div class="alert-row"><i class="alert-dot"></i><div><b>${esc(c.nombre||c.telefono)}</b><p>${esc(c.motivo_escalamiento||'Solicitó atención del equipo')} · ${tiempoTranscurrido(c.actualizado_en)}</p></div><button class="btn open-alert-chat" data-tel="${esc(c.telefono)}">Atender</button></div>`));
-      convs.filter(c=>c.tiene_no_leidos&&!c.necesita_atencion_humana).forEach(c=>filas.push(`<div class="alert-row"><i class="alert-dot warn"></i><div><b>Nuevo mensaje · ${esc(c.nombre||c.telefono)}</b><p>${esc((c.ultimo_mensaje_cliente?.contenido||'Mensaje pendiente').slice(0,90))}</p></div><button class="btn open-alert-chat" data-tel="${esc(c.telefono)}">Abrir</button></div>`));
-      convs.filter(c=>c.ultimo_mensaje?.estado_entrega==='failed').forEach(c=>filas.push(`<div class="alert-row"><i class="alert-dot"></i><div><b>Mensaje no entregado · ${esc(c.nombre||c.telefono)}</b><p>${esc(c.ultimo_mensaje.error_entrega||'Meta rechazó el último envío')}</p></div><button class="btn open-alert-chat" data-tel="${esc(c.telefono)}">Revisar</button></div>`));
-      solicitudes.filter(s=>s.pago_reportado&&!s.pago_confirmado).forEach(s=>filas.push(`<div class="alert-row"><i class="alert-dot warn"></i><div><b>${s.tiene_comprobante?'Comprobante por revisar':'Pago por comprobar'} · ${esc(s.nombre)}</b><p>${s.monto_reportado==null?'Monto pendiente de completar':'Monto reportado: $'+Number(s.monto_reportado).toFixed(2)}</p></div><button class="btn open-alert-case" data-tel="${esc(s.telefono)}" data-type="${esc(s.tipo)}">Revisar</button></div>`));
-      solicitudes.filter(s=>s.tipo==='domicilio'&&(!s.direccion||s.direccion==='—')).forEach(s=>filas.push(`<div class="alert-row"><i class="alert-dot"></i><div><b>Domicilio sin dirección · ${esc(s.nombre)}</b><p>Falta confirmar la dirección exacta del cliente.</p></div><button class="btn open-alert-case" data-tel="${esc(s.telefono)}" data-type="domicilio">Abrir</button></div>`));
-      oportunidades.filter(o=>o.estado==='nueva').forEach(o=>filas.push(`<div class="alert-row"><i class="alert-dot warn"></i><div><b>Nueva oportunidad · ${esc(o.empresa||o.nombre_contacto||o.telefono)}</b><p>${esc((o.resumen||'Posible cliente empresarial').slice(0,120))}</p></div><button class="btn open-alert-opportunity" data-id="${o.id}">Revisar</button></div>`));
-      const html=filas.length?filas.join(''):'<div style="padding:22px;text-align:center;color:var(--muted);font-size:12px">Todo está al día. No hay alertas pendientes.</div>';
+      const ocultas=new Set(alertasArchivadas.map(a=>a.clave));
+      const activas=CubicoAlerts.collect(convs,solicitudes,oportunidades).filter(a=>!ocultas.has(a.clave));
+      const filas=activas.map((a,i)=>`<div class="alert-row"><i class="alert-dot ${a.warn?'warn':''}"></i><div><b>${esc(a.titulo)}</b><p>${esc(a.descripcion)}</p></div><div class="alert-actions"><button class="btn alert-open" data-index="${i}">Revisar</button><button class="btn alert-remove" data-index="${i}" data-reason="resuelta" ${!papeleraCargada||alertasEnProceso.has(a.clave)?'disabled':''}>✓ Ya resuelta</button><button class="btn alert-remove" data-index="${i}" data-reason="descartada" ${!papeleraCargada||alertasEnProceso.has(a.clave)?'disabled':''}>Descartar</button></div></div>`);
+      const vacio=t=>'<div style="padding:22px;text-align:center;color:var(--muted);font-size:12px">'+t+'</div>';
+      const html=(!papeleraCargada?vacio('No se pudo cargar la Papelera. Vuelve a abrir Alertas para reintentar.'):'')+(filas.length?filas.join(''):vacio('Todo está al día. No hay alertas pendientes.'));
       document.getElementById('overview-alerts').innerHTML=html;
-      document.getElementById('alerts-list').innerHTML=html;
-      document.querySelectorAll('.open-alert-chat').forEach(b=>b.addEventListener('click',()=>{showView('chats');abrirChat(b.dataset.tel)}));
-      document.querySelectorAll('.open-alert-case').forEach(b=>b.addEventListener('click',()=>{showView('packages');seleccionarSolicitud(b.dataset.tel,b.dataset.type)}));
-      document.querySelectorAll('.open-alert-opportunity').forEach(b=>b.addEventListener('click',()=>{showView('opportunities');seleccionarOportunidad(Number(b.dataset.id))}));
-      const contador=document.getElementById('nav-count-alerts');if(contador)contador.textContent=filas.length;
+      document.getElementById('alerts-list').innerHTML=verPapelera?(alertasArchivadas.length?alertasArchivadas.map(a=>`<div class="alert-row"><i class="alert-dot warn"></i><div><b>${esc(a.titulo)}</b><p>${esc(a.descripcion)}</p><p>${a.motivo==='resuelta'?'Marcada como resuelta':'Descartada'} · ${esc(a.usuario)} · ${esc(new Date(a.creado_en).toLocaleString('es-PA'))}</p></div><div class="alert-actions"><button class="btn alert-restore" data-id="${a.id}" ${alertasEnProceso.has('restore:'+a.id)?'disabled':''}>Restaurar</button></div></div>`).join(''):vacio('La Papelera está vacía.')):html;
+      document.getElementById('alerts-active').setAttribute('aria-pressed',String(!verPapelera));document.getElementById('alerts-trash').setAttribute('aria-pressed',String(verPapelera));document.getElementById('alerts-trash').textContent='Papelera ('+alertasArchivadas.length+')';
+      document.querySelectorAll('.alert-open').forEach(b=>b.addEventListener('click',()=>{const t=activas[Number(b.dataset.index)].target;showView(t.view);if(t.view==='chats')abrirChat(t.tel);else if(t.view==='packages')seleccionarSolicitud(t.tel,t.type);else seleccionarOportunidad(t.id)}));
+      document.querySelectorAll('.alert-remove').forEach(b=>b.addEventListener('click',()=>quitarAlerta(activas[Number(b.dataset.index)],b.dataset.reason)));
+      document.querySelectorAll('.alert-restore').forEach(b=>b.addEventListener('click',()=>restaurarAlerta(Number(b.dataset.id))));
+      document.getElementById('alert-undo-button').disabled=alertasEnProceso.has('restore:'+ultimaAlertaQuitada);
+      const contador=document.getElementById('nav-count-alerts');if(contador)contador.textContent=activas.length;
     }
 
     const ESTADOS_OPORTUNIDAD={nueva:'Nueva',en_revision:'En revisión',preparando_propuesta:'Preparando propuesta',propuesta_enviada:'Propuesta enviada',seguimiento:'Seguimiento',ganada:'Ganada',no_concretada:'No concretada'};

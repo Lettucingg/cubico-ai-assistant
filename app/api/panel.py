@@ -7,11 +7,12 @@ import shutil
 import traceback
 from datetime import datetime
 from zoneinfo import ZoneInfo
+from typing import Literal
 
 import httpx
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, Response, UploadFile
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.core.config import settings
 from app.db.session_store import (
@@ -29,6 +30,7 @@ from app.db.session_store import (
 )
 from app.services.push_notifications import push_configurado
 from app.services.daily_reports import listar_informes, usuarios_informes
+from app.services.alert_archive import listar_archivadas, archivar_alerta, restaurar_alerta
 from app.tools.clientes import obtener_nombre_completo_cliente
 from app.tools.comprobantes import descargar_imagen_de_whatsapp
 from app.tools.paquetes import consultar_paquetes_por_codigo
@@ -67,6 +69,13 @@ USUARIOS_PANEL: dict[str, str] = json.loads(settings.PANEL_USUARIOS_JSON)
 class SuscripcionPushPayload(BaseModel):
     endpoint: str
     keys: dict[str, str]
+
+
+class ArchivarAlertaPayload(BaseModel):
+    clave: str = Field(min_length=1, max_length=2000)
+    titulo: str = Field(min_length=1, max_length=300)
+    descripcion: str = Field(default="", max_length=500)
+    motivo: Literal["resuelta", "descartada"]
 
 
 class OportunidadPayload(BaseModel):
@@ -271,6 +280,23 @@ def configuracion_push(usuario: str = Depends(verificar_credenciales_panel)):
         "disponible": push_configurado(),
         "public_key": settings.PUSH_VAPID_PUBLIC_KEY if push_configurado() else "",
     }
+
+
+@router.get("/alertas/papelera")
+def alertas_papelera(usuario: str = Depends(verificar_credenciales_panel)):
+    return listar_archivadas()
+
+
+@router.post("/alertas/archivar")
+def archivar_alerta_panel(payload: ArchivarAlertaPayload, usuario: str = Depends(verificar_credenciales_panel)):
+    return archivar_alerta(payload.clave, payload.titulo, payload.descripcion, payload.motivo, usuario)
+
+
+@router.post("/alertas/{alerta_id}/restaurar")
+def restaurar_alerta_panel(alerta_id: int, usuario: str = Depends(verificar_credenciales_panel)):
+    # Restaurar es idempotente: otro operador puede haberlo hecho ya.
+    restaurar_alerta(alerta_id)
+    return {"restaurada": True}
 
 
 @router.post("/push/suscripcion")
