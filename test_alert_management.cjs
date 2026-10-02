@@ -1,5 +1,5 @@
 const assert=require('node:assert/strict');
-const {collect}=require('./app/static/alert-management.js');
+const {collect,filter}=require('./app/static/alert-management.js');
 const c={telefono:'507',nombre:'Cliente',tiene_no_leidos:true,ultimo_mensaje_cliente:{id:1,timestamp:'2026-10-02',contenido:'Hola'}};
 const key=collect([c],[],[])[0].clave;
 assert.equal(collect([{...c,actualizado_en:'later',ultimo_mensaje:{id:3}}],[],[])[0].clave,key);
@@ -17,3 +17,10 @@ assert.equal(collect([],[],[{id:1,estado:'ganada'}]).length,0);
 const long=collect([{...human,motivo_escalamiento:'x'.repeat(4000),ultimo_mensaje_cliente:{contenido:'x'.repeat(4000),timestamp:'x'.repeat(4000)}}],[],[])[0];
 assert.ok(long.clave.length<=2000);assert.ok(long.titulo.length<=300);assert.ok(long.descripcion.length<=500);
 console.log('Alert identities: passed');
+
+const all=collect([c,human],[s],[{id:1,estado:'nueva',empresa:'Arthur'}]);
+assert.equal(filter(all,'arthur','negocios').length,1);
+assert.equal(filter(all,'arthur','pagos').length,0);
+assert.equal(filter(all,'  CLIENTE  ','equipo').length,2);
+assert.equal(filter(all,'','all').length,all.length);
+console.log('Alert search and category filters: passed');
