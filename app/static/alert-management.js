@@ -4,7 +4,7 @@
   const message=m=>[m?.id??null,text(m?.timestamp),text(m?.contenido)];
   function collect(convs,solicitudes,oportunidades){
     const rows=[];
-    function add(kind,id,version,titulo,descripcion,target,warn=false){rows.push({clave:JSON.stringify([kind,text(id),version]),titulo:text(titulo).slice(0,300),descripcion:text(descripcion),target,warn})}
+    function add(kind,id,version,titulo,descripcion,target,warn=false){rows.push({kind,clave:JSON.stringify([kind,text(id),version]),titulo:text(titulo).slice(0,300),descripcion:text(descripcion),target,warn})}
     convs.forEach(c=>{
       const name=c.nombre||c.telefono,target={view:'chats',tel:c.telefono};
       if(c.necesita_atencion_humana)add('humano',c.telefono,[text(c.motivo_escalamiento),message(c.ultimo_mensaje_cliente)],name,c.motivo_escalamiento||'Solicitó atención del equipo',target);
@@ -19,6 +19,12 @@
     oportunidades.filter(o=>o.estado==='nueva').forEach(o=>add('oportunidad',o.id,[text(o.actualizada_en||o.creada_en)],'Nueva oportunidad · '+(o.empresa||o.nombre_contacto||o.telefono),o.resumen||'Posible cliente empresarial',{view:'opportunities',id:o.id},true));
     return rows;
   }
-  root.CubicoAlerts={collect};
+  const groups={humano:'equipo',mensaje:'equipo',fallido:'equipo',pago:'pagos',direccion:'operaciones',oportunidad:'negocios'};
+  const labels={equipo:'Atención del equipo',pagos:'Pagos por revisar',operaciones:'Retiros y domicilios',negocios:'Negocios'};
+  function filter(rows,search='',group='all'){
+    const query=search.trim().toLocaleLowerCase('es');
+    return rows.filter(a=>(group==='all'||groups[a.kind]===group)&&(!query||(a.titulo+' '+a.descripcion).toLocaleLowerCase('es').includes(query)));
+  }
+  root.CubicoAlerts={collect,filter,groups,labels};
   if(typeof module!=='undefined')module.exports=root.CubicoAlerts;
 })(typeof window!=='undefined'?window:globalThis);
