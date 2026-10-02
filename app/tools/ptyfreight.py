@@ -168,7 +168,7 @@ def _mapear_pty(pty: dict) -> dict:
     return {
         "encontrado": True,
         "fuente": "ptyfreight",
-        "estado": "Tracking registrado en PTY Freight; entrega al cliente no confirmada",
+        "estado": "Tracking registrado; ubicación actual y entrega al cliente no confirmadas",
         "registros_proveedor": registros,
         "advertencia": (
             "Las fechas son de ingreso en el proveedor. El procesamiento no confirma "

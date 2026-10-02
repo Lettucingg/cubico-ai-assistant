@@ -120,7 +120,8 @@ def test_formato_pty_publico_se_lee_y_cachea_sin_inventar_entrega(monkeypatch):
     assert resultado["encontrado"] is True
     assert resultado["fuente"] == "ptyfreight"
     assert resultado.get("error") is not True
-    assert "entrega al cliente no confirmada" in resultado["estado"]
+    assert "entrega al cliente no confirmadas" in resultado["estado"]
+    assert "PTY" not in resultado["estado"]
     assert resultado["registros_proveedor"] == [
         {"fecha_ingreso_proveedor": "2026-09-21T08:59:46-05:00", "procesado_por_proveedor": True},
         {"fecha_ingreso_proveedor": "2026-09-23T14:19:00-05:00", "procesado_por_proveedor": False},
