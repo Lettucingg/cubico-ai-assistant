@@ -133,6 +133,19 @@ class InformeDiario(BaseSesiones):
     creado_en = Column(DateTime, default=datetime.utcnow, nullable=False)
 
 
+class AlertaArchivada(BaseSesiones):
+    __tablename__ = "alertas_archivadas"
+
+    id = Column(Integer, primary_key=True)
+    firma = Column(String(64), unique=True, nullable=False)
+    clave = Column(Text, nullable=False)
+    titulo = Column(Text, nullable=False)
+    descripcion = Column(Text, nullable=False)
+    motivo = Column(String(20), nullable=False)
+    usuario = Column(String, nullable=False)
+    creado_en = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
 BaseSesiones.metadata.create_all(engine_sesiones)
 
 
