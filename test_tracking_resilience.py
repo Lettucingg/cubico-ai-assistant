@@ -148,7 +148,9 @@ def test_formato_ptyfreight_anterior_se_conserva():
 @pytest.mark.parametrize("datos", [
     [], None, {"fuente": "pty"},
     {"fuente": "pty", "pty": {"status": "error", "packages": [{}]}},
-    {"fuente": "pty", "pty": {"status": "ok", "packages": []}},
+    {"fuente": "pty", "pty": {"status": "ok"}},
+    {"fuente": "pty", "pty": {"status": "ok", "packages": None}},
+    {"fuente": "pty", "pty": {"status": "error", "packages": []}},
     {"fuente": "pty", "pty": {"status": "ok", "packages": [None]}},
     {"fuente": "pty", "pty": {"status": "ok", "packages": [{}]}},
 ])
@@ -156,6 +158,26 @@ def test_respuestas_incompletas_no_son_paquete_inexistente(datos):
     resultado = ptyfreight._mapear_respuesta(datos)
     assert resultado["fuente"] == "servicio_indisponible"
     assert resultado["error"] is True
+
+
+def test_consulta_valida_sin_paquetes_no_es_error_y_se_cachea(monkeypatch):
+    ptyfreight._cache_tracking.clear()
+    llamadas = []
+
+    def consultar(url, timeout):
+        llamadas.append(url)
+        return _respuesta(200, {"fuente": "pty", "pty": {"status": "ok", "packages": []}})
+
+    monkeypatch.setattr(ptyfreight.httpx, "get", consultar)
+    resultado = ptyfreight.consultar_tracking("TRACK-SIN-RESULTADOS")
+    assert resultado["encontrado"] is False
+    assert resultado["fuente"] == "no_encontrado"
+    assert resultado.get("error") is not True
+    assert "Es posible" in resultado["mensaje"]
+    assert "ubicacion" not in resultado
+    assert "requiere_revision_humana" not in resultado
+    assert ptyfreight.consultar_tracking("TRACK-SIN-RESULTADOS") == resultado
+    assert len(llamadas) == 1
 
 
 def test_error_de_formato_no_se_cachea_y_permite_recuperacion(monkeypatch):
