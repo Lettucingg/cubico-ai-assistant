@@ -57,6 +57,8 @@
 @media(max-width:1100px){.alert-toolbar{flex-wrap:wrap}.alert-tools{flex:1}.alert-tools input{flex:1}.alert-stat{padding:14px;gap:10px}}
 @media(max-width:760px){.alert-stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.alert-stat b{font-size:22px}.alert-stat div>span{font-size:11px}.alert-icon{width:38px;height:38px;flex-basis:38px;font-size:22px}.alert-toolbar{padding:10px;gap:12px}.alert-tools{flex-wrap:wrap;width:100%}.alert-tools input{width:100%;max-width:none;flex-basis:100%}.alert-tools select{flex:1;max-width:none}.alert-item{gap:12px;padding:14px;flex-wrap:wrap}.alert-copy{flex:1;min-width:160px}.alert-actions{margin-left:auto}.alert-copy b{font-size:13px}.alert-undo{bottom:90px;gap:8px}.alert-bulk{gap:10px}}
 @media(prefers-reduced-motion:reduce){.btn,.alert-item,.alert-menu>summary{transition:none}.btn:hover:not(:disabled),.btn:active:not(:disabled),.alert-menu>summary:hover,.alert-menu>summary:active{transform:none}}
+
+.reports-heading{display:flex;justify-content:space-between;align-items:center;gap:12px}.reports-history-note{font-size:12px;color:var(--muted);line-height:1.5}#daily-reports-history{margin-top:18px;padding-top:14px;border-top:1px solid var(--line)}#daily-reports-history[hidden]{display:none}#daily-reports-history h4{margin:0 0 6px;font-size:14px}#daily-reports-history-list{max-height:420px;overflow:auto}@media(max-width:760px){.reports-heading h3{font-size:15px}.reports-heading .btn{font-size:12px;padding:9px 11px}}
 </style>
 </head>
 <body>
@@ -96,7 +98,7 @@
     <main>
       <header class="topbar"><div class="title"><h1 id="page-title">Buenos días</h1><p id="page-sub">Esto es lo que está pasando en Cúbico hoy.</p></div><div class="top-actions"><input class="search" id="global-search" placeholder="Buscar chat, cliente o paquete…" aria-label="Buscar"/><button class="icon-btn" id="notifications" aria-label="Notificaciones" title="Ver alertas y activar notificaciones">🔔<span class="notification-count" id="notification-count">0</span></button><div class="avatar" id="settings-shortcut" role="button" tabindex="0" aria-label="Abrir configuración" title="Configuración">—</div></div></header>
 
-      <section class="view active" id="overview"><article class="card" id="daily-reports-card" style="display:none;padding:16px;margin-bottom:14px"><h3 style="margin:0 0 6px">Informes de Bruno</h3><p style="color:var(--muted);font-size:12px">Estado 8:00 a. m. · Resumen 5:00 p. m. · Hora de Panamá</p><div id="daily-reports-list"></div></article>
+      <section class="view active" id="overview"><article class="card" id="daily-reports-card" style="display:none;padding:16px;margin-bottom:14px"><div class="reports-heading"><h3 style="margin:0">Informes de hoy</h3><button class="btn" id="daily-reports-history-toggle" aria-expanded="false" aria-controls="daily-reports-history">Ver historial</button></div><p style="color:var(--muted);font-size:12px">Estado 8:00 a. m. · Resumen 5:00 p. m. · Hora de Panamá</p><div id="daily-reports-list"></div><div id="daily-reports-history" hidden><h4>Informes anteriores</h4><p class="reports-history-note">Se muestran los anteriores disponibles entre los últimos 30 informes.</p><div id="daily-reports-history-list"></div></div></article>
         <div class="demo-note">● Mensajes cada 5 segundos · métricas cada 30 segundos</div>
         <div class="kpis">
           <button type="button" class="card kpi click-card" data-summary-view="chats" aria-label="Abrir las conversaciones de hoy"><div class="kpi-top"><span>Conversaciones hoy</span><span class="kpi-icon">◫</span></div><div class="kpi-value" id="kpi-conversations">—</div><div class="delta neutral">Ver conversaciones</div></button>
@@ -1053,17 +1055,25 @@
     function tiempoTranscurrido(fecha){if(!fecha)return'—';const s=Math.max(0,(Date.now()-new Date(fecha).getTime())/1000);if(s<60)return'Menos de 1 min';if(s<3600)return Math.floor(s/60)+' min';if(s<86400)return Math.floor(s/3600)+' h';return Math.floor(s/86400)+' d'}
 
     let informesDiarios=[];
-    async function cargarInformesDiarios(){
-      const card=document.getElementById('daily-reports-card');
-      try{const r=await apiGet('/panel/informes-diarios',false);if(!r.ok){card.style.display='none';informesDiarios=[];return}informesDiarios=await r.json();card.style.display='block';document.getElementById('daily-reports-list').innerHTML=informesDiarios.length?informesDiarios.slice(0,6).map(i=>'<button class="report-preview daily-report-open" data-id="'+i.id+'"><span><strong>'+esc(i.tipo==='mañana'?'Estado de Bruno y pendientes':'Así va Cúbico hoy')+'</strong><small>'+esc(new Date(i.creado_en).toLocaleString('es-PA',{timeZone:'America/Panama',day:'numeric',month:'short',hour:'numeric',minute:'2-digit'}))+'</small></span><span aria-hidden="true">↗</span></button>').join(''):'<p style="font-size:12px;color:var(--muted)">El primer informe aparecerá en el próximo horario programado. Activa las notificaciones de este dispositivo en Configuración.</p>'}catch(e){card.style.display='none'}
+    function renderInformesDiarios(){
+      const {today,previous}=CubicoReport.splitByDay(informesDiarios);
+      const preview=i=>'<button class="report-preview daily-report-open" data-id="'+i.id+'"><span><strong>'+esc(i.tipo==='mañana'?'Estado de Bruno y pendientes':'Así va Cúbico hoy')+'</strong><small>'+esc(new Date(i.creado_en).toLocaleString('es-PA',{timeZone:'America/Panama',day:'numeric',month:'short',hour:'numeric',minute:'2-digit'}))+'</small></span><span aria-hidden="true">↗</span></button>';
+      const empty=t=>'<p class="reports-history-note">'+t+'</p>';
+      document.getElementById('daily-reports-list').innerHTML=today.length?today.map(preview).join(''):empty('Todavía no hay informes de hoy. Aparecerán a las 8:00 a. m. y a las 5:00 p. m., hora de Panamá.');
+      document.getElementById('daily-reports-history-list').innerHTML=previous.length?previous.map(preview).join(''):empty('Aún no hay informes anteriores.');
     }
+    async function cargarInformesDiarios(){
+      const card=document.getElementById('daily-reports-card'),sesion=creds;
+      try{const r=await apiGet('/panel/informes-diarios',false);if(creds!==sesion)return;if(!r.ok){card.style.display='none';informesDiarios=[];return}const datos=await r.json();if(creds!==sesion)return;informesDiarios=datos;card.style.display='block';renderInformesDiarios()}catch(e){if(creds===sesion)card.style.display='none'}
+    }
+    document.getElementById('daily-reports-history-toggle').addEventListener('click',()=>{const history=document.getElementById('daily-reports-history'),button=document.getElementById('daily-reports-history-toggle');history.hidden=!history.hidden;button.setAttribute('aria-expanded',String(!history.hidden));button.textContent=history.hidden?'Ver historial':'Ocultar historial'});
     function abrirInformeDiario(id){
       const informe=informesDiarios.find(i=>String(i.id)===String(id));
       if(!informe){say('Informe no disponible en el historial reciente');return}
       document.getElementById('daily-report-content').innerHTML=CubicoReport.render(informe);
       abrirModal('modal-informe-diario');
     }
-    document.getElementById('daily-reports-list').addEventListener('click',e=>{const btn=e.target.closest('.daily-report-open');if(btn)abrirInformeDiario(btn.dataset.id)});
+    document.getElementById('daily-reports-card').addEventListener('click',e=>{const btn=e.target.closest('.daily-report-open');if(btn)abrirInformeDiario(btn.dataset.id)});
     document.getElementById('modal-informe-diario').addEventListener('click',e=>{const boton=e.target.closest('[data-report-view]');if(boton){cerrarModal('modal-informe-diario');showView(boton.dataset.reportView)}});
     document.getElementById('daily-report-close').addEventListener('click',()=>cerrarModal('modal-informe-diario'));
     async function cargarResumen(){
