@@ -15,6 +15,16 @@
     const cola = '<h4>'+(hayPendientes?'Lo que necesita tu equipo':'Pendientes actuales')+'</h4><div class="report-queue">'+pendientes.map(([key,label,view])=>'<button type="button" data-report-view="'+view+'"><span>'+label+'</span><b class="'+(Number(datos[key])>0?'has-pending':'')+'">'+number(datos[key])+'</b><span aria-hidden="true">↗</span></button>').join('')+'</div>';
     return cabecera+bloqueEstado+actividad+cola+'<p class="report-note">Estado al momento del informe. La conexión con WhatsApp no comprueba por sí sola que la IA esté respondiendo. Este resumen refleja la actividad del panel; no incluye ventas ni ingresos totales.</p>';
   }
-  root.CubicoReport = {render};
+  function dayInPanama(value) {
+    const date = new Date(value);
+    if (!Number.isFinite(date.getTime())) return null;
+    return new Intl.DateTimeFormat('en-CA', {timeZone:'America/Panama',year:'numeric',month:'2-digit',day:'2-digit'}).format(date);
+  }
+  function splitByDay(reports, now = new Date()) {
+    const today = dayInPanama(now);
+    return {today: reports.filter(r => dayInPanama(r.creado_en) === today),
+      previous: reports.filter(r => dayInPanama(r.creado_en) !== today)};
+  }
+  root.CubicoReport = {render, splitByDay};
   if (typeof module !== 'undefined') module.exports = root.CubicoReport;
 })(typeof window !== 'undefined' ? window : globalThis);
