@@ -28,6 +28,7 @@ from app.db.session_store import (
     listar_oportunidades_comerciales,
     actualizar_oportunidad_comercial,
 )
+from app.services import panel_profile
 from app.services.push_notifications import push_configurado
 from app.services.daily_reports import listar_informes, usuarios_informes
 from app.services.alert_archive import listar_archivadas, archivar_alerta, restaurar_alerta
@@ -225,22 +226,51 @@ def _ultimo_mensaje_cliente_en(historial: list[dict]) -> datetime | None:
 
 def verificar_credenciales_panel(credenciales: HTTPBasicCredentials = Depends(security)) -> str:
     """
-    Busca al usuario en USUARIOS_PANEL (cargado desde PANEL_USUARIOS_JSON)
-    y compara su contraseña con secrets.compare_digest para evitar
-    timing attacks, en vez de una comparación directa con ==.
+    Solo permite usuarios configurados. Una contraseña cambiada en el panel
+    utiliza el hash persistido; mientras tanto se acepta la del entorno.
     """
-    contrasena_esperada = USUARIOS_PANEL.get(credenciales.username)
-    usuario_existe = contrasena_esperada is not None
-    contrasena_correcta = secrets.compare_digest(
-        credenciales.password, contrasena_esperada or ""
-    )
-    if not (usuario_existe and contrasena_correcta):
+    if not panel_profile.authenticate(credenciales.username, credenciales.password, USUARIOS_PANEL):
         raise HTTPException(
             status_code=401,
             detail="Credenciales inválidas",
             headers={"WWW-Authenticate": "Basic"},
         )
     return credenciales.username
+
+
+class PerfilPayload(BaseModel):
+    nombre: str = Field(min_length=1, max_length=80)
+    foto: str | None = Field(default=None, max_length=550_000)
+
+
+class ContrasenaPayload(BaseModel):
+    actual: str = Field(min_length=1, max_length=256)
+    nueva: str = Field(min_length=10, max_length=128)
+
+
+@router.get("/perfil")
+def obtener_perfil_panel(usuario: str = Depends(verificar_credenciales_panel)):
+    return panel_profile.get_profile(usuario)
+
+
+@router.put("/perfil")
+def guardar_perfil_panel(payload: PerfilPayload, usuario: str = Depends(verificar_credenciales_panel)):
+    if not payload.nombre.strip():
+        raise HTTPException(status_code=422, detail="Escribe tu nombre")
+    try:
+        return panel_profile.save_profile(usuario, payload.nombre, payload.foto)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.post("/perfil/contrasena")
+def cambiar_contrasena_panel(payload: ContrasenaPayload, usuario: str = Depends(verificar_credenciales_panel)):
+    if not panel_profile.authenticate(usuario, payload.actual, USUARIOS_PANEL):
+        raise HTTPException(status_code=400, detail="La contraseña actual no es correcta")
+    if payload.actual == payload.nueva:
+        raise HTTPException(status_code=422, detail="Elige una contraseña diferente")
+    panel_profile.change_password(usuario, payload.nueva)
+    return {"status": "ok"}
 
 
 def _validar_operador_conversacion(

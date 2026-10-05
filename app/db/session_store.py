@@ -146,6 +146,14 @@ class AlertaArchivada(BaseSesiones):
     creado_en = Column(DateTime, default=datetime.utcnow, nullable=False)
 
 
+class PerfilPanel(BaseSesiones):
+    __tablename__ = "perfiles_panel"
+    usuario = Column(String, primary_key=True)
+    nombre = Column(String(80), nullable=True)
+    foto = Column(Text, nullable=True)
+    contrasena_hash = Column(Text, nullable=True)
+
+
 BaseSesiones.metadata.create_all(engine_sesiones)
 
 

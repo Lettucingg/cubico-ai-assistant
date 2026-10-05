@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Cúbico Control — Bruno</title>
   <meta name="description" content="Centro operativo de Cúbico para administrar conversaciones, paquetes, costos y atención humana." />
   <meta name="theme-color" content="#151512" />
@@ -87,10 +87,10 @@
       <div class="nav-label">Operación</div>
       <nav class="nav">
         <button class="active" data-view="overview"><span>⌂</span><span>Resumen</span></button>
-        <button data-view="chats"><span>◫</span><span>Conversaciones</span></button>
-        <button data-view="packages"><span>◇</span><span>Retiros y domicilios</span><span class="count" id="nav-count-requests">0</span></button>
+        <button data-view="chats"><span>◫</span><span><span class="desktop-label">Conversaciones</span><span class="mobile-label">Chats</span></span></button>
+        <button data-view="packages"><span>◇</span><span><span class="desktop-label">Retiros y domicilios</span><span class="mobile-label">Solicitudes</span></span><span class="count" id="nav-count-requests">0</span></button>
         <button data-view="opportunities"><span>◆</span><span>Negocios</span><span class="count" id="nav-count-opportunities">0</span></button>
-        <button data-view="costs"><span>⌁</span><span>Costos y tokens</span></button>
+        <button data-view="costs"><span>⌁</span><span><span class="desktop-label">Costos y tokens</span><span class="mobile-label">Costos</span></span></button>
       </nav>
       <div class="nav-label" style="margin-top:22px">Sistema</div>
       <nav class="nav"><button data-view="alerts"><span>△</span><span>Alertas</span><span class="count" id="nav-count-alerts">0</span></button><button data-view="settings"><span>⚙</span><span>Configuración</span></button></nav>
@@ -159,6 +159,8 @@
         <div id="alerts-list"></div><p class="alert-footnote">Quitar un aviso no cambia pagos ni solicitudes. Puedes recuperarlo en Papelera.</p></article>
       </section>
       <section class="view" id="settings"><div class="settings-layout">
+        <article class="card settings-section"><h2>Mi perfil</h2><form id="account-profile-form" class="profile-form"><div class="profile-photo-row"><div class="account-photo" id="account-photo">—</div><div><label class="btn" for="account-photo-input">Elegir foto</label><input id="account-photo-input" type="file" accept="image/jpeg,image/png,image/webp" hidden><button class="btn" id="account-photo-remove" type="button">Quitar foto</button></div></div><label>Nombre visible<input id="account-name" maxlength="80" required autocomplete="name"></label><p class="personalization-note" id="account-user">Tu usuario de acceso permanece igual.</p><button class="btn dark" type="submit">Guardar perfil</button><p id="account-profile-status" class="profile-message" role="status" aria-live="polite"></p></form></article>
+        <article class="card settings-section"><h2>Cambiar contraseña</h2><form id="account-password-form" class="profile-form"><label>Contraseña actual<input id="account-password-current" type="password" autocomplete="current-password" required maxlength="256"></label><label>Nueva contraseña<input id="account-password-new" type="password" autocomplete="new-password" minlength="10" maxlength="128" required></label><label>Confirmar nueva contraseña<input id="account-password-confirm" type="password" autocomplete="new-password" minlength="10" maxlength="128" required></label><p class="personalization-note">Usa al menos 10 caracteres. La contraseña anterior dejará de funcionar.</p><button class="btn" id="account-password-toggle" type="button" aria-pressed="false">Ver contraseñas</button><button class="btn dark" type="submit">Cambiar contraseña</button><p id="account-password-status" class="profile-message" role="status" aria-live="polite"></p></form></article>
         <article class="card settings-section"><h2>Notificaciones</h2><div class="setting-row"><div><b>Mientras usas el panel</b><p id="notification-status">Actívalas para recibir avisos en otra pestaña.</p></div><button class="btn" id="notification-toggle">Activar notificaciones</button></div><div class="setting-row"><div><b>En este dispositivo</b><p id="push-status">Inicia sesión para comprobar la instalación.</p></div><button class="btn" id="push-toggle">Activar en este dispositivo</button></div><div class="setting-row"><div><b>Sonido del panel</b><p>Un aviso breve al recibir nuevos mensajes.</p></div><button class="btn" id="sound-toggle">Sonido: activo</button></div></article>
         <article class="card settings-section"><h2>Tu panel</h2><div class="setting-row"><div><b>Conexión de la sesión</b><p>El panel utiliza tu acceso para consultar la operación.</p></div><span class="status-pill ready">Sesión iniciada</span></div><div class="setting-row"><div><b>Informes de Bruno</b><p>Estado a las 8:00 a. m. y resumen a las 5:00 p. m., hora de Panamá.</p></div><button class="btn" data-view="overview">Ver informes</button></div></article>
         <article class="card settings-section wide"><h2>Personalización</h2><b style="font-size:13px">Fondo de conversaciones</b><p class="personalization-note">Elige un fondo para el área de mensajes. Las listas mantienen su fondo limpio.</p><div class="background-options"><button class="background-choice" type="button" data-chat-background="plain" aria-pressed="false"><div class="background-sample plain"></div><strong>Liso</strong></button><button class="background-choice" type="button" data-chat-background="cubes" aria-pressed="true"><div class="background-sample cubes"></div><strong>Cubos</strong></button><button class="background-choice" type="button" data-chat-background="brand" aria-pressed="false"><div class="background-sample brand"></div><strong>Marca Cúbico</strong></button></div><p class="personalization-note" id="background-status" role="status">Se guarda automáticamente en este navegador.</p></article>
@@ -215,7 +217,7 @@
       const timeout=setTimeout(()=>controller.abort(),REQUEST_TIMEOUT_MS);
       try{
         const r=await fetch(API_BASE+path,{...options,headers:{...authHeaders(authCreds),...(options.headers||{})},signal:controller.signal});
-        if(r.status===401&&reloginOn401)mostrarLogin();
+        if(r.status===401&&reloginOn401&&authCreds===creds&&!cambiandoContrasena)mostrarLogin();
         if(r.status>=500&&creds&&notificarErrores)say('El servidor tuvo un problema. Intenta nuevamente.');
         return r;
       }catch(e){
@@ -277,6 +279,18 @@
       }catch(e){say(e.message||'No se pudieron configurar las notificaciones')}finally{await actualizarEstadoPush()}
     }
 
+    let fotoCuenta=null,cambiandoContrasena=false;
+    function codificarAcceso(usuario,password){return btoa(String.fromCharCode(...new TextEncoder().encode(usuario+':'+password)))}
+    function estadoCuenta(id,mensaje,error=false){const el=document.getElementById(id);el.textContent=mensaje;el.classList.toggle('error',error)}
+    function pintarFotoCuenta(){for(const id of ['account-photo','settings-shortcut']){const el=document.getElementById(id);el.replaceChildren();if(fotoCuenta){const img=document.createElement('img');img.src=fotoCuenta;img.alt='Foto de perfil';el.append(img)}else el.textContent=initials(document.getElementById('account-name').value||usuarioActual||'')}}
+    function aplicarPerfilCuenta(perfil){fotoCuenta=perfil.foto||null;document.getElementById('account-name').value=perfil.nombre||usuarioActual||'';document.getElementById('account-user').textContent='Usuario de acceso: '+(perfil.usuario||usuarioActual);pintarFotoCuenta();const hora=Number(new Intl.DateTimeFormat('en-US',{timeZone:'America/Panama',hour:'numeric',hourCycle:'h23'}).format(new Date()));titles.overview[0]=(hora<12?'Buenos días':hora<18?'Buenas tardes':'Buenas noches')+', '+document.getElementById('account-name').value;if(document.getElementById('overview').classList.contains('active'))document.getElementById('page-title').textContent=titles.overview[0]}
+    async function cargarPerfilCuenta(){fotoCuenta=null;document.getElementById('account-name').value=usuarioActual||'';document.getElementById('account-password-form').reset();estadoCuenta('account-profile-status','');estadoCuenta('account-password-status','');pintarFotoCuenta();try{const r=await apiRequest('/panel/perfil');if(r.ok)aplicarPerfilCuenta(await r.json());else estadoCuenta('account-profile-status','No se pudo cargar el perfil. Intenta iniciar sesión de nuevo.',true)}catch(e){estadoCuenta('account-profile-status','No se pudo cargar el perfil.',true)}}
+    document.getElementById('account-photo-input').addEventListener('change',async e=>{const file=e.target.files[0];if(!file)return;try{if(!['image/jpeg','image/png','image/webp'].includes(file.type)||file.size>8*1024*1024)throw Error('Elige una imagen JPG, PNG o WebP de hasta 8 MB.');const bitmap=await createImageBitmap(file);const canvas=document.createElement('canvas');canvas.width=canvas.height=256;const ctx=canvas.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,256,256);const size=Math.min(bitmap.width,bitmap.height);ctx.drawImage(bitmap,(bitmap.width-size)/2,(bitmap.height-size)/2,size,size,0,0,256,256);bitmap.close();fotoCuenta=canvas.toDataURL('image/jpeg',.85);pintarFotoCuenta();estadoCuenta('account-profile-status','Foto preparada. Pulsa Guardar perfil.')}catch(error){estadoCuenta('account-profile-status',error.message||'No se pudo abrir esta foto.',true)}e.target.value=''});
+    document.getElementById('account-photo-remove').addEventListener('click',()=>{fotoCuenta=null;pintarFotoCuenta();estadoCuenta('account-profile-status','Pulsa Guardar perfil para quitar la foto.')});
+    document.getElementById('account-profile-form').addEventListener('submit',async e=>{e.preventDefault();const boton=e.target.querySelector('[type=submit]');boton.disabled=true;try{const nombre=document.getElementById('account-name').value.trim();if(!nombre)throw Error('Escribe tu nombre.');const r=await apiRequest('/panel/perfil',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({nombre,foto:fotoCuenta})});const data=await r.json();if(!r.ok)throw Error(typeof data.detail==='string'?data.detail:'No se pudo guardar el perfil.');aplicarPerfilCuenta(data);estadoCuenta('account-profile-status','Perfil guardado.')}catch(error){estadoCuenta('account-profile-status',error.message,true)}finally{boton.disabled=false}});
+    document.getElementById('account-password-toggle').addEventListener('click',e=>{const visible=e.target.getAttribute('aria-pressed')!=='true';for(const id of ['account-password-current','account-password-new','account-password-confirm'])document.getElementById(id).type=visible?'text':'password';e.target.setAttribute('aria-pressed',String(visible));e.target.textContent=visible?'Ocultar contraseñas':'Ver contraseñas'});
+    document.getElementById('account-password-form').addEventListener('submit',async e=>{e.preventDefault();const actual=document.getElementById('account-password-current').value,nueva=document.getElementById('account-password-new').value;if(nueva!==document.getElementById('account-password-confirm').value){estadoCuenta('account-password-status','Las contraseñas nuevas no coinciden.',true);return}if(nueva.length<10){estadoCuenta('account-password-status','Usa al menos 10 caracteres.',true);return}const boton=e.target.querySelector('[type=submit]');boton.disabled=true;const viejo=creds;cambiandoContrasena=true;clearInterval(refreshTimer);clearInterval(quickRefreshTimer);try{const r=await apiRequest('/panel/perfil/contrasena',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({actual,nueva})},viejo,true,false);const data=await r.json();if(!r.ok)throw Error(typeof data.detail==='string'?data.detail:'No se pudo cambiar la contraseña.');creds=codificarAcceso(usuarioActual,nueva);e.target.reset();estadoCuenta('account-password-status','Contraseña actualizada. Usa la nueva en tu próximo inicio de sesión.')}catch(error){estadoCuenta('account-password-status',error.message||'No se pudo confirmar el cambio. Intenta iniciar sesión con la nueva contraseña.',true)}finally{cambiandoContrasena=false;boton.disabled=false;if(creds)iniciarAutoRefresh()}});
+
     async function login(){
       try{audioContext=audioContext||new(window.AudioContext||window.webkitAudioContext)();audioContext.resume()}catch(e){}
       const u=document.getElementById('login-user').value.trim();
@@ -284,7 +298,7 @@
       const err=document.getElementById('login-err');
       err.style.display='none';
       if(!u||!p)return;
-      const b64=btoa(u+':'+p);
+      const b64=codificarAcceso(u,p);
       try{
         const r=await apiRequest('/panel/conversaciones',{},b64,false);
         if(r.status===401){err.textContent='Usuario o contraseña incorrectos';err.style.display='block';return}
@@ -293,6 +307,8 @@
         const avatarOperador=document.getElementById('settings-shortcut');
         avatarOperador.textContent=initials(u);avatarOperador.title='Configuración · '+u;
         titles.overview[0]='Buenos días, '+u.charAt(0).toUpperCase()+u.slice(1);
+        await cargarPerfilCuenta();
+        document.getElementById('login-pass').value='';
         notificacionesInicializadas=false;firmasUltimoCliente.clear();
         document.getElementById('login-overlay').style.display='none';
         document.querySelector('.app').style.display='grid';
