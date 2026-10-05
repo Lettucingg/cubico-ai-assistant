@@ -32,6 +32,8 @@ w.eval(inline+`\nwindow.seedDesign=()=>{creds='test';usuarioActual='alexander';d
 const tick=()=>new Promise(setImmediate);
 (async()=>{
  w.seedDesign();await w.refrescarPanel();
+ const nav=d.querySelector('.sidebar'),inbox=d.querySelector('.inbox');nav.getBoundingClientRect=()=>({height:90,top:400});inbox.getBoundingClientRect=()=>({top:150});w.matchMedia=()=>({matches:true});w.visualViewport={height:844,offsetTop:0,scale:1,addEventListener(){}};w.showView('opportunities');const layout=w.CubicoMobileLayout.init();layout.update();assert.equal(nav.style.top,'754px');assert.equal(nav.style.bottom,'auto');w.showView('chats');layout.update();assert.equal(inbox.style.getPropertyValue('--mobile-inbox-height'),'592px');w.visualViewport.height=620;layout.update();assert.equal(nav.style.top,'530px');w.matchMedia=()=>({matches:false});layout.update();assert.equal(nav.style.top,'');assert.equal(nav.style.bottom,'');w.showView('overview');
+
  assert.equal(d.getElementById('nav-count-chats'),null);assert.equal(d.getElementById('chat-total-count').textContent,'2');
  d.querySelector('[data-chat-filter-tab="sin_leer"]').click();assert.equal(d.querySelectorAll('#chat-items .chat-item').length,1);
  d.querySelector('[data-chat-filter-tab="humano"]').click();assert.equal(d.querySelector('#chat-items .chat-name b').textContent,'Cliente');
