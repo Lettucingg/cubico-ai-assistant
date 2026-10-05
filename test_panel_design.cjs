@@ -10,11 +10,15 @@ const fixtures={
  oportunidades:[{id:1,empresa:'Arthur',estado:'nueva',telefono:'5071',resumen:'Envíos de libros',actualizada_en:new Date().toISOString()},{id:2,empresa:'Otra empresa',estado:'en_revision',telefono:'5072',resumen:'Cotización'}],
  resumen:{conversaciones_hoy:2,atencion_humana:1,retiros:1,domicilios:1,pagos_pendientes:1,listos:0,oportunidades_activas:2,tokens_totales:10,costo_usd:0.01},
  uso:{conversaciones:2,costo_usd:.03,tokens_totales:30,input_tokens:20,output_tokens:10,chats:[],dias:[{fecha:'2026-10-04',costo_usd:.01},{fecha:'2026-10-05',costo_usd:.02}]},
+ perfil:{usuario:'alexander',nombre:'Alex',foto:null},
  'informes-diarios':[{id:1,tipo:'mañana',creado_en:new Date().toISOString(),contenido:'Informe de prueba'},{id:2,tipo:'tarde',creado_en:'2020-01-01T22:00:00Z',contenido:'Informe anterior'}]
 };
 let archived=[],posts=[];
 w.fetch=async(url,options={})=>{const path=new URL(url).pathname;let data;
  if(options.method==='POST')posts.push(path);
+ if(path==='/panel/perfil'&&options.method==='PUT')fixtures.perfil=JSON.parse(options.body);
+ if(path==='/panel/perfil/contrasena')data={status:'ok'};
+ else
  if(path==='/panel/alertas/papelera')data=archived;
  else if(path==='/panel/alertas/archivar'){data={...JSON.parse(options.body),id:archived.length+1,usuario:'alexander',creado_en:new Date().toISOString()};archived.push(data)}
  else if(path.match(/alertas\/\d+\/restaurar/)){archived=archived.filter(a=>a.id!==Number(path.split('/').at(-2)));data={restaurada:true}}
@@ -45,7 +49,9 @@ const tick=()=>new Promise(setImmediate);
  assert.equal(w.tituloOportunidad({empresa:'Proveedorpro (https://proveedorpro.com/app/products)'}),'Proveedorpro');
  w.aplicarFiltroOportunidad('active');assert.equal(d.getElementById('opportunity-items').classList.contains('single-stage'),false);assert.equal(d.getElementById('opportunity-items').style.getPropertyValue('--opportunity-columns'),'3');
  w.showView('costs');await tick();assert.ok(d.querySelector('#cost-chart polyline'));
- w.showView('settings');d.querySelector('[data-chat-background="brand"]').click();assert.equal(d.body.dataset.chatBackground,'brand');assert.equal(w.localStorage.getItem('cubico.panel.background.v1'),'brand');
+ w.showView('settings');await w.cargarPerfilCuenta();assert.equal(d.getElementById('account-name').value,'Alex');d.getElementById('account-name').value='Alexander Cúbico';d.getElementById('account-profile-form').dispatchEvent(new w.Event('submit',{cancelable:true}));await tick();assert.equal(d.getElementById('account-profile-status').textContent,'Perfil guardado.');assert.match(d.getElementById('settings-shortcut').textContent,/AC/);
+ d.getElementById('account-password-current').value='old-password';d.getElementById('account-password-new').value='nueva-segura-123';d.getElementById('account-password-confirm').value='diferente';d.getElementById('account-password-form').dispatchEvent(new w.Event('submit',{cancelable:true}));assert.match(d.getElementById('account-password-status').textContent,/no coinciden/);assert.equal(posts.includes('/panel/perfil/contrasena'),false);d.getElementById('account-password-confirm').value='nueva-segura-123';d.getElementById('account-password-form').dispatchEvent(new w.Event('submit',{cancelable:true}));await tick();assert.match(d.getElementById('account-password-status').textContent,/actualizada/);assert.equal(d.getElementById('account-password-new').value,'');
+ d.querySelector('[data-chat-background="brand"]').click();assert.equal(d.body.dataset.chatBackground,'brand');assert.equal(w.localStorage.getItem('cubico.panel.background.v1'),'brand');
  w.CubicoPersonalization.init(d,w.localStorage);assert.equal(d.body.dataset.chatBackground,'brand');
  d.getElementById('sound-toggle').click();assert.match(d.getElementById('sound-toggle').textContent,/silenciado/);
  w.showView('overview');await w.cargarResumen();assert.equal(d.querySelectorAll('#daily-reports-list .report-preview').length,1);d.getElementById('daily-reports-history-toggle').click();assert.equal(d.getElementById('daily-reports-history').hidden,false);
