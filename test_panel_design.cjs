@@ -44,7 +44,7 @@ const tick=()=>new Promise(setImmediate);
  w.aplicarFiltroSolicitud('delivery');assert.equal(d.querySelectorAll('.request-card').length,1);
  w.showView('opportunities');await tick();assert.equal(d.querySelectorAll('.opportunity-column').length,3);
  d.querySelector('.opportunity-item').click();assert.ok(d.querySelector('.opportunity-layout').classList.contains('has-opportunity'));
- d.getElementById('opportunity-close').click();assert.ok(!d.querySelector('.opportunity-layout').classList.contains('has-opportunity'));
+ assert.ok(d.querySelector('.lead-heading #opportunity-close svg'));assert.equal(d.querySelector('.lead-heading #opportunity-close').getAttribute('aria-label'),'Cerrar detalle de oportunidad');d.getElementById('opportunity-close').click();assert.ok(!d.querySelector('.opportunity-layout').classList.contains('has-opportunity'));
  w.aplicarFiltroOportunidad('new');assert.equal(d.querySelectorAll('.opportunity-column').length,1);assert.ok(d.getElementById('opportunity-items').classList.contains('single-stage'));assert.equal(d.getElementById('opportunity-items').style.getPropertyValue('--opportunity-columns'),'1');
  assert.equal(w.tituloOportunidad({empresa:'Proveedorpro (https://proveedorpro.com/app/products)'}),'Proveedorpro');
  w.aplicarFiltroOportunidad('active');assert.equal(d.getElementById('opportunity-items').classList.contains('single-stage'),false);assert.equal(d.getElementById('opportunity-items').style.getPropertyValue('--opportunity-columns'),'3');
