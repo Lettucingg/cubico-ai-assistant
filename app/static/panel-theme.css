@@ -38,3 +38,5 @@ button,summary{color:inherit}.btn,.icon-btn,.send,.voice,.attach,.proof-btn,.con
 @media(prefers-reduced-motion:reduce){.detail-close{transition:none}}
 
 @media(max-width:760px){.inbox{height:var(--mobile-inbox-height,calc(100dvh - 290px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px)));max-height:none;min-height:0;grid-template-rows:minmax(0,1fr)}.inbox .conversation{height:100%;max-height:100%;min-height:0;grid-template-rows:auto minmax(0,1fr) auto}.inbox .messages{min-height:0}.inbox .composer{min-width:0}.compose-input{font-size:16px}.chat-keyboard-open .sidebar,.chat-keyboard-open .topbar{display:none}.chat-keyboard-open main{padding-bottom:12px}.chat-keyboard-open .composer{padding-bottom:calc(9px + env(safe-area-inset-bottom,0px))}}
+
+@media(max-width:760px){main{padding-bottom:calc(var(--mobile-navigation-height,90px) + 24px)}.sidebar{flex:none;min-height:0;overflow:hidden}.chat-keyboard-open main{padding-bottom:12px}}
