@@ -177,6 +177,7 @@
   <div class="modal-overlay" id="modal-verificar-manual" role="dialog" aria-label="Verificar cliente manualmente"><div class="card modal-box"><h3>Verificar manualmente</h3><p style="font-size:12px;color:var(--muted);line-height:1.5">Escribe el código real del cliente o agencia. Se comprobará en la base de datos antes de asociarlo al chat.</p><label for="manual-code">Código de cliente o agencia</label><input type="text" id="manual-code" placeholder="CBC-0001 o código de agencia"/><div class="modal-actions"><button class="btn" type="button" id="manual-verify-cancel">Cancelar</button><button class="btn dark" type="button" id="manual-verify-save">Verificar y asociar</button></div></div></div>
   <div class="modal-overlay" id="modal-operacion-manual" role="dialog" aria-label="Crear operación manual"><div class="card modal-box"><h3 id="manual-operation-title">Crear solicitud</h3><p id="manual-operation-help" style="font-size:12px;color:var(--muted);line-height:1.5"></p><div id="manual-address-field"><label for="manual-address">Dirección exacta</label><textarea id="manual-address" rows="3" placeholder="Dirección completa de entrega"></textarea></div><div id="manual-payment-fields"><label for="manual-amount">Monto reportado (opcional)</label><input type="number" id="manual-amount" min="0.01" step="0.01" placeholder="0.00"/><label for="manual-method">Método (opcional)</label><input type="text" id="manual-method" placeholder="Yappy, transferencia, efectivo…"/><label for="manual-reference">Referencia (opcional)</label><input type="text" id="manual-reference" placeholder="Número de referencia"/></div><div class="modal-actions"><button class="btn" type="button" id="manual-operation-cancel">Cancelar</button><button class="btn dark" type="button" id="manual-operation-save">Crear caso</button></div></div></div>
   <script src="/static/panel-personalization.js"></script>
+  <script src="/static/panel-mobile-layout.js"></script>
   <script src="/static/daily-report.js"></script>
   <script src="/static/alert-management.js"></script>
   <script>
@@ -191,6 +192,7 @@
     }
     document.querySelectorAll('[data-summary-view]').forEach(elemento=>elemento.addEventListener('click',()=>abrirAccesoDirecto(elemento)));
     CubicoPersonalization.init();
+    CubicoMobileLayout.init();
     const toast=document.getElementById('toast');let toastTimer=null;function say(t){toast.textContent=t;toast.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>toast.classList.remove('show'),3200)}
     const voice=document.getElementById('voice');voice.disabled=true;voice.title='Selecciona una conversación para grabar';
     const messagesEl=document.getElementById('messages');
