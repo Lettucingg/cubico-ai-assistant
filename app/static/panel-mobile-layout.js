@@ -5,13 +5,17 @@
   function init(doc=root.document){
     const inbox=doc.querySelector('.inbox'),chats=doc.getElementById('chats'),nav=doc.querySelector('.sidebar'),header=doc.querySelector('.topbar');
     if(!inbox||!nav||!chats)return;
-    let pending=false;
+    let pending=false,closedViewportHeight=root.visualViewport?root.visualViewport.height:root.innerHeight;
     function update(){
       pending=false;
-      if(!root.matchMedia('(max-width:760px)').matches){inbox.style.removeProperty('--mobile-inbox-height');nav.style.removeProperty('top');nav.style.removeProperty('bottom');doc.body.style.removeProperty('--mobile-navigation-height');doc.body.classList.remove('chat-keyboard-open');return}
+      if(!root.matchMedia('(max-width:760px)').matches){inbox.style.removeProperty('--mobile-inbox-height');nav.style.removeProperty('top');nav.style.removeProperty('bottom');doc.body.style.removeProperty('--mobile-navigation-height');doc.body.classList.remove('chat-keyboard-open','chat-editor-open');inbox.style.removeProperty('--editor-viewport-top');inbox.style.removeProperty('--editor-viewport-height');return}
       const viewport=root.visualViewport,bottom=viewport?viewport.offsetTop+viewport.height:root.innerHeight;
       const focused=doc.activeElement,editing=focused&&doc.querySelector('.app').contains(focused)&&focused.matches('input,textarea,[contenteditable=true]');
-      const keyboard=Boolean(editing&&viewport&&root.innerHeight-viewport.height>120&&viewport.scale<=1.05);
+      const chatEditing=Boolean(editing&&inbox.contains(focused)&&chats.classList.contains('active'));
+      if(!editing)closedViewportHeight=viewport?viewport.height:root.innerHeight;
+      const keyboard=chatEditing||Boolean(editing&&viewport&&closedViewportHeight-viewport.height>120&&viewport.scale<=1.05);
+      doc.body.classList.toggle('chat-editor-open',chatEditing);
+      if(chatEditing){inbox.style.setProperty('--editor-viewport-top',(viewport?viewport.offsetTop:0)+'px');inbox.style.setProperty('--editor-viewport-height',(viewport?viewport.height:root.innerHeight)+'px')}
       doc.body.classList.toggle('chat-keyboard-open',keyboard);
       const navHeight=keyboard?0:nav.getBoundingClientRect().height;
       const navTop=navigationTop(bottom,navHeight);
@@ -28,6 +32,7 @@
     doc.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',schedule));
     if(root.ResizeObserver){const observer=new root.ResizeObserver(schedule);observer.observe(nav);if(header)observer.observe(header)}
     if(root.MutationObserver){const observer=new root.MutationObserver(schedule);observer.observe(chats,{attributes:true,attributeFilter:['class']});observer.observe(doc.querySelector('.app'),{attributes:true,attributeFilter:['style']})}
+    const done=doc.getElementById('chat-editing-done');if(done)done.addEventListener('click',()=>{if(doc.activeElement&&doc.activeElement.blur)doc.activeElement.blur();schedule()});
     schedule();return {update};
   }
   root.CubicoMobileLayout={init,availableHeight,navigationTop};if(typeof module!=='undefined')module.exports=root.CubicoMobileLayout;
