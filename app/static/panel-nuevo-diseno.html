@@ -60,7 +60,7 @@
 
 .reports-heading{display:flex;justify-content:space-between;align-items:center;gap:12px}.reports-history-note{font-size:12px;color:var(--muted);line-height:1.5}#daily-reports-history{margin-top:18px;padding-top:14px;border-top:1px solid var(--line)}#daily-reports-history[hidden]{display:none}#daily-reports-history h4{margin:0 0 6px;font-size:14px}#daily-reports-history-list{max-height:420px;overflow:auto}@media(max-width:760px){.reports-heading h3{font-size:15px}.reports-heading .btn{font-size:12px;padding:9px 11px}}
 </style>
-  <link rel="stylesheet" href="/static/panel-theme.css?v=20261005-editor">
+  <link rel="stylesheet" href="/static/panel-theme.css?v=20261006-taps">
 </head>
 <body>
   <div id="login-overlay" style="position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:50;padding:20px">
@@ -177,13 +177,13 @@
   <div class="modal-overlay" id="modal-verificar-manual" role="dialog" aria-label="Verificar cliente manualmente"><div class="card modal-box"><h3>Verificar manualmente</h3><p style="font-size:12px;color:var(--muted);line-height:1.5">Escribe el código real del cliente o agencia. Se comprobará en la base de datos antes de asociarlo al chat.</p><label for="manual-code">Código de cliente o agencia</label><input type="text" id="manual-code" placeholder="CBC-0001 o código de agencia"/><div class="modal-actions"><button class="btn" type="button" id="manual-verify-cancel">Cancelar</button><button class="btn dark" type="button" id="manual-verify-save">Verificar y asociar</button></div></div></div>
   <div class="modal-overlay" id="modal-operacion-manual" role="dialog" aria-label="Crear operación manual"><div class="card modal-box"><h3 id="manual-operation-title">Crear solicitud</h3><p id="manual-operation-help" style="font-size:12px;color:var(--muted);line-height:1.5"></p><div id="manual-address-field"><label for="manual-address">Dirección exacta</label><textarea id="manual-address" rows="3" placeholder="Dirección completa de entrega"></textarea></div><div id="manual-payment-fields"><label for="manual-amount">Monto reportado (opcional)</label><input type="number" id="manual-amount" min="0.01" step="0.01" placeholder="0.00"/><label for="manual-method">Método (opcional)</label><input type="text" id="manual-method" placeholder="Yappy, transferencia, efectivo…"/><label for="manual-reference">Referencia (opcional)</label><input type="text" id="manual-reference" placeholder="Número de referencia"/></div><div class="modal-actions"><button class="btn" type="button" id="manual-operation-cancel">Cancelar</button><button class="btn dark" type="button" id="manual-operation-save">Crear caso</button></div></div></div>
   <script src="/static/panel-personalization.js"></script>
-  <script src="/static/panel-mobile-layout.js?v=20261005-editor"></script>
+  <script src="/static/panel-mobile-layout.js?v=20261006-taps"></script>
   <script src="/static/daily-report.js"></script>
   <script src="/static/alert-management.js"></script>
   <script>
     const titles={overview:['Buenos días, Alexander','Esto es lo que está pasando en Cúbico hoy.'],chats:['Conversaciones','Supervisa a Bruno y toma el control cuando haga falta.'],packages:['Retiros y domicilios','Organiza las solicitudes que llegan directamente desde WhatsApp.'],opportunities:['Oportunidades comerciales','Bruno organiza la información; el equipo decide qué propuesta preparar.'],costs:['Costos y tokens','Entiende exactamente cuánto cuesta cada conversación.'],alerts:['Alertas','Lo que necesita tu atención, en un solo lugar.'],settings:['Configuración','Integraciones y estado técnico de Bruno.']};
     function showView(id){document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id===id));document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.view===id));document.getElementById('page-title').textContent=titles[id][0];document.getElementById('page-sub').textContent=titles[id][1];if(id!=='chats'&&typeof cerrarPanelCliente==='function')cerrarPanelCliente();if(id==='packages')cargarSolicitudes();if(id==='opportunities')cargarOportunidades();if(id==='costs')cargarUso(30);if(id==='alerts')cargarPapelera();window.scrollTo({top:0,behavior:'smooth'})}
-    document.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>showView(b.dataset.view)));document.querySelectorAll('.open-chats').forEach(b=>b.addEventListener('click',()=>showView('chats')));
+    document.querySelectorAll('[data-view]:not(.nav button)').forEach(b=>b.addEventListener('click',()=>showView(b.dataset.view)));document.querySelectorAll('.open-chats').forEach(b=>b.addEventListener('click',()=>showView('chats')));
     function abrirAccesoDirecto(elemento){
       const vista=elemento.dataset.summaryView;
       if(vista==='chats'&&elemento.dataset.chatFilter)aplicarFiltroChat(elemento.dataset.chatFilter);
@@ -192,7 +192,7 @@
     }
     document.querySelectorAll('[data-summary-view]').forEach(elemento=>elemento.addEventListener('click',()=>abrirAccesoDirecto(elemento)));
     CubicoPersonalization.init();
-    CubicoMobileLayout.init();
+    CubicoMobileLayout.init(document,showView);
     const toast=document.getElementById('toast');let toastTimer=null;function say(t){toast.textContent=t;toast.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>toast.classList.remove('show'),3200)}
     const voice=document.getElementById('voice');voice.disabled=true;voice.title='Selecciona una conversación para grabar';
     const messagesEl=document.getElementById('messages');
