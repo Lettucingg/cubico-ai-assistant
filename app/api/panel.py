@@ -28,7 +28,8 @@ from app.db.session_store import (
     listar_oportunidades_comerciales,
     actualizar_oportunidad_comercial,
 )
-from app.services import panel_profile
+from app.services import panel_profile, notification_preferences
+from app.services.panel_send_once import envio_unico
 from app.services.push_notifications import push_configurado
 from app.services.daily_reports import listar_informes, usuarios_informes
 from app.services.alert_archive import listar_archivadas, archivar_alerta, restaurar_alerta
@@ -302,6 +303,26 @@ def informes_diarios_panel(usuario: str = Depends(verificar_credenciales_panel))
     if usuario not in usuarios_informes():
         raise HTTPException(status_code=403, detail="Estos informes son para los usuarios autorizados")
     return listar_informes()
+
+
+class PreferenciasAvisosPayload(BaseModel):
+    categoria: Literal["ambos", "alertas", "chats"]
+
+
+@router.get("/notificaciones/preferencias")
+def preferencias_avisos_panel(usuario: str = Depends(verificar_credenciales_panel)):
+    return {"categoria": notification_preferences.obtener(usuario)}
+
+
+@router.put("/notificaciones/preferencias")
+def guardar_preferencias_avisos_panel(payload: PreferenciasAvisosPayload, usuario: str = Depends(verificar_credenciales_panel)):
+    return {"categoria": notification_preferences.guardar(usuario, payload.categoria)}
+
+
+@router.get("/alertas/paquetes")
+def alertas_paquetes_panel(usuario: str = Depends(verificar_credenciales_panel)):
+    from app.services.package_alerts import listar_alertas
+    return listar_alertas()
 
 
 @router.get("/push/config")
@@ -1169,6 +1190,7 @@ async def obtener_audio_panel(
 
 
 @router.post("/responder/{telefono}")
+@envio_unico
 async def responder_cliente(
     telefono: str,
     body: dict,
@@ -1605,6 +1627,7 @@ async def tomar_control(
     }
 
 @router.post("/enviar-directo/{telefono}")
+@envio_unico
 async def enviar_directo(
     telefono: str,
     body: dict,

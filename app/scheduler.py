@@ -10,6 +10,7 @@ from app.api.whatsapp import enviar_mensaje_whatsapp, notificar_equipo_domicilio
 from app.core.config import settings
 from app.services.daily_reports import datos_informe, informe_manana, informe_cierre, guardar_informe, usuarios_informes
 from app.services.push_notifications import notificar_informe_push
+from app.services.package_alerts import revisar_trackings
 from app.db.session_store import (
     listar_sesiones_con_factura_pendiente,
     actualizar_sesion,
@@ -198,6 +199,9 @@ def iniciar_scheduler():
         replace_existing=True,
         misfire_grace_time=3600,
     )
+    scheduler.add_job(revisar_trackings, CronTrigger(hour=9, minute=0, timezone=ZONA_HORARIA),
+                      id="revisar_demoras_tracking", replace_existing=True,
+                      misfire_grace_time=3600, max_instances=1)
     scheduler.start()
     log.info(
         f"Scheduler iniciado: informe 8:00 AM + revisión de pagos "

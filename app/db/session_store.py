@@ -154,6 +154,31 @@ class PerfilPanel(BaseSesiones):
     contrasena_hash = Column(Text, nullable=True)
 
 
+class PreferenciasAvisos(BaseSesiones):
+    __tablename__ = "preferencias_avisos_panel"
+    usuario = Column(String, primary_key=True)
+    categoria = Column(String, nullable=False, default="ambos")
+
+
+class TrackingVigilado(BaseSesiones):
+    __tablename__ = "tracking_vigilado"
+    tracking = Column(String, primary_key=True)
+    telefono = Column(String, primary_key=True)
+    ingreso_miami = Column(DateTime, nullable=True)
+    push_demora = Column(Boolean, default=False)
+    push_malid = Column(Boolean, default=False)
+    demora = Column(Boolean, default=False)
+    mal_identificado = Column(Boolean, default=False)
+    actualizado_en = Column(DateTime, default=datetime.utcnow)
+
+
+class EnvioPanelUnico(BaseSesiones):
+    __tablename__ = "envios_panel_unicos"
+    clave = Column(String(64), primary_key=True)
+    contenido_hash = Column(String(64), nullable=False)
+    resultado = Column(Text, nullable=True)
+
+
 BaseSesiones.metadata.create_all(engine_sesiones)
 
 
