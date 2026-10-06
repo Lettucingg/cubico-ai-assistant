@@ -7,7 +7,7 @@
     function add(kind,id,version,titulo,descripcion,target,warn=false){rows.push({kind,clave:JSON.stringify([kind,text(id),version]),titulo:text(titulo).slice(0,300),descripcion:text(descripcion),target,warn})}
     convs.forEach(c=>{
       const name=c.nombre||c.telefono,target={view:'chats',tel:c.telefono};
-      if(c.necesita_atencion_humana)add('humano',c.telefono,[text(c.motivo_escalamiento),message(c.ultimo_mensaje_cliente)],name,c.motivo_escalamiento||'Solicitó atención del equipo',target);
+      if(c.necesita_atencion_humana)add('humano',c.telefono,[text(c.motivo_escalamiento),message(c.ultimo_mensaje_cliente)],(/mal identificado/i.test(c.motivo_escalamiento||'')?'Paquete mal identificado · ':'')+name,c.motivo_escalamiento||'Solicitó atención del equipo',target);
       else if(c.tiene_no_leidos)add('mensaje',c.telefono,message(c.ultimo_mensaje_cliente),'Nuevo mensaje · '+name,c.ultimo_mensaje_cliente?.contenido||'Mensaje pendiente',target,true);
       if(c.ultimo_mensaje?.estado_entrega==='failed')add('fallido',c.telefono,[message(c.ultimo_mensaje),text(c.ultimo_mensaje.error_entrega)],'Mensaje no entregado · '+name,c.ultimo_mensaje.error_entrega||'Meta rechazó el último envío',target);
     });
@@ -19,7 +19,7 @@
     oportunidades.filter(o=>o.estado==='nueva').forEach(o=>add('oportunidad',o.id,[text(o.actualizada_en||o.creada_en)],'Nueva oportunidad · '+(o.empresa||o.nombre_contacto||o.telefono),o.resumen||'Posible cliente empresarial',{view:'opportunities',id:o.id},true));
     return rows;
   }
-  const groups={humano:'equipo',mensaje:'equipo',fallido:'equipo',pago:'pagos',direccion:'operaciones',oportunidad:'negocios'};
+  const groups={humano:'equipo',mensaje:'equipo',fallido:'equipo',pago:'pagos',direccion:'operaciones',malid:'equipo',demora_miami:'equipo',oportunidad:'negocios'};
   const labels={equipo:'Atención del equipo',pagos:'Pagos por revisar',operaciones:'Retiros y domicilios',negocios:'Negocios'};
   function filter(rows,search='',group='all'){
     const query=search.trim().toLocaleLowerCase('es');

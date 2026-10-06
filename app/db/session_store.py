@@ -294,23 +294,563 @@ def _oportunidad_dict(registro: OportunidadComercial) -> dict:
         "direccion_entrega": registro.direccion_entrega,
         "condiciones": registro.condiciones,
         "asignado_a": registro.asignado_a,
-        …8758 tokens truncated…,'Nuevo mensaje · '+name,c.ultimo_mensaje_cliente?.contenido||'Mensaje pendiente',target,true);
-      if(c.ultimo_mensaje?.estado_entrega==='failed')add('fallido',c.telefono,[message(c.ultimo_mensaje),text(c.ultimo_mensaje.error_entrega)],'Mensaje no entregado · '+name,c.ultimo_mensaje.error_entrega||'Meta rechazó el último envío',target);
-    });
-    solicitudes.forEach(s=>{
-      const target={view:'packages',tel:s.telefono,type:s.tipo},version=[text(s.actualizado_en),s.monto_reportado??null,!!s.tiene_comprobante,text(s.referencia_pago)];
-      if(s.pago_reportado&&!s.pago_confirmado)add('pago',s.telefono+':'+s.tipo,version,(s.tiene_comprobante?'Comprobante por revisar':'Pago por comprobar')+' · '+s.nombre,s.monto_reportado==null?'Monto pendiente de completar':'Monto reportado: $'+Number(s.monto_reportado).toFixed(2),target,true);
-      if(s.tipo==='domicilio'&&(!s.direccion||s.direccion==='—'))add('direccion',s.telefono+':'+s.tipo,[text(s.actualizado_en)],'Domicilio sin dirección · '+s.nombre,'Falta confirmar la dirección exacta del cliente.',target);
-    });
-    oportunidades.filter(o=>o.estado==='nueva').forEach(o=>add('oportunidad',o.id,[text(o.actualizada_en||o.creada_en)],'Nueva oportunidad · '+(o.empresa||o.nombre_contacto||o.telefono),o.resumen||'Posible cliente empresarial',{view:'opportunities',id:o.id},true));
-    return rows;
-  }
-  const groups={humano:'equipo',mensaje:'equipo',fallido:'equipo',pago:'pagos',direccion:'operaciones',malid:'equipo',demora_miami:'equipo',oportunidad:'negocios'};
-  const labels={equipo:'Atención del equipo',pagos:'Pagos por revisar',operaciones:'Retiros y domicilios',negocios:'Negocios'};
-  function filter(rows,search='',group='all'){
-    const query=search.trim().toLocaleLowerCase('es');
-    return rows.filter(a=>(group==='all'||groups[a.kind]===group)&&(!query||(a.titulo+' '+a.descripcion).toLocaleLowerCase('es').includes(query)));
-  }
-  root.CubicoAlerts={collect,filter,groups,labels};
-  if(typeof module!=='undefined')module.exports=root.CubicoAlerts;
-})(typeof window!=='undefined'?window:globalThis);
+        "notas_internas": registro.notas_internas,
+        "resumen": _resumen_oportunidad(registro),
+        "informacion_pendiente": _faltantes_oportunidad(registro),
+        "creada_en": registro.creada_en.isoformat() + "Z" if registro.creada_en else None,
+        "actualizada_en": registro.actualizada_en.isoformat() + "Z" if registro.actualizada_en else None,
+        "cerrada_en": registro.cerrada_en.isoformat() + "Z" if registro.cerrada_en else None,
+    }
+
+
+def guardar_oportunidad_comercial(telefono: str, **datos) -> dict:
+    """Crea o actualiza la oportunidad abierta del teléfono sin duplicarla."""
+    telefono = _texto_limpio(telefono, 40)
+    if not telefono:
+        raise ValueError("El teléfono es obligatorio")
+    desconocidos = set(datos) - CAMPOS_OPORTUNIDAD_EDITABLES
+    if desconocidos:
+        raise ValueError(f"Campos de oportunidad desconocidos: {sorted(desconocidos)}")
+
+    db = SessionSesiones()
+    try:
+        registro = (
+            db.query(OportunidadComercial)
+            .filter(
+                OportunidadComercial.telefono == telefono,
+                OportunidadComercial.estado.notin_({"ganada", "no_concretada"}),
+            )
+            .order_by(OportunidadComercial.actualizada_en.desc())
+            .first()
+        )
+        creada = registro is None
+        if creada:
+            registro = OportunidadComercial(telefono=telefono, estado="nueva")
+            db.add(registro)
+        for campo, valor in datos.items():
+            limpio = _texto_limpio(valor)
+            if limpio:
+                setattr(registro, campo, limpio)
+        registro.actualizada_en = datetime.utcnow()
+        db.commit()
+        db.refresh(registro)
+        resultado = _oportunidad_dict(registro)
+        resultado["creada"] = creada
+        return resultado
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        db.close()
+
+
+def listar_oportunidades_comerciales() -> list[dict]:
+    db = SessionSesiones()
+    try:
+        registros = (
+            db.query(OportunidadComercial)
+            .order_by(OportunidadComercial.actualizada_en.desc())
+            .all()
+        )
+        return [_oportunidad_dict(registro) for registro in registros]
+    finally:
+        db.close()
+
+
+def obtener_oportunidad_comercial_abierta(telefono: str) -> dict | None:
+    db = SessionSesiones()
+    try:
+        registro = (
+            db.query(OportunidadComercial)
+            .filter(
+                OportunidadComercial.telefono == str(telefono),
+                OportunidadComercial.estado.notin_({"ganada", "no_concretada"}),
+            )
+            .order_by(OportunidadComercial.actualizada_en.desc())
+            .first()
+        )
+        return _oportunidad_dict(registro) if registro else None
+    finally:
+        db.close()
+
+
+def actualizar_oportunidad_comercial(
+    oportunidad_id: int,
+    *,
+    estado: str | None = None,
+    asignado_a: str | None = None,
+    nota: str | None = None,
+) -> dict:
+    db = SessionSesiones()
+    try:
+        registro = db.query(OportunidadComercial).filter(
+            OportunidadComercial.id == oportunidad_id
+        ).first()
+        if registro is None:
+            raise LookupError("La oportunidad no existe")
+        if estado is not None:
+            estado = _texto_limpio(estado, 40)
+            if estado not in ESTADOS_OPORTUNIDAD:
+                raise ValueError("Estado de oportunidad inválido")
+            registro.estado = estado
+            registro.cerrada_en = (
+                datetime.utcnow() if estado in {"ganada", "no_concretada"} else None
+            )
+        if asignado_a is not None:
+            registro.asignado_a = _texto_limpio(asignado_a, 100)
+        nota_limpia = _texto_limpio(nota, 2000)
+        if nota_limpia:
+            marca = datetime.now(ZONA_PANAMA).strftime("%d/%m/%Y %I:%M %p")
+            linea = f"[{marca}] {nota_limpia}"
+            registro.notas_internas = "\n".join(
+                parte for parte in (registro.notas_internas, linea) if parte
+            )
+        registro.actualizada_en = datetime.utcnow()
+        db.commit()
+        db.refresh(registro)
+        return _oportunidad_dict(registro)
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        db.close()
+
+
+def guardar_suscripcion_push(usuario: str, suscripcion: dict) -> None:
+    """Crea o renueva una suscripción sin almacenar credenciales del panel."""
+    endpoint = str(suscripcion.get("endpoint") or "").strip()
+    keys = suscripcion.get("keys") or {}
+    p256dh = str(keys.get("p256dh") or "").strip()
+    auth = str(keys.get("auth") or "").strip()
+    if not endpoint or not p256dh or not auth:
+        raise ValueError("Suscripción push incompleta")
+
+    db = SessionSesiones()
+    try:
+        registro = db.query(SuscripcionPush).filter(SuscripcionPush.endpoint == endpoint).first()
+        if registro is None:
+            registro = SuscripcionPush(endpoint=endpoint, creado_en=datetime.utcnow())
+            db.add(registro)
+        registro.p256dh = p256dh
+        registro.auth = auth
+        registro.usuario = usuario
+        registro.actualizado_en = datetime.utcnow()
+        db.commit()
+    finally:
+        db.close()
+
+
+def eliminar_suscripcion_push(endpoint: str) -> bool:
+    db = SessionSesiones()
+    try:
+        eliminadas = db.query(SuscripcionPush).filter(
+            SuscripcionPush.endpoint == endpoint
+        ).delete(synchronize_session=False)
+        db.commit()
+        return bool(eliminadas)
+    finally:
+        db.close()
+
+
+def listar_suscripciones_push() -> list[dict]:
+    db = SessionSesiones()
+    try:
+        return [
+            {
+                "endpoint": fila.endpoint,
+                "keys": {"p256dh": fila.p256dh, "auth": fila.auth},
+                "usuario": fila.usuario,
+            }
+            for fila in db.query(SuscripcionPush).all()
+        ]
+    finally:
+        db.close()
+
+
+def obtener_o_crear_sesion(telefono: str) -> Sesion:
+    db = SessionSesiones()
+    try:
+        sesion = db.query(Sesion).filter(Sesion.telefono == telefono).first()
+
+        if sesion is None:
+            sesion = Sesion(telefono=telefono, estado="esperando_codigo")
+            db.add(sesion)
+            db.commit()
+            db.refresh(sesion)
+
+        db.expunge(sesion)
+        return sesion
+    finally:
+        db.close()
+
+
+def obtener_sesion_existente(telefono: str) -> Sesion | None:
+    """
+    Busca una sesión sin crearla si no existe. Devuelve None si el
+    teléfono no tiene ninguna conversación registrada.
+    """
+    db = SessionSesiones()
+    try:
+        sesion = db.query(Sesion).filter(Sesion.telefono == telefono).first()
+        if sesion:
+            db.expunge(sesion)
+        return sesion
+    finally:
+        db.close()
+
+
+def actualizar_sesion(telefono: str, **cambios) -> bool:
+    """
+    Actualiza los campos dados de una sesión existente. Devuelve
+    True si encontró la sesión y la actualizó, False si el teléfono
+    no tiene ninguna sesión registrada.
+    """
+    db = SessionSesiones()
+    try:
+        sesion = db.query(Sesion).filter(Sesion.telefono == telefono).first()
+        if sesion:
+            for campo, valor in cambios.items():
+                if not hasattr(sesion, campo):
+                    raise ValueError(f"Campo de sesión desconocido: {campo}")
+                setattr(sesion, campo, valor)
+            # Leer una conversación no es actividad nueva del cliente. Si
+            # actualizáramos actualizado_en aquí, el siguiente polling la
+            # marcaría inmediatamente como no leída otra vez.
+            if set(cambios) != {"ultimo_leido_panel"}:
+                sesion.actualizado_en = datetime.utcnow()
+            campos_operativos = {
+                "aviso_retiro_pendiente", "solicitud_domicilio_pendiente",
+                "pago_reportado", "pago_confirmado", "paquetes_preparados",
+                "domicilio_coordinado", "entregado",
+            }
+            if campos_operativos.intersection(cambios):
+                sesion.solicitud_actualizada_en = datetime.utcnow()
+            db.commit()
+            return True
+        return False
+    finally:
+        db.close()
+
+
+def listar_sesiones_escaladas() -> list[Sesion]:
+    """
+    Devuelve todas las sesiones que actualmente tienen
+    necesita_atencion_humana=True (casos escalados sin resolver).
+    """
+    db = SessionSesiones()
+    try:
+        sesiones = db.query(Sesion).filter(Sesion.necesita_atencion_humana == True).all()  # noqa: E712
+        for sesion in sesiones:
+            db.expunge(sesion)
+        return sesiones
+    finally:
+        db.close()
+
+
+def listar_sesiones_con_retiro_pendiente() -> list[Sesion]:
+    """
+    Devuelve todas las sesiones que actualmente tienen
+    aviso_retiro_pendiente=True (retiros avisados sin entregar todavía).
+    """
+    db = SessionSesiones()
+    try:
+        sesiones = db.query(Sesion).filter(Sesion.aviso_retiro_pendiente == True).all()  # noqa: E712
+        for sesion in sesiones:
+            db.expunge(sesion)
+        return sesiones
+    finally:
+        db.close()
+
+
+def listar_sesiones_con_domicilio_pendiente() -> list[Sesion]:
+    """
+    Devuelve todas las sesiones que actualmente tienen
+    solicitud_domicilio_pendiente=True (entregas a domicilio
+    solicitadas sin completar todavía).
+    """
+    db = SessionSesiones()
+    try:
+        sesiones = db.query(Sesion).filter(Sesion.solicitud_domicilio_pendiente == True).all()  # noqa: E712
+        for sesion in sesiones:
+            db.expunge(sesion)
+        return sesiones
+    finally:
+        db.close()
+
+
+def listar_todas_sesiones(limite: int = 50) -> list[Sesion]:
+    """
+    Devuelve las sesiones más recientemente actualizadas, sin filtrar
+    por estado. Se usa para el panel de administración (vista general
+    de conversaciones). Ordenadas por actualizado_en descendente y
+    limitadas a `limite` para no devolver toda la tabla de una vez.
+    """
+    db = SessionSesiones()
+    try:
+        sesiones = (
+            db.query(Sesion)
+            .order_by(Sesion.actualizado_en.desc())
+            .limit(limite)
+            .all()
+        )
+        for sesion in sesiones:
+            db.expunge(sesion)
+        return sesiones
+    finally:
+        db.close()
+
+
+def listar_sesiones_con_factura_pendiente() -> list[Sesion]:
+    """
+    Devuelve las sesiones con una factura pendiente de confirmación de
+    pago guardada (factura_pendiente_notificacion no vacío).
+    """
+    db = SessionSesiones()
+    try:
+        sesiones = (
+            db.query(Sesion)
+            .filter(Sesion.factura_pendiente_notificacion.isnot(None))
+            .all()
+        )
+        for sesion in sesiones:
+            db.expunge(sesion)
+        return sesiones
+    finally:
+        db.close()
+
+
+def obtener_resumen_dia() -> dict:
+    """
+    Cuenta actividad del día (hora Panamá) para el resumen de fin de
+    día: conversaciones con actividad, casos escalados, retiros y
+    domicilios coordinados. `actualizado_en` y `solicitud_actualizada_en`
+    se guardan en UTC, así que el inicio del día en Panamá se convierte
+    a UTC antes de filtrar.
+    """
+    inicio_dia_panama = datetime.now(ZONA_PANAMA).replace(
+        hour=0, minute=0, second=0, microsecond=0
+    )
+    inicio_dia_utc = inicio_dia_panama.astimezone(ZoneInfo("UTC")).replace(tzinfo=None)
+
+    db = SessionSesiones()
+    try:
+        conversaciones_activas = (
+            db.query(Sesion)
+            .filter(Sesion.actualizado_en >= inicio_dia_utc)
+            .count()
+        )
+        casos_escalados = (
+            db.query(Sesion)
+            .filter(
+                Sesion.necesita_atencion_humana == True,  # noqa: E712
+                Sesion.actualizado_en >= inicio_dia_utc,
+            )
+            .count()
+        )
+        retiros_coordinados = (
+            db.query(Sesion)
+            .filter(
+                Sesion.paquetes_preparados == True,  # noqa: E712
+                Sesion.solicitud_actualizada_en >= inicio_dia_utc,
+            )
+            .count()
+        )
+        domicilios_coordinados = (
+            db.query(Sesion)
+            .filter(
+                Sesion.domicilio_coordinado == True,  # noqa: E712
+                Sesion.solicitud_actualizada_en >= inicio_dia_utc,
+            )
+            .count()
+        )
+        return {
+            "conversaciones_activas": conversaciones_activas,
+            "casos_escalados": casos_escalados,
+            "retiros_coordinados": retiros_coordinados,
+            "domicilios_coordinados": domicilios_coordinados,
+        }
+    finally:
+        db.close()
+
+
+def agregar_al_historial(
+    telefono: str,
+    rol: str,
+    contenido: str,
+    max_mensajes: int = 100,
+    *,
+    tipo: str | None = None,
+    media_id: str | None = None,
+    mime_type: str | None = None,
+    whatsapp_message_id: str | None = None,
+    estado_entrega: str | None = None,
+    contexto_ia: str | None = None,
+    autor_tipo: str | None = None,
+    operador: str | None = None,
+    modo_envio: str | None = None,
+):
+    """
+    Agrega un mensaje al historial de la conversación, y recorta
+    el historial si supera max_mensajes (para no mandar contexto
+    infinito a Claude, lo cual encarecería cada llamada).
+    """
+    db = SessionSesiones()
+    try:
+        sesion = db.query(Sesion).filter(Sesion.telefono == telefono).first()
+        if sesion is None:
+            return
+
+        historial = json.loads(sesion.historial_json or "[]")
+        mensaje = {
+            "role": rol,
+            "content": contenido,
+            "timestamp": datetime.utcnow().isoformat(timespec="milliseconds") + "Z",
+        }
+        # ``role`` conserva la compatibilidad con el historial de Claude.
+        # Estos campos identifican quién originó realmente el mensaje. Son
+        # necesarios porque una respuesta iniciada por un trabajador puede
+        # ser redactada por Bruno, pero no deja de ser una acción humana.
+        autor_inferido = autor_tipo or {
+            "user": "cliente",
+            "assistant": "bruno",
+            "humano": "humano",
+        }.get(rol, "sistema")
+        metadatos = {
+            "tipo": tipo,
+            "media_id": media_id,
+            "mime_type": mime_type,
+            "whatsapp_message_id": whatsapp_message_id,
+            "estado_entrega": estado_entrega,
+            # Información estructurada para que Bruno recuerde lo leído
+            # en una imagen sin mostrar ese texto técnico en el panel.
+            "contexto_ia": contexto_ia,
+            "autor_tipo": autor_inferido,
+            "operador": operador,
+            "modo_envio": modo_envio,
+        }
+        mensaje.update({clave: valor for clave, valor in metadatos.items() if valor})
+        historial.append(mensaje)
+        historial = historial[-max_mensajes:]
+
+        sesion.historial_json = json.dumps(historial)
+        sesion.actualizado_en = datetime.utcnow()
+        db.commit()
+    finally:
+        db.close()
+
+
+def actualizar_estado_mensaje_whatsapp(
+    whatsapp_message_id: str,
+    estado: str,
+    error_entrega: str | None = None,
+) -> bool:
+    """Actualiza el recibo de entrega sin convertir el chat en no leído."""
+    if not whatsapp_message_id:
+        return False
+    db = SessionSesiones()
+    try:
+        sesiones = (
+            db.query(Sesion)
+            .filter(Sesion.historial_json.contains(whatsapp_message_id))
+            .all()
+        )
+        for sesion in sesiones:
+            historial = json.loads(sesion.historial_json or "[]")
+            actualizado = False
+            for mensaje in historial:
+                if mensaje.get("whatsapp_message_id") == whatsapp_message_id:
+                    mensaje["estado_entrega"] = estado
+                    if error_entrega:
+                        mensaje["error_entrega"] = error_entrega[:300]
+                    actualizado = True
+            if actualizado:
+                sesion.historial_json = json.dumps(historial)
+                db.commit()
+                return True
+        return False
+    finally:
+        db.close()
+
+
+def registrar_uso_ia(
+    telefono: str,
+    modelo: str,
+    input_tokens: int,
+    output_tokens: int,
+) -> float:
+    """Guarda el consumo de una llamada y devuelve su costo estimado."""
+    costo = round(
+        (input_tokens / 1_000_000) * settings.ANTHROPIC_INPUT_USD_PER_MTOK
+        + (output_tokens / 1_000_000) * settings.ANTHROPIC_OUTPUT_USD_PER_MTOK,
+        8,
+    )
+    db = SessionSesiones()
+    try:
+        db.add(UsoIA(
+            telefono=telefono,
+            modelo=modelo,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            costo_usd=costo,
+        ))
+        db.commit()
+        return costo
+    finally:
+        db.close()
+
+
+def obtener_uso_por_telefono(telefono: str) -> dict:
+    db = SessionSesiones()
+    try:
+        filas = db.query(UsoIA).filter(UsoIA.telefono == telefono).all()
+        return {
+            "input_tokens": sum(f.input_tokens for f in filas),
+            "output_tokens": sum(f.output_tokens for f in filas),
+            "costo_usd": round(sum(f.costo_usd for f in filas), 6),
+            "llamadas": len(filas),
+        }
+    finally:
+        db.close()
+
+
+def obtener_resumen_uso(dias: int = 30) -> dict:
+    desde = datetime.utcnow() - timedelta(days=max(1, min(dias, 365)))
+    db = SessionSesiones()
+    try:
+        filas = db.query(UsoIA).filter(UsoIA.creado_en >= desde).all()
+        por_dia = {}
+        por_chat = {}
+        for fila in filas:
+            dia = fila.creado_en.date().isoformat()
+            diario = por_dia.setdefault(dia, {"input_tokens": 0, "output_tokens": 0, "costo_usd": 0.0})
+            diario["input_tokens"] += fila.input_tokens
+            diario["output_tokens"] += fila.output_tokens
+            diario["costo_usd"] += fila.costo_usd
+            chat = por_chat.setdefault(fila.telefono, {"input_tokens": 0, "output_tokens": 0, "costo_usd": 0.0, "llamadas": 0})
+            chat["input_tokens"] += fila.input_tokens
+            chat["output_tokens"] += fila.output_tokens
+            chat["costo_usd"] += fila.costo_usd
+            chat["llamadas"] += 1
+
+        total_input = sum(f.input_tokens for f in filas)
+        total_output = sum(f.output_tokens for f in filas)
+        total_costo = sum(f.costo_usd for f in filas)
+        return {
+            "dias": [
+                {"fecha": fecha, **valores, "costo_usd": round(valores["costo_usd"], 6)}
+                for fecha, valores in sorted(por_dia.items())
+            ],
+            "chats": [
+                {"telefono": telefono, **valores, "costo_usd": round(valores["costo_usd"], 6)}
+                for telefono, valores in sorted(
+                    por_chat.items(), key=lambda item: item[1]["costo_usd"], reverse=True
+                )
+            ],
+            "input_tokens": total_input,
+            "output_tokens": total_output,
+            "tokens_totales": total_input + total_output,
+            "costo_usd": round(total_costo, 6),
+            "conversaciones": len(por_chat),
+        }
+    finally:
+        db.close()

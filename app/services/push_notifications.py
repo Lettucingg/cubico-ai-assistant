@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 
 from app.core.config import settings
+from app.services.notification_preferences import permite
 from app.db.session_store import eliminar_suscripcion_push, listar_suscripciones_push
 
 try:
@@ -25,6 +26,8 @@ def _enviar_a_dispositivos(payload: dict, usuarios: set[str] | None = None) -> d
     eliminadas = 0
     for suscripcion in listar_suscripciones_push():
         if usuarios is not None and suscripcion["usuario"] not in usuarios:
+            continue
+        if not permite(suscripcion["usuario"], payload.get("categoria", "chats")):
             continue
         try:
             webpush(
@@ -67,6 +70,7 @@ async def notificar_informe_push(informe: dict, usuarios: set[str]) -> dict:
         "url": f"/admin?informe={informe['id']}",
         "tag": f"cubico-informe-{informe['id']}",
         "informe_id": informe["id"],
+        "categoria": "alertas",
     }
     return await asyncio.to_thread(_enviar_a_dispositivos, payload, usuarios)
 
@@ -74,6 +78,7 @@ async def notificar_informe_push(informe: dict, usuarios: set[str]) -> dict:
 async def notificar_panel_push(telefono: str, nombre: str | None, texto: str) -> dict:
     """Avisa sin bloquear el webhook ni la respuesta automática del bot."""
     payload = {
+        "categoria": "chats",
         "title": f"Nuevo mensaje · {nombre or telefono}",
         "body": texto[:160] or "Nuevo mensaje de WhatsApp",
         "telefono": telefono,
@@ -81,3 +86,21 @@ async def notificar_panel_push(telefono: str, nombre: str | None, texto: str) ->
         "tag": f"cubico-{telefono}",
     }
     return await asyncio.to_thread(_enviar_a_dispositivos, payload)
+
+
+async def _notificar_alerta_push(titulo: str, descripcion: str, telefono: str | None = None, tag: str = "cubico-alerta") -> dict:
+    return await asyncio.to_thread(_enviar_a_dispositivos, {
+        "categoria": "alertas", "title": titulo, "body": descripcion[:160],
+        "url": f"/admin?telefono={telefono}" if telefono else "/admin?vista=alerts",
+        "tag": tag,
+    })
+
+
+async def notificar_alerta_push(titulo: str, descripcion: str, telefono: str | None = None, tag: str = "cubico-alerta") -> dict:
+    # Un fallo de push no debe impedir la respuesta ni la notificación al equipo.
+    try:
+        return await _notificar_alerta_push(titulo, descripcion, telefono, tag)
+    except Exception:
+        import logging
+        logging.getLogger(__name__).exception("No se pudo enviar el aviso push")
+        return {"enviadas": 0, "eliminadas": 0, "configurado": push_configurado()}
