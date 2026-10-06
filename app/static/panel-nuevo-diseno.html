@@ -60,7 +60,7 @@
 
 .reports-heading{display:flex;justify-content:space-between;align-items:center;gap:12px}.reports-history-note{font-size:12px;color:var(--muted);line-height:1.5}#daily-reports-history{margin-top:18px;padding-top:14px;border-top:1px solid var(--line)}#daily-reports-history[hidden]{display:none}#daily-reports-history h4{margin:0 0 6px;font-size:14px}#daily-reports-history-list{max-height:420px;overflow:auto}@media(max-width:760px){.reports-heading h3{font-size:15px}.reports-heading .btn{font-size:12px;padding:9px 11px}}
 </style>
-  <link rel="stylesheet" href="/static/panel-theme.css?v=20261006-taps">
+  <link rel="stylesheet" href="/static/panel-theme.css?v=20261006-alerts">
 </head>
 <body>
   <div id="login-overlay" style="position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:50;padding:20px">
@@ -161,7 +161,7 @@
       <section class="view" id="settings"><div class="settings-layout">
         <article class="card settings-section"><h2>Mi perfil</h2><form id="account-profile-form" class="profile-form"><div class="profile-photo-row"><div class="account-photo" id="account-photo">—</div><div><label class="btn" for="account-photo-input">Elegir foto</label><input id="account-photo-input" type="file" accept="image/jpeg,image/png,image/webp" hidden><button class="btn" id="account-photo-remove" type="button">Quitar foto</button></div></div><label>Nombre visible<input id="account-name" maxlength="80" required autocomplete="name"></label><p class="personalization-note" id="account-user">Tu usuario de acceso permanece igual.</p><button class="btn dark" type="submit">Guardar perfil</button><p id="account-profile-status" class="profile-message" role="status" aria-live="polite"></p></form></article>
         <article class="card settings-section"><h2>Cambiar contraseña</h2><form id="account-password-form" class="profile-form"><label>Contraseña actual<input id="account-password-current" type="password" autocomplete="current-password" required maxlength="256"></label><label>Nueva contraseña<input id="account-password-new" type="password" autocomplete="new-password" minlength="10" maxlength="128" required></label><label>Confirmar nueva contraseña<input id="account-password-confirm" type="password" autocomplete="new-password" minlength="10" maxlength="128" required></label><p class="personalization-note">Usa al menos 10 caracteres. La contraseña anterior dejará de funcionar.</p><button class="btn" id="account-password-toggle" type="button" aria-pressed="false">Ver contraseñas</button><button class="btn dark" type="submit">Cambiar contraseña</button><p id="account-password-status" class="profile-message" role="status" aria-live="polite"></p></form></article>
-        <article class="card settings-section"><h2>Notificaciones</h2><div class="setting-row"><div><b>Mientras usas el panel</b><p id="notification-status">Actívalas para recibir avisos en otra pestaña.</p></div><button class="btn" id="notification-toggle">Activar notificaciones</button></div><div class="setting-row"><div><b>En este dispositivo</b><p id="push-status">Inicia sesión para comprobar la instalación.</p></div><button class="btn" id="push-toggle">Activar en este dispositivo</button></div><div class="setting-row"><div><b>Sonido del panel</b><p>Un aviso breve al recibir nuevos mensajes.</p></div><button class="btn" id="sound-toggle">Sonido: activo</button></div></article>
+        <article class="card settings-section"><h2>Notificaciones</h2><div class="setting-row"><div><b>Qué quieres recibir</b><p>Se aplica a tu cuenta en todos tus dispositivos. Los informes diarios cuentan como alertas.</p></div><select class="filter" id="notification-category" aria-label="Tipos de notificaciones"><option value="ambos">Alertas y chats</option><option value="alertas">Solo alertas</option><option value="chats">Solo chats</option></select></div><p id="notification-category-status" class="profile-message" role="status"></p><div class="setting-row"><div><b>Mientras usas el panel</b><p id="notification-status">Actívalas para recibir avisos en otra pestaña.</p></div><button class="btn" id="notification-toggle">Activar notificaciones</button></div><div class="setting-row"><div><b>En este dispositivo</b><p id="push-status">Inicia sesión para comprobar la instalación.</p></div><button class="btn" id="push-toggle">Activar en este dispositivo</button></div><div class="setting-row"><div><b>Sonido del panel</b><p>Un aviso breve al recibir nuevos mensajes.</p></div><button class="btn" id="sound-toggle">Sonido: activo</button></div></article>
         <article class="card settings-section"><h2>Tu panel</h2><div class="setting-row"><div><b>Conexión de la sesión</b><p>El panel utiliza tu acceso para consultar la operación.</p></div><span class="status-pill ready">Sesión iniciada</span></div><div class="setting-row"><div><b>Informes de Bruno</b><p>Estado a las 8:00 a. m. y resumen a las 5:00 p. m., hora de Panamá.</p></div><button class="btn" data-view="overview">Ver informes</button></div></article>
         <article class="card settings-section wide"><h2>Personalización</h2><b style="font-size:13px">Fondo de conversaciones</b><p class="personalization-note">Elige un fondo para el área de mensajes. Las listas mantienen su fondo limpio.</p><div class="background-options"><button class="background-choice" type="button" data-chat-background="plain" aria-pressed="false"><div class="background-sample plain"></div><strong>Liso</strong></button><button class="background-choice" type="button" data-chat-background="cubes" aria-pressed="true"><div class="background-sample cubes"></div><strong>Cubos</strong></button><button class="background-choice" type="button" data-chat-background="brand" aria-pressed="false"><div class="background-sample brand"></div><strong>Marca Cúbico</strong></button></div><p class="personalization-note" id="background-status" role="status">Se guarda automáticamente en este navegador.</p></article>
       </div></section>
@@ -177,9 +177,9 @@
   <div class="modal-overlay" id="modal-verificar-manual" role="dialog" aria-label="Verificar cliente manualmente"><div class="card modal-box"><h3>Verificar manualmente</h3><p style="font-size:12px;color:var(--muted);line-height:1.5">Escribe el código real del cliente o agencia. Se comprobará en la base de datos antes de asociarlo al chat.</p><label for="manual-code">Código de cliente o agencia</label><input type="text" id="manual-code" placeholder="CBC-0001 o código de agencia"/><div class="modal-actions"><button class="btn" type="button" id="manual-verify-cancel">Cancelar</button><button class="btn dark" type="button" id="manual-verify-save">Verificar y asociar</button></div></div></div>
   <div class="modal-overlay" id="modal-operacion-manual" role="dialog" aria-label="Crear operación manual"><div class="card modal-box"><h3 id="manual-operation-title">Crear solicitud</h3><p id="manual-operation-help" style="font-size:12px;color:var(--muted);line-height:1.5"></p><div id="manual-address-field"><label for="manual-address">Dirección exacta</label><textarea id="manual-address" rows="3" placeholder="Dirección completa de entrega"></textarea></div><div id="manual-payment-fields"><label for="manual-amount">Monto reportado (opcional)</label><input type="number" id="manual-amount" min="0.01" step="0.01" placeholder="0.00"/><label for="manual-method">Método (opcional)</label><input type="text" id="manual-method" placeholder="Yappy, transferencia, efectivo…"/><label for="manual-reference">Referencia (opcional)</label><input type="text" id="manual-reference" placeholder="Número de referencia"/></div><div class="modal-actions"><button class="btn" type="button" id="manual-operation-cancel">Cancelar</button><button class="btn dark" type="button" id="manual-operation-save">Crear caso</button></div></div></div>
   <script src="/static/panel-personalization.js"></script>
-  <script src="/static/panel-mobile-layout.js?v=20261006-taps"></script>
+  <script src="/static/panel-mobile-layout.js?v=20261006-alerts"></script>
   <script src="/static/daily-report.js"></script>
-  <script src="/static/alert-management.js"></script>
+  <script src="/static/alert-management.js?v=20261006-alerts"></script>
   <script>
     const titles={overview:['Buenos días, Alexander','Esto es lo que está pasando en Cúbico hoy.'],chats:['Conversaciones','Supervisa a Bruno y toma el control cuando haga falta.'],packages:['Retiros y domicilios','Organiza las solicitudes que llegan directamente desde WhatsApp.'],opportunities:['Oportunidades comerciales','Bruno organiza la información; el equipo decide qué propuesta preparar.'],costs:['Costos y tokens','Entiende exactamente cuánto cuesta cada conversación.'],alerts:['Alertas','Lo que necesita tu atención, en un solo lugar.'],settings:['Configuración','Integraciones y estado técnico de Bruno.']};
     function showView(id){document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id===id));document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.view===id));document.getElementById('page-title').textContent=titles[id][0];document.getElementById('page-sub').textContent=titles[id][1];if(id!=='chats'&&typeof cerrarPanelCliente==='function')cerrarPanelCliente();if(id==='packages')cargarSolicitudes();if(id==='opportunities')cargarOportunidades();if(id==='costs')cargarUso(30);if(id==='alerts')cargarPapelera();window.scrollTo({top:0,behavior:'smooth'})}
@@ -209,11 +209,12 @@
     let alertasArchivadas=[],papeleraCargada=false,verPapelera=false,ultimaAlertaQuitada=null,versionPapelera=0,seleccionandoAlertas=false,loteAlertas=false,loteDeshacer=[];
     const seleccionAlertas=new Set();
     const alertasEnProceso=new Set();
+    let categoriaAvisos="ambos",alertasPaquetes=[],avisosAlertasListos=false,alertasVistas=new Set();
     let notificacionesInicializadas=false,sonidoActivo=true,audioContext=null,actualizandoRapido=false,pushSuscrito=false;
     const firmasUltimoCliente=new Map();
 
     function authHeaders(authCreds=creds){return {'Authorization':'Basic '+authCreds}}
-    function mostrarLogin(mensaje='Tu sesión venció. Inicia sesión nuevamente.'){creds=null;usuarioActual=null;alertasArchivadas=[];papeleraCargada=false;verPapelera=false;ultimaAlertaQuitada=null;loteDeshacer=[];seleccionAlertas.clear();seleccionandoAlertas=false;document.getElementById('alert-undo').hidden=true;clearInterval(refreshTimer);clearInterval(quickRefreshTimer);document.querySelector('.app').style.display='none';document.getElementById('login-overlay').style.display='flex';const err=document.getElementById('login-err');err.textContent=mensaje;err.style.display='block'}
+    function mostrarLogin(mensaje='Tu sesión venció. Inicia sesión nuevamente.'){categoriaAvisos='ambos';alertasPaquetes=[];avisosAlertasListos=false;alertasVistas.clear();creds=null;usuarioActual=null;alertasArchivadas=[];papeleraCargada=false;verPapelera=false;ultimaAlertaQuitada=null;loteDeshacer=[];seleccionAlertas.clear();seleccionandoAlertas=false;document.getElementById('alert-undo').hidden=true;clearInterval(refreshTimer);clearInterval(quickRefreshTimer);document.querySelector('.app').style.display='none';document.getElementById('login-overlay').style.display='flex';const err=document.getElementById('login-err');err.textContent=mensaje;err.style.display='block'}
     async function apiRequest(path,options={},authCreds=creds,reloginOn401=true,notificarErrores=true){
       const controller=new AbortController();
       const timeout=setTimeout(()=>controller.abort(),REQUEST_TIMEOUT_MS);
@@ -237,9 +238,14 @@
     function firmaMensajeCliente(c){const m=c.ultimo_mensaje_cliente;if(!m)return null;return String(m.id||'')+'|'+String(m.timestamp||'')+'|'+String(m.contenido||'')}
     function reproducirAviso(){if(!sonidoActivo)return;try{audioContext=audioContext||new(window.AudioContext||window.webkitAudioContext)();const ahora=audioContext.currentTime,osc=audioContext.createOscillator(),ganancia=audioContext.createGain();osc.type='sine';osc.frequency.setValueAtTime(740,ahora);osc.frequency.exponentialRampToValueAtTime(520,ahora+.16);ganancia.gain.setValueAtTime(.0001,ahora);ganancia.gain.exponentialRampToValueAtTime(.12,ahora+.02);ganancia.gain.exponentialRampToValueAtTime(.0001,ahora+.22);osc.connect(ganancia);ganancia.connect(audioContext.destination);osc.start(ahora);osc.stop(ahora+.23)}catch(e){}}
     function abrirDesdeNotificacion(telefono){window.focus();showView('chats');abrirChat(telefono)}
-    function avisarMensajeNuevo(c){const nombre=c.nombre||c.telefono,texto=(c.ultimo_mensaje_cliente?.contenido||'Nuevo mensaje').slice(0,110);reproducirAviso();say('Nuevo mensaje de '+nombre+': '+texto);if(!pushSuscrito&&'Notification'in window&&Notification.permission==='granted'&&document.hidden){try{const aviso=new Notification('Nuevo mensaje de '+nombre,{body:texto,tag:'cubico-'+c.telefono});aviso.onclick=()=>{aviso.close();abrirDesdeNotificacion(c.telefono)}}catch(e){}}}
+    function avisarMensajeNuevo(c){if(categoriaAvisos==='alertas')return;const nombre=c.nombre||c.telefono,texto=(c.ultimo_mensaje_cliente?.contenido||'Nuevo mensaje').slice(0,110);reproducirAviso();say('Nuevo mensaje de '+nombre+': '+texto);if(!pushSuscrito&&'Notification'in window&&Notification.permission==='granted'&&document.hidden){try{const aviso=new Notification('Nuevo mensaje de '+nombre,{body:texto,tag:'cubico-'+c.telefono});aviso.onclick=()=>{aviso.close();abrirDesdeNotificacion(c.telefono)}}catch(e){}}}
     function procesarNuevosMensajes(data){for(const c of data){const firma=firmaMensajeCliente(c),anterior=firmasUltimoCliente.get(c.telefono);if(notificacionesInicializadas&&firma&&firma!==anterior)avisarMensajeNuevo(c);if(firma)firmasUltimoCliente.set(c.telefono,firma)}notificacionesInicializadas=true}
     function actualizarContadorNotificaciones(data=convs){const cantidad=data.filter(c=>c.tiene_no_leidos).length,el=document.getElementById('notification-count');el.textContent=cantidad>99?'99+':cantidad;el.style.display=cantidad?'block':'none'}
+    async function cargarPreferenciasAvisos(){try{const r=await apiGet('/panel/notificaciones/preferencias');if(r.ok){const data=await r.json();categoriaAvisos=['ambos','alertas','chats'].includes(data.categoria)?data.categoria:'ambos';document.getElementById('notification-category').value=categoriaAvisos}}catch(e){}}
+    document.getElementById('notification-category').addEventListener('change',async e=>{const control=e.target,nueva=control.value;control.disabled=true;try{const r=await apiRequest('/panel/notificaciones/preferencias',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({categoria:nueva})});if(!r.ok)throw Error('No se pudo guardar');categoriaAvisos=nueva;document.getElementById('notification-category-status').textContent='Preferencia guardada en tu cuenta.'}catch(e){control.value=categoriaAvisos;document.getElementById('notification-category-status').textContent='No se pudo guardar. Intenta de nuevo.'}finally{control.disabled=false}});
+    async function cargarAlertasPaquetes(){try{const r=await apiGet('/panel/alertas/paquetes');if(r.ok){const data=await r.json();if(Array.isArray(data))alertasPaquetes=data;renderAlertas()}}catch(e){}}
+    function avisarAlertasNuevas(alertas){if(!avisosAlertasListos)return;for(const a of alertas){if(alertasVistas.has(a.clave))continue;alertasVistas.add(a.clave);if(a.kind==='mensaje'||categoriaAvisos==='chats')continue;reproducirAviso();say(a.titulo);if(!pushSuscrito&&'Notification'in window&&Notification.permission==='granted'&&document.hidden){try{const n=new Notification(a.titulo,{body:a.descripcion,tag:a.clave});n.onclick=()=>{n.close();showView('alerts')}}catch(e){}}}}
+
     function actualizarEstadoNotificaciones(){const estado=document.getElementById('notification-status'),boton=document.getElementById('notification-toggle');if(!('Notification'in window)){estado.textContent='Este navegador no admite avisos del sistema; el sonido y los avisos internos seguirán funcionando.';boton.disabled=true;boton.textContent='No disponible';return}if(Notification.permission==='granted'){estado.textContent='Activas. Recibirás avisos cuando el panel esté abierto en otra pestaña.';boton.textContent='Notificaciones activas';boton.disabled=true}else if(Notification.permission==='denied'){estado.textContent='Bloqueadas por el navegador. Puedes habilitarlas desde los permisos del sitio.';boton.textContent='Bloqueadas';boton.disabled=true}else{estado.textContent='Actívalas para recibir avisos cuando estés en otra pestaña.';boton.textContent='Activar notificaciones';boton.disabled=false}}
     async function activarNotificaciones(){if(!('Notification'in window)){actualizarEstadoNotificaciones();return}try{const permiso=await Notification.requestPermission();actualizarEstadoNotificaciones();say(permiso==='granted'?'Notificaciones activadas':'El navegador no autorizó las notificaciones')}catch(e){say('No se pudieron activar las notificaciones')}}
 
@@ -310,6 +316,8 @@
         avatarOperador.textContent=initials(u);avatarOperador.title='Configuración · '+u;
         titles.overview[0]='Buenos días, '+u.charAt(0).toUpperCase()+u.slice(1);
         await cargarPerfilCuenta();
+        await cargarPreferenciasAvisos();
+        avisosAlertasListos=false;alertasVistas.clear();
         document.getElementById('login-pass').value='';
         notificacionesInicializadas=false;firmasUltimoCliente.clear();
         document.getElementById('login-overlay').style.display='none';
@@ -317,10 +325,12 @@
         await cargarPapelera();
         renderLista(await r.json());
         await refrescarPanel();
+        alertasActivas().forEach(a=>alertasVistas.add(a.clave));avisosAlertasListos=true;
         actualizarEstadoNotificaciones();
         await actualizarEstadoPush();
         const informePendiente=new URLSearchParams(location.search).get('informe');
         if(informePendiente){await cargarInformesDiarios();showView('overview');abrirInformeDiario(informePendiente);history.replaceState({},'',location.pathname)}
+        if(new URLSearchParams(location.search).get('vista')==='alerts')showView('alerts');
         const telefonoPendiente=new URLSearchParams(location.search).get('telefono');
         if(telefonoPendiente){showView('chats');await abrirChat(telefonoPendiente);history.replaceState({},'',location.pathname)}
         iniciarAutoRefresh();
@@ -334,11 +344,11 @@
     function iniciarAutoRefresh(){clearInterval(refreshTimer);clearInterval(quickRefreshTimer);quickRefreshTimer=setInterval(refrescarMensajes,5000);refreshTimer=setInterval(refrescarDatosSecundarios,30000)}
 
     async function refrescarPanel(){
-      await Promise.all([cargarPapelera(),recargarConversaciones(),recargarHistorialActivo(),cargarResumen(),cargarSolicitudes(),cargarOportunidades(),cargarUso(30)]);
+      await Promise.all([cargarAlertasPaquetes(),cargarPapelera(),recargarConversaciones(),recargarHistorialActivo(),cargarResumen(),cargarSolicitudes(),cargarOportunidades(),cargarUso(30)]);
     }
 
     async function refrescarMensajes(){if(actualizandoRapido||!creds)return;actualizandoRapido=true;try{await Promise.all([recargarActividad(),recargarHistorialActivo()])}finally{actualizandoRapido=false}}
-    async function refrescarDatosSecundarios(){if(!creds)return;await Promise.all([cargarPapelera(),recargarConversaciones(),cargarResumen(),cargarSolicitudes(),cargarOportunidades(),cargarUso(30)])}
+    async function refrescarDatosSecundarios(){if(!creds)return;await Promise.all([cargarAlertasPaquetes(),cargarPapelera(),recargarConversaciones(),cargarResumen(),cargarSolicitudes(),cargarOportunidades(),cargarUso(30)])}
 
     async function recargarHistorialActivo(){
       const telefono=telActivo;
@@ -679,7 +689,7 @@
         if(window.confirm(datos.detail+' ¿Deseas reemplazarlo?'))return await enviarOperacionManual(body,true,telefonoObjetivo);
       }
       if(!r.ok)throw Error((datos&&datos.detail)||'No se pudo completar la operación');
-      await Promise.all([cargarPapelera(),recargarConversaciones(),cargarSolicitudes(),cargarResumen()]);
+      await Promise.all([cargarAlertasPaquetes(),cargarPapelera(),recargarConversaciones(),cargarSolicitudes(),cargarResumen()]);
       const actual=convs.find(c=>c.telefono===telActivo);if(actual)actualizarEncabezadoChat(actual);
       return datos;
     }
@@ -948,22 +958,26 @@
       }catch(e){say('Error de conexión')}
     });
 
+    const enviosTextoEnCurso=new Set(),intentosEnvioTexto=new Map();
     async function enviarMensaje(){
       if(!telActivo)return;
       const telefono=telActivo;
+      if(enviosTextoEnCurso.has(telefono))return;
       const input=document.getElementById('message-input');
       const texto=input.value.trim();
       if(!texto)return;
       const conv=convs.find(c=>c.telefono===telefono);
       if(conv?.atencion_humana_directa&&conv.atencion_humana_por!==usuarioActual){say('Esta conversación está siendo atendida por '+(conv.atencion_humana_por||'otro operador'));return}
       const path=modoControl[telefono]?`/panel/enviar-directo/${telefono}`:`/panel/responder/${telefono}`;
-      input.disabled=true;
+      const firma=path+'\n'+texto;
+      let intento=intentosEnvioTexto.get(telefono);if(!intento||intento.firma!==firma){intento={firma,id:crypto.randomUUID?crypto.randomUUID():Date.now()+'-'+Math.random()};intentosEnvioTexto.set(telefono,intento)}
+      enviosTextoEnCurso.add(telefono);input.disabled=true;document.getElementById('send').disabled=true;
       try{
-        const r=await apiPost(path,{mensaje:texto});
+        const r=await apiPost(path,{mensaje:texto,request_id:intento.id});
         if(r.ok){
           if((borradoresChat.get(telefono)||'').trim()===texto)borradoresChat.delete(telefono);
           if(telActivo===telefono&&input.value.trim()===texto)input.value='';
-          say('Mensaje enviado');
+          intentosEnvioTexto.delete(telefono);say('Mensaje enviado');
           try{const rh=await apiGet(`/panel/conversacion/${telefono}`);if(rh.ok){const historial=(await rh.json()).historial;if(telActivo===telefono)renderMensajes(historial)}}catch(e){}
           recargarConversaciones();
         }else{
@@ -972,7 +986,8 @@
           say(detalle);
         }
       }catch(e){say('Error de conexión')}
-      if(telActivo===telefono){input.disabled=!!(convs.find(c=>c.telefono===telefono)?.atencion_humana_directa&&convs.find(c=>c.telefono===telefono)?.atencion_humana_por!==usuarioActual);if(!input.disabled)input.focus()}
+      enviosTextoEnCurso.delete(telefono);
+      if(telActivo===telefono){input.disabled=!!(convs.find(c=>c.telefono===telefono)?.atencion_humana_directa&&convs.find(c=>c.telefono===telefono)?.atencion_humana_por!==usuarioActual);document.getElementById('send').disabled=input.disabled;if(!input.disabled)input.focus()}
     }
     let archivoSeleccionado=null,tipoArchivoSeleccionado=null,urlPreviewArchivo=null;
     const attachBtn=document.getElementById('attach-btn'),attachMenu=document.getElementById('attach-menu'),attachImageInput=document.getElementById('attach-image-input'),attachPdfInput=document.getElementById('attach-pdf-input'),attachPreview=document.getElementById('attach-preview');
@@ -1152,7 +1167,7 @@
     document.getElementById('alerts-trash').addEventListener('click',()=>{verPapelera=true;renderAlertas();cargarPapelera()});
     document.getElementById('alert-undo-button').addEventListener('click',()=>{for(const id of [...loteDeshacer])restaurarAlerta(id)});
     document.getElementById('alert-undo-close').addEventListener('click',()=>{document.getElementById('alert-undo').hidden=true});
-    function alertasActivas(){const ocultas=new Set(alertasArchivadas.map(a=>a.clave));return CubicoAlerts.collect(convs,solicitudes,oportunidades).filter(a=>!ocultas.has(a.clave))}
+    function alertasActivas(){const ocultas=new Set(alertasArchivadas.map(a=>a.clave));return [...CubicoAlerts.collect(convs,solicitudes,oportunidades).filter(a=>!(a.kind==='humano'&&/mal identificado/i.test(a.descripcion)&&alertasPaquetes.some(p=>p.kind==='malid'&&p.telefono===a.target.tel))),...alertasPaquetes].filter(a=>!ocultas.has(a.clave))}
     function alertasVisibles(){return CubicoAlerts.filter(alertasActivas(),document.getElementById('alert-search').value,document.getElementById('alert-filter').value)}
     document.getElementById('alert-search').addEventListener('input',renderAlertas);
     document.getElementById('alert-filter').addEventListener('change',renderAlertas);
@@ -1170,7 +1185,7 @@
     document.getElementById('alert-bulk-resolve').addEventListener('click',()=>quitarSeleccionadas('resuelta'));
     document.getElementById('alert-bulk-discard').addEventListener('click',()=>quitarSeleccionadas('descartada'));
     function renderAlertas(){
-      const activas=alertasActivas(),visibles=alertasVisibles(),keys=new Set(activas.map(a=>a.clave));
+      const activas=alertasActivas();avisarAlertasNuevas(activas);const visibles=alertasVisibles(),keys=new Set(activas.map(a=>a.clave));
       for(const key of seleccionAlertas)if(!keys.has(key))seleccionAlertas.delete(key);
       const labels=CubicoAlerts.labels,groups=CubicoAlerts.groups;
       const icon=g=>({equipo:'♙',pagos:'▤',negocios:'▱',operaciones:'◇'})[g]||'◇';

@@ -60,5 +60,16 @@ const tick=()=>new Promise(setImmediate);
  d.querySelector('#daily-reports-history .daily-report-open').click();assert.ok(d.getElementById('modal-informe-diario').classList.contains('open'));d.getElementById('daily-report-close').click();
  w.showView('alerts');await tick();d.querySelector('#alerts-list .alert-remove').click();await tick();assert.equal(archived.length,1);d.getElementById('alert-undo-button').click();await tick();assert.equal(archived.length,0);
  assert.equal(posts.filter(p=>/estado|enviar/.test(p)).length,0);
+ // A slow POST, double tap and uncertain retry must reuse one request ID.
+ await w.abrirChat('5071');const oldFetch=w.fetch, attempts=[];let release;
+ w.fetch=(url,options={})=>{if(options.method==='POST'&&url.includes('/panel/responder/')){attempts.push(JSON.parse(options.body));return new Promise(resolve=>release=resolve)}return oldFetch(url,options)};
+ d.getElementById('message-input').value='Hola';const first=w.enviarMensaje();await w.enviarMensaje();assert.equal(attempts.length,1);assert.equal(d.getElementById('send').disabled,true);
+ release({ok:false,json:async()=>({detail:'Conexión interrumpida'})});await first;
+ const retry=w.enviarMensaje();assert.equal(attempts.length,2);assert.equal(attempts[1].request_id,attempts[0].request_id);
+ release({ok:true,json:async()=>({status:'ok'})});await retry;assert.equal(d.getElementById('message-input').value,'');assert.equal(d.getElementById('send').disabled,false);
+ w.fetch=oldFetch;
+ fixtures.preferencias={categoria:'alertas'};await w.cargarPreferenciasAvisos();assert.equal(d.getElementById('notification-category').value,'alertas');
+ d.getElementById('notification-category').value='chats';d.getElementById('notification-category').dispatchEvent(new w.Event('change'));await tick();assert.match(d.getElementById('notification-category-status').textContent,/guardada/i);
+
  console.log('All seven panel views: filters, drawer, payment guards, requests, pipeline, costs, preferences, reports/history, archive/undo passed');dom.window.close();
 })().catch(e=>{console.error(e);dom.window.close();process.exitCode=1});

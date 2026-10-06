@@ -24,5 +24,6 @@ async function recibir(payload, visible) {
   assert.equal((await recibir(informe, false)).length, 1);
   assert.equal((await recibir({ telefono: '50760000000' }, true)).length, 0);
   assert.equal((await recibir({ telefono: '50760000000' }, false)).length, 1);
-  console.log('Avisos de informes y mensajes: 4 casos correctos');
+  assert.equal((await recibir({categoria:'alertas',title:'Paquete mal identificado'},true)).length,1);
+  console.log('Avisos de informes, alertas y mensajes: 5 casos correctos');
 })().catch(error => { console.error(error); process.exitCode = 1; });

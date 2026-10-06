@@ -30,7 +30,7 @@ from app.tools.comprobantes import (
 )
 from app.tools.clientes import obtener_nombre_completo_cliente
 from app.tools.paquetes import consultar_paquetes_por_codigo
-from app.services.push_notifications import notificar_panel_push
+from app.services.push_notifications import notificar_panel_push, notificar_alerta_push
 
 router = APIRouter()
 
@@ -488,6 +488,9 @@ async def notificar_equipo_escalamiento(telefono_cliente: str, texto_cliente: st
         f"Motivo: {motivo}\n"
         f"Último mensaje: \"{texto_cliente}\""
     )
+    await notificar_alerta_push(
+        "Paquete mal identificado" if "mal identificado" in motivo.lower() else "Caso para revisar",
+        f"{telefono_cliente}: {motivo}", telefono_cliente, f"cubico-atencion-{telefono_cliente}")
     for numero in NUMEROS_NOTIFICACION:
         try:
             await enviar_mensaje_whatsapp(numero, mensaje)
@@ -526,6 +529,7 @@ async def notificar_equipo_comprobante(telefono_cliente: str, detalle_comprobant
         f"Método: {campos['metodo']}\n\n"
         f"wa.me/{telefono_cliente}"
     )
+    await notificar_alerta_push("Comprobante de pago recibido", mensaje, telefono_cliente, f"cubico-notificar_equipo_comprobante-{telefono_cliente}")
     for numero in NUMEROS_NOTIFICACION:
         try:
             await enviar_mensaje_whatsapp(numero, mensaje)
@@ -554,6 +558,7 @@ async def notificar_equipo_retiro(telefono_cliente: str, codigo_cliente: str):
         f"📦 Aviso de retiro: {nombre} ({codigo_cliente}) va a pasar "
         f"a retirar sus paquetes: {lista_tracking}."
     )
+    await notificar_alerta_push("Solicitud de retiro", mensaje, telefono_cliente, f"cubico-notificar_equipo_retiro-{telefono_cliente}")
     for numero in NUMEROS_NOTIFICACION:
         try:
             await enviar_mensaje_whatsapp(numero, mensaje)
@@ -586,6 +591,7 @@ async def notificar_equipo_domicilio(telefono_cliente: str, codigo_cliente: str,
         f"Evalúen si la dirección está dentro de la zona de ruta (gratis) "
         f"o requiere cobro adicional por ser exprés/fuera de zona."
     )
+    await notificar_alerta_push("Solicitud de domicilio", mensaje, telefono_cliente, f"cubico-notificar_equipo_domicilio-{telefono_cliente}")
     for numero in NUMEROS_NOTIFICACION:
         try:
             await enviar_mensaje_whatsapp(numero, mensaje)
@@ -644,7 +650,7 @@ async def enviar_respuesta_natural(
     escribiendo uno o dos mensajes seguidos, en vez de un bloque de
     texto instantáneo o una ráfaga de mensajes sueltos.
     """
-    partes = [p.strip() for p in texto_completo.split("\n\n") if p.strip()]
+    partes = list(dict.fromkeys(p.strip() for p in texto_completo.split("\n\n") if p.strip()))
 
     if not partes:
         partes = [texto_completo]
@@ -1026,6 +1032,16 @@ async def _procesar_mensaje_en_segundo_plano_sin_candado(mensaje: dict):
             sesion.obtener_historial(),
             sesion.tipo_cliente_verificado,
         )
+
+        # La IA corre en un hilo: enviamos sus avisos pendientes desde el bucle del webhook.
+        try:
+            from app.services.package_alerts import listar_alertas, notificar_nuevas
+            pendientes_tracking = await asyncio.to_thread(listar_alertas)
+            await notificar_nuevas([a for a in pendientes_tracking
+                                   if a['telefono'] == mensaje['telefono'] and a['kind'] == 'demora_miami'])
+        except Exception:
+            import logging
+            logging.getLogger(__name__).exception("No se pudo avisar la demora del tracking")
 
         agregar_al_historial(
             sesion.telefono,

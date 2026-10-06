@@ -2194,6 +2194,25 @@ def generar_respuesta(
             ),
         }
 
+    def _tracking_con_alertas(numero_tracking: str):
+        resultado = consultar_tracking(numero_tracking)
+        try:
+            from app.services.package_alerts import observar
+            nuevas = observar(numero_tracking.strip(), telefono, resultado)
+            # La advertencia MALID se notifica por el escalamiento existente.
+            demoras = [a for a in nuevas if a['kind'] == 'demora_miami']
+            if demoras:
+                import asyncio
+                from app.services.package_alerts import notificar_nuevas
+                try:
+                    asyncio.get_running_loop().create_task(notificar_nuevas(demoras))
+                except RuntimeError:
+                    pass  # Fuera del bucle: la revisión diaria enviará el aviso pendiente.
+        except Exception:
+            import logging
+            logging.getLogger(__name__).exception("No se pudo guardar la vigilancia del tracking")
+        return resultado
+
     funciones_disponibles = {
         "verificar_identidad_cliente": _verificar_identidad,
         "verificar_correo_registrado": verificar_correo_registrado,
@@ -2201,7 +2220,7 @@ def generar_respuesta(
         "consultar_facturas_por_codigo": consultar_facturas_por_codigo,
         "consultar_ultimo_pago_por_codigo": _consultar_ultimo_pago,
         "calcular_costo_envio": calcular_costo_envio,
-        "consultar_tracking": consultar_tracking,
+        "consultar_tracking": _tracking_con_alertas,
         "registrar_oportunidad_comercial": _registrar_oportunidad_comercial,
         "escalar_a_humano": _escalar_a_humano,
         "obtener_direccion_miami_personalizada": (
