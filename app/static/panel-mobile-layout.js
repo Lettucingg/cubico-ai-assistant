@@ -2,12 +2,13 @@
 (function(root){
   function availableHeight(top,viewportBottom,navigationTop){return Math.max(0,Math.floor(Math.min(viewportBottom,navigationTop)-top-12))}
   function navigationTop(bottom,height){return Math.max(0,Math.floor(bottom-height))}
-  function init(doc=root.document){
+  function init(doc=root.document,navigate){
     const inbox=doc.querySelector('.inbox'),chats=doc.getElementById('chats'),nav=doc.querySelector('.sidebar'),header=doc.querySelector('.topbar');
     if(!inbox||!nav||!chats)return;
-    let pending=false,closedViewportHeight=root.visualViewport?root.visualViewport.height:root.innerHeight;
+    let gesture=null,lastTap=null,pending=false,closedViewportHeight=root.visualViewport?root.visualViewport.height:root.innerHeight;
     function update(){
       pending=false;
+      if(gesture)return;
       if(!root.matchMedia('(max-width:760px)').matches){inbox.style.removeProperty('--mobile-inbox-height');nav.style.removeProperty('top');nav.style.removeProperty('bottom');doc.body.style.removeProperty('--mobile-navigation-height');doc.body.classList.remove('chat-keyboard-open','chat-editor-open');inbox.style.removeProperty('--editor-viewport-top');inbox.style.removeProperty('--editor-viewport-height');return}
       const viewport=root.visualViewport,bottom=viewport?viewport.offsetTop+viewport.height:root.innerHeight;
       const focused=doc.activeElement,editing=focused&&doc.querySelector('.app').contains(focused)&&focused.matches('input,textarea,[contenteditable=true]');
@@ -32,6 +33,15 @@
     doc.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',schedule));
     if(root.ResizeObserver){const observer=new root.ResizeObserver(schedule);observer.observe(nav);if(header)observer.observe(header)}
     if(root.MutationObserver){const observer=new root.MutationObserver(schedule);observer.observe(chats,{attributes:true,attributeFilter:['class']});observer.observe(doc.querySelector('.app'),{attributes:true,attributeFilter:['style']})}
+    if(typeof navigate==='function'){
+      function buttonFor(event){const button=event.target.closest&&event.target.closest('.nav button[data-view]');return button&&nav.contains(button)?button:null}
+      nav.addEventListener('pointerdown',event=>{const button=buttonFor(event);if(!button||event.pointerType==='mouse'||event.isPrimary===false||!root.matchMedia('(max-width:760px)').matches)return;gesture={id:event.pointerId,button,x:event.clientX,y:event.clientY,moved:false}});
+      root.addEventListener('pointermove',event=>{if(gesture&&gesture.id===event.pointerId&&Math.hypot(event.clientX-gesture.x,event.clientY-gesture.y)>10)gesture.moved=true});
+      nav.addEventListener('pointerup',event=>{if(!gesture||gesture.id!==event.pointerId)return;const press=gesture;gesture=null;const button=buttonFor(event);lastTap={button:press.button,time:Date.now()};if(!press.moved&&Math.hypot(event.clientX-press.x,event.clientY-press.y)<=10&&button===press.button){event.preventDefault();navigate(button.dataset.view)}schedule()});
+      function cancel(event){if(gesture&&gesture.id===event.pointerId){gesture=null;schedule()}}
+      root.addEventListener('pointercancel',cancel);root.addEventListener('pointerup',cancel);
+      nav.addEventListener('click',event=>{const button=buttonFor(event);if(!button)return;if(event.detail!==0&&lastTap&&lastTap.button===button&&Date.now()-lastTap.time<800){event.preventDefault();return}navigate(button.dataset.view);schedule()});
+    }
     const done=doc.getElementById('chat-editing-done');if(done)done.addEventListener('click',()=>{if(doc.activeElement&&doc.activeElement.blur)doc.activeElement.blur();schedule()});
     schedule();return {update};
   }
