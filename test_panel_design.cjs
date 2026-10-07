@@ -62,6 +62,9 @@ const tick=()=>new Promise(setImmediate);
  d.querySelector('#daily-reports-history .daily-report-open').click();assert.ok(d.getElementById('modal-informe-diario').classList.contains('open'));d.getElementById('daily-report-close').click();
  w.showView('alerts');await tick();d.querySelector('#alerts-list .alert-remove').click();await tick();assert.equal(archived.length,1);d.getElementById('alert-undo-button').click();await tick();assert.equal(archived.length,0);
  assert.equal(posts.filter(p=>/estado|enviar/.test(p)).length,0);
+ // Image viewer can close from its reachable toolbar, keyboard, or backdrop.
+ w.ampliarImagen('blob:test');assert.ok(d.getElementById('image-lightbox').classList.contains('open'));assert.equal(d.activeElement.id,'close-lightbox');assert.equal(d.getElementById('image-lightbox').getAttribute('aria-modal'),'true');d.getElementById('close-lightbox').click();assert.ok(!d.getElementById('image-lightbox').classList.contains('open'));assert.equal(d.getElementById('lightbox-image').hasAttribute('src'),false);
+ w.ampliarImagen('blob:test');d.getElementById('close-lightbox').dispatchEvent(new w.KeyboardEvent('keydown',{key:'Escape',bubbles:true}));assert.ok(!d.getElementById('image-lightbox').classList.contains('open'));w.ampliarImagen('blob:test');d.getElementById('image-lightbox').click();assert.ok(!d.getElementById('image-lightbox').classList.contains('open'));
  // Preserve multiline text, history selection, and reading position during refresh.
  await w.abrirChat('5071');const history=d.getElementById('messages');Object.defineProperty(history,'scrollHeight',{get:()=>1200,configurable:true});Object.defineProperty(history,'clientHeight',{get:()=>400,configurable:true});history.scrollTop=100;
  const selected=d.querySelector('.message-text').firstChild,range=d.createRange();range.selectNodeContents(selected);w.getSelection().removeAllRanges();w.getSelection().addRange(range);
@@ -70,11 +73,17 @@ const tick=()=>new Promise(setImmediate);
  // A slow POST, double tap and uncertain retry must reuse one request ID.
  await w.abrirChat('5071');const oldFetch=w.fetch, attempts=[];let release;
  w.fetch=(url,options={})=>{if(options.method==='POST'&&url.includes('/panel/responder/')){attempts.push(JSON.parse(options.body));return new Promise(resolve=>release=resolve)}return oldFetch(url,options)};
- d.getElementById('message-input').value='Hola\nMensaje de dos líneas';const first=w.enviarMensaje();await w.enviarMensaje();assert.equal(attempts.length,1);assert.equal(attempts[0].mensaje,'Hola\nMensaje de dos líneas');assert.equal(d.getElementById('message-input').readOnly,true);await w.recargarConversaciones();assert.equal(d.getElementById('send').disabled,true);assert.equal(d.getElementById('message-input').readOnly,true);
- release({ok:false,json:async()=>({detail:'Conexión interrumpida'})});await first;
+ d.getElementById('message-input').value='Hola\nMensaje de dos líneas';const first=w.enviarMensaje();await w.enviarMensaje();assert.equal(d.getElementById('send-feedback').hidden,false);assert.equal(d.getElementById('send').getAttribute('aria-busy'),'true');assert.match(d.getElementById('send-feedback-text').textContent,/Preparando y enviando/);assert.equal(attempts.length,1);assert.equal(attempts[0].mensaje,'Hola\nMensaje de dos líneas');assert.equal(d.getElementById('message-input').readOnly,true);await w.recargarConversaciones();assert.equal(d.getElementById('send').disabled,true);assert.equal(d.getElementById('message-input').readOnly,true);
+ release({ok:false,json:async()=>({detail:'Conexión interrumpida'})});await first;assert.match(d.getElementById('send-feedback-text').textContent,/texto se conserva/);assert.equal(d.getElementById('send').getAttribute('aria-busy'),'false');
  const retry=w.enviarMensaje();assert.equal(attempts.length,2);assert.equal(attempts[1].request_id,attempts[0].request_id);
- release({ok:true,json:async()=>({status:'ok'})});await retry;assert.equal(d.getElementById('message-input').value,'');assert.equal(d.getElementById('send').disabled,false);
+ release({ok:true,json:async()=>({status:'ok'})});await retry;assert.equal(d.getElementById('message-input').value,'');assert.equal(d.getElementById('send').disabled,false);assert.match(d.getElementById('send-feedback-text').textContent,/WhatsApp aceptó/);assert.equal(d.getElementById('send').getAttribute('aria-busy'),'false');
  w.fetch=oldFetch;
+ // Accepting a POST unlocks immediately, even if history refresh is slow.
+ const postGates=[],historyGates=[];w.fetch=(url,options={})=>{if(options.method==='POST'&&url.includes('/panel/responder/'))return new Promise(resolve=>postGates.push(resolve));if(!options.method&&url.includes('/panel/conversacion/'))return new Promise(resolve=>historyGates.push(resolve));return oldFetch(url,options)};
+ const success={ok:true,json:async()=>({status:'enviado'})},snapshot={ok:true,json:async()=>({historial:[{role:'user',content:'Hola'}]})};
+ d.getElementById('message-input').value='Primero';const oldSend=w.enviarMensaje();postGates[0](success);await tick();assert.equal(d.getElementById('send').disabled,false);assert.equal(historyGates.length,1);
+ d.getElementById('message-input').value='Segundo';const newSend=w.enviarMensaje();assert.equal(d.getElementById('send').disabled,true);historyGates[0](snapshot);await oldSend;assert.equal(d.getElementById('send').disabled,true);assert.equal(d.getElementById('send').getAttribute('aria-busy'),'true');
+ postGates[1](success);await tick();historyGates[1](snapshot);await newSend;assert.equal(d.getElementById('send').disabled,false);w.fetch=oldFetch;
  fixtures.preferencias={categoria:'alertas'};await w.cargarPreferenciasAvisos();assert.equal(d.getElementById('notification-category').value,'alertas');
  d.getElementById('notification-category').value='chats';d.getElementById('notification-category').dispatchEvent(new w.Event('change'));await tick();assert.match(d.getElementById('notification-category-status').textContent,/guardada/i);
 
