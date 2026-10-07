@@ -1223,7 +1223,9 @@ async def responder_cliente(
         redactar_respuesta_de_asesor, texto_cliente_original, mensaje
     )
 
-    respuesta_meta = await enviar_respuesta_natural(telefono, texto_redactado, message_id="")
+    respuesta_meta = await enviar_respuesta_natural(
+        telefono, texto_redactado, message_id="", simular_escritura=False, dividir=False
+    )
     if hasattr(respuesta_meta, "is_success") and not respuesta_meta.is_success:
         raise HTTPException(status_code=502, detail="Meta no pudo enviar el mensaje")
     agregar_al_historial(

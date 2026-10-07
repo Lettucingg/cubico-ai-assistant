@@ -634,6 +634,8 @@ async def enviar_respuesta_natural(
     texto_completo: str,
     message_id: str,
     detener_si_control_humano: bool = False,
+    simular_escritura: bool = True,
+    dividir: bool = True,
 ):
     """
     Envía la respuesta del bot simulando una escritura más humana:
@@ -655,6 +657,9 @@ async def enviar_respuesta_natural(
     if not partes:
         partes = [texto_completo]
 
+    if not dividir:
+        partes = ["\n\n".join(partes)]
+
     if len(partes) > 2:
         partes = [partes[0], "\n\n".join(partes[1:])]
 
@@ -668,7 +673,8 @@ async def enviar_respuesta_natural(
 
         if message_id:
             await marcar_leido_y_escribiendo(message_id)
-        await asyncio.sleep(tiempo_espera)
+        if simular_escritura:
+            await asyncio.sleep(tiempo_espera)
         if detener_si_control_humano:
             sesion_actual = obtener_sesion_existente(telefono_destino)
             if sesion_actual and sesion_actual.atencion_humana_directa:
@@ -681,7 +687,7 @@ async def enviar_respuesta_natural(
 
         # Pequeña pausa entre mensajes consecutivos, como si la
         # persona hiciera una breve pausa antes de seguir escribiendo.
-        if i < len(partes) - 1:
+        if simular_escritura and i < len(partes) - 1:
             await asyncio.sleep(0.8)
 
     return ultima_respuesta

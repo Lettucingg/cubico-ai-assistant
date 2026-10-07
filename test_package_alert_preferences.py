@@ -153,6 +153,7 @@ def test_panel_routes_preferences_auth_and_assisted_send_retry(monkeypatch):
         assert client.post('/panel/responder/507', json=payload).status_code == 200
         assert client.post('/panel/responder/507', json=payload).status_code == 200
         assert delivery.await_count == 1
+        assert delivery.await_args.kwargs == {"message_id": "", "simular_escritura": False, "dividir": False}
         assert client.get('/panel/alertas/paquetes').json() == []
         app.dependency_overrides.clear()
         assert client.get('/panel/notificaciones/preferencias').status_code == 401
@@ -182,3 +183,15 @@ def test_daily_scheduler_at_nine_panama(monkeypatch):
     assert str(job[1].timezone) == 'America/Panama'
     assert 'hour=\'9\'' in str(job[1])
     assert job[2]['max_instances'] == 1
+
+
+def test_panel_response_has_no_typing_delay_and_one_whatsapp_send(monkeypatch):
+    from app.api import whatsapp
+    delivery = AsyncMock(return_value=SimpleNamespace(is_success=True))
+    sleep = AsyncMock()
+    monkeypatch.setattr(whatsapp, 'enviar_mensaje_whatsapp', delivery)
+    monkeypatch.setattr(whatsapp.asyncio, 'sleep', sleep)
+    texto = 'Primera parte\n\nSegunda parte\n\nTercera parte'
+    asyncio.run(whatsapp.enviar_respuesta_natural('507', texto, '', simular_escritura=False, dividir=False))
+    delivery.assert_awaited_once_with('507', texto)
+    sleep.assert_not_awaited()

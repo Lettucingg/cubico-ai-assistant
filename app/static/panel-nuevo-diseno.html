@@ -60,7 +60,7 @@
 
 .reports-heading{display:flex;justify-content:space-between;align-items:center;gap:12px}.reports-history-note{font-size:12px;color:var(--muted);line-height:1.5}#daily-reports-history{margin-top:18px;padding-top:14px;border-top:1px solid var(--line)}#daily-reports-history[hidden]{display:none}#daily-reports-history h4{margin:0 0 6px;font-size:14px}#daily-reports-history-list{max-height:420px;overflow:auto}@media(max-width:760px){.reports-heading h3{font-size:15px}.reports-heading .btn{font-size:12px;padding:9px 11px}}
 </style>
-  <link rel="stylesheet" href="/static/panel-theme.css?v=20261007-editor">
+  <link rel="stylesheet" href="/static/panel-theme.css?v=20261007-send">
 </head>
 <body>
   <div id="login-overlay" style="position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:50;padding:20px">
@@ -119,7 +119,7 @@
           <aside class="chat-list"><div class="pane-head"><div class="pane-head-row"><h2>Conversaciones</h2><select class="filter" id="filtro-select"><option>Todas</option><option>Sin leer</option><option>Necesitan humano</option><option>Bruno atendiendo</option></select></div><div class="chat-filter-tabs" aria-label="Filtrar conversaciones"><button type="button" data-chat-filter-tab="todas" aria-pressed="true">Todas · <span id="chat-total-count">0</span></button><button type="button" data-chat-filter-tab="sin_leer" aria-pressed="false">Sin leer</button><button type="button" data-chat-filter-tab="humano" aria-pressed="false">Atención</button></div><input class="chat-search" id="chat-search" placeholder="Buscar conversación…" /></div><div class="chat-items" id="chat-items">
             <div style="padding:30px 16px;text-align:center;color:var(--muted);font-size:12px">Cargando conversaciones…</div>
           </div></aside>
-          <section class="conversation"><header class="conv-head"><div class="conv-person"><button class="mobile-chat-back" id="mobile-chat-back" aria-label="Volver a conversaciones">‹</button><div class="person" id="conv-avatar">—</div><div><b id="conv-name">Selecciona una conversación</b><small><i class="dot"></i><span id="conv-status-line">Elige un chat de la lista</span></small></div></div><div class="conv-actions"><button class="btn chat-editing-done" id="chat-editing-done" type="button" aria-label="Cerrar teclado">Listo</button><div class="chat-actions-wrap"><button class="btn" id="chat-actions-toggle" aria-controls="customer-panel" aria-expanded="false" disabled>Gestionar</button></div><span id="extra-actions" style="display:contents"></span></div></header><div class="messages" id="messages" tabindex="0" aria-label="Historial de la conversación"><div class="day">Selecciona una conversación para ver su historial</div></div><footer class="composer"><div class="attach-menu" id="attach-menu"><button class="attach-option" type="button" data-attach-kind="image"><span class="attach-option-icon">▧</span><span><b>Foto</b><small>JPG o PNG</small></span></button><button class="attach-option" type="button" data-attach-kind="document"><span class="attach-option-icon">PDF</span><span><b>Documento</b><small>Archivo PDF</small></span></button></div><div class="attach-preview" id="attach-preview" style="display:none"></div><div class="compose-row"><button class="voice" id="voice" aria-label="Grabar mensaje de voz">●</button><button class="attach" id="attach-btn" aria-label="Añadir foto o documento" title="Añadir archivo" disabled>＋</button><input type="file" id="attach-image-input" accept="image/jpeg,image/png" style="display:none"/><input type="file" id="attach-pdf-input" accept="application/pdf,.pdf" style="display:none"/><textarea class="compose-input" id="message-input" rows="1" aria-label="Mensaje para el cliente" placeholder="Escribe como Cúbico…" disabled></textarea><button class="send" id="send" aria-label="Enviar" disabled>➤</button></div><div class="draft-tools" id="draft-tools" hidden><button type="button" id="draft-select-all">Seleccionar todo</button><button type="button" id="draft-copy">Copiar</button></div><div class="compose-foot"><span id="mode-label">Selecciona una conversación para comenzar</span><span>Enter: nueva línea · Ctrl/⌘ + Enter: enviar</span></div></footer></section>
+          <section class="conversation"><header class="conv-head"><div class="conv-person"><button class="mobile-chat-back" id="mobile-chat-back" aria-label="Volver a conversaciones">‹</button><div class="person" id="conv-avatar">—</div><div><b id="conv-name">Selecciona una conversación</b><small><i class="dot"></i><span id="conv-status-line">Elige un chat de la lista</span></small></div></div><div class="conv-actions"><button class="btn chat-editing-done" id="chat-editing-done" type="button" aria-label="Cerrar teclado">Listo</button><div class="chat-actions-wrap"><button class="btn" id="chat-actions-toggle" aria-controls="customer-panel" aria-expanded="false" disabled>Gestionar</button></div><span id="extra-actions" style="display:contents"></span></div></header><div class="messages" id="messages" tabindex="0" aria-label="Historial de la conversación"><div class="day">Selecciona una conversación para ver su historial</div></div><footer class="composer"><div class="attach-menu" id="attach-menu"><button class="attach-option" type="button" data-attach-kind="image"><span class="attach-option-icon">▧</span><span><b>Foto</b><small>JPG o PNG</small></span></button><button class="attach-option" type="button" data-attach-kind="document"><span class="attach-option-icon">PDF</span><span><b>Documento</b><small>Archivo PDF</small></span></button></div><div class="attach-preview" id="attach-preview" style="display:none"></div><div class="compose-row"><button class="voice" id="voice" aria-label="Grabar mensaje de voz">●</button><button class="attach" id="attach-btn" aria-label="Añadir foto o documento" title="Añadir archivo" disabled>＋</button><input type="file" id="attach-image-input" accept="image/jpeg,image/png" style="display:none"/><input type="file" id="attach-pdf-input" accept="application/pdf,.pdf" style="display:none"/><textarea class="compose-input" id="message-input" rows="1" aria-label="Mensaje para el cliente" placeholder="Escribe como Cúbico…" disabled></textarea><button class="send" id="send" aria-label="Enviar" disabled>➤</button></div><div class="send-feedback" id="send-feedback" role="status" aria-live="polite" hidden><span id="send-feedback-icon" aria-hidden="true"></span><span id="send-feedback-text"></span></div><div class="draft-tools" id="draft-tools" hidden><button type="button" id="draft-select-all">Seleccionar todo</button><button type="button" id="draft-copy">Copiar</button></div><div class="compose-foot"><span id="mode-label">Selecciona una conversación para comenzar</span><span>Enter: nueva línea · Ctrl/⌘ + Enter: enviar</span></div></footer></section>
           <aside class="customer" id="customer-panel" aria-labelledby="management-title"><div class="customer-head"><h3 id="management-title">Gestionar conversación</h3><button class="customer-close" id="customer-close" type="button" aria-label="Cerrar panel">×</button></div>
 <div class="profile"><div class="person" id="profile-avatar">—</div><div><h3 id="profile-name">—</h3><p id="profile-code">—</p><span class="risk" id="profile-risk">Sin conversación</span></div></div>
 <div class="management-tabs" role="tablist" aria-label="Gestionar conversación"><button type="button" role="tab" id="tab-cliente" aria-controls="management-cliente" aria-selected="true">Cliente</button><button type="button" role="tab" id="tab-chat" aria-controls="management-chat" aria-selected="false" tabindex="-1">Chat</button></div>
@@ -170,17 +170,17 @@
   <div class="customer-backdrop" id="customer-backdrop"></div>
   <div class="alert-undo" id="alert-undo" role="status" hidden><span aria-hidden="true">✓</span><span id="alert-undo-text"></span><button class="btn" id="alert-undo-button">Deshacer</button><button class="btn" id="alert-undo-close" aria-label="Cerrar aviso">×</button></div>
   <div class="toast" id="toast">Acción completada</div>
-  <div class="lightbox" id="image-lightbox" role="dialog" aria-label="Vista ampliada del comprobante"><button type="button" id="close-lightbox" aria-label="Cerrar">×</button><img id="lightbox-image" alt="Comprobante ampliado"></div>
+  <div class="lightbox" id="image-lightbox" role="dialog" aria-modal="true" aria-label="Imagen ampliada"><div class="lightbox-toolbar"><button type="button" id="close-lightbox" aria-label="Cerrar imagen"><span aria-hidden="true">×</span> Cerrar</button></div><img id="lightbox-image" alt="Comprobante ampliado"></div>
   <div class="modal-overlay" id="modal-saludo" role="dialog" aria-label="Reactivar chat"><div class="card modal-box"><h3>Reactivar chat</h3><label for="saludo-nombre">Nombre del cliente</label><input type="text" id="saludo-nombre" placeholder="Nombre del cliente"/><div class="modal-actions"><button class="btn" type="button" id="saludo-cancelar">Cancelar</button><button class="btn dark" type="button" id="saludo-enviar">Enviar saludo</button></div></div></div>
   <div class="modal-overlay" id="modal-propuesta" role="dialog" aria-label="Enviar propuesta"><div class="card modal-box"><h3>Enviar propuesta</h3><label for="propuesta-contacto">Nombre de la persona de contacto</label><input type="text" id="propuesta-contacto" placeholder="Ej. Alexander"/><label for="propuesta-empresa">Empresa</label><input type="text" id="propuesta-empresa" placeholder="Ej. Arthur English Bookstore"/><label for="propuesta-pdf">Documento PDF</label><input type="file" id="propuesta-pdf" accept="application/pdf,.pdf"/><div class="modal-actions"><button class="btn" type="button" id="propuesta-cancelar">Cancelar</button><button class="btn dark" type="button" id="propuesta-enviar">Enviar propuesta</button></div></div></div>
   <div class="modal-overlay" id="modal-informe-diario" role="dialog" aria-label="Informe del negocio" aria-modal="true"><div class="card report-box"><div class="report-main" id="daily-report-content"></div><div class="report-footer"><button class="btn dark" type="button" data-report-view="alerts">Revisar pendientes</button><button class="btn" type="button" id="daily-report-close">Cerrar</button></div></div></div>
   <div class="modal-overlay" id="modal-verificar-manual" role="dialog" aria-label="Verificar cliente manualmente"><div class="card modal-box"><h3>Verificar manualmente</h3><p style="font-size:12px;color:var(--muted);line-height:1.5">Escribe el código real del cliente o agencia. Se comprobará en la base de datos antes de asociarlo al chat.</p><label for="manual-code">Código de cliente o agencia</label><input type="text" id="manual-code" placeholder="CBC-0001 o código de agencia"/><div class="modal-actions"><button class="btn" type="button" id="manual-verify-cancel">Cancelar</button><button class="btn dark" type="button" id="manual-verify-save">Verificar y asociar</button></div></div></div>
   <div class="modal-overlay" id="modal-operacion-manual" role="dialog" aria-label="Crear operación manual"><div class="card modal-box"><h3 id="manual-operation-title">Crear solicitud</h3><p id="manual-operation-help" style="font-size:12px;color:var(--muted);line-height:1.5"></p><div id="manual-address-field"><label for="manual-address">Dirección exacta</label><textarea id="manual-address" rows="3" placeholder="Dirección completa de entrega"></textarea></div><div id="manual-payment-fields"><label for="manual-amount">Monto reportado (opcional)</label><input type="number" id="manual-amount" min="0.01" step="0.01" placeholder="0.00"/><label for="manual-method">Método (opcional)</label><input type="text" id="manual-method" placeholder="Yappy, transferencia, efectivo…"/><label for="manual-reference">Referencia (opcional)</label><input type="text" id="manual-reference" placeholder="Número de referencia"/></div><div class="modal-actions"><button class="btn" type="button" id="manual-operation-cancel">Cancelar</button><button class="btn dark" type="button" id="manual-operation-save">Crear caso</button></div></div></div>
   <script src="/static/panel-personalization.js"></script>
-  <script src="/static/panel-mobile-layout.js?v=20261007-editor"></script>
-  <script src="/static/chat-text-editor.js?v=20261007-editor"></script>
+  <script src="/static/panel-mobile-layout.js?v=20261007-send"></script>
+  <script src="/static/chat-text-editor.js?v=20261007-send"></script>
   <script src="/static/daily-report.js"></script>
-  <script src="/static/alert-management.js?v=20261007-editor"></script>
+  <script src="/static/alert-management.js?v=20261007-send"></script>
   <script>
     const titles={overview:['Buenos días, Alexander','Esto es lo que está pasando en Cúbico hoy.'],chats:['Conversaciones','Supervisa a Bruno y toma el control cuando haga falta.'],packages:['Retiros y domicilios','Organiza las solicitudes que llegan directamente desde WhatsApp.'],opportunities:['Oportunidades comerciales','Bruno organiza la información; el equipo decide qué propuesta preparar.'],costs:['Costos y tokens','Entiende exactamente cuánto cuesta cada conversación.'],alerts:['Alertas','Lo que necesita tu atención, en un solo lugar.'],settings:['Configuración','Integraciones y estado técnico de Bruno.']};
     function showView(id){document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id===id));document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.view===id));document.getElementById('page-title').textContent=titles[id][0];document.getElementById('page-sub').textContent=titles[id][1];if(id!=='chats'&&typeof cerrarPanelCliente==='function')cerrarPanelCliente();if(id==='packages')cargarSolicitudes();if(id==='opportunities')cargarOportunidades();if(id==='costs')cargarUso(30);if(id==='alerts')cargarPapelera();window.scrollTo({top:0,behavior:'smooth'})}
@@ -671,8 +671,10 @@
         }catch(e){audio.replaceWith(Object.assign(document.createElement('small'),{textContent:'Audio no disponible'}))}
       }
     }
-    function ampliarImagen(url){if(!url)return;document.getElementById('lightbox-image').src=url;document.getElementById('image-lightbox').classList.add('open')}
-    function cerrarImagen(){document.getElementById('image-lightbox').classList.remove('open');document.getElementById('lightbox-image').removeAttribute('src')}
+    let focoAntesImagen=null;
+    function ampliarImagen(url){if(!url)return;focoAntesImagen=document.activeElement;if(focoAntesImagen?.blur)focoAntesImagen.blur();document.getElementById('lightbox-image').src=url;document.getElementById('image-lightbox').classList.add('open');document.getElementById('close-lightbox').focus({preventScroll:true})}
+    function cerrarImagen(){document.getElementById('image-lightbox').classList.remove('open');document.getElementById('lightbox-image').removeAttribute('src');if(focoAntesImagen?.isConnected)focoAntesImagen.focus({preventScroll:true});focoAntesImagen=null}
+    document.getElementById('image-lightbox').addEventListener('keydown',e=>{if(e.key==='Escape'){e.preventDefault();e.stopPropagation();cerrarImagen()}else if(e.key==='Tab'){e.preventDefault();document.getElementById('close-lightbox').focus()}});
     document.getElementById('close-lightbox').addEventListener('click',cerrarImagen);
 
     function abrirModal(id){document.getElementById(id).classList.add('open')}
@@ -896,6 +898,7 @@
       telActivo=tel;
       inputMensaje.value=borradoresChat.get(tel)||'';
       editorTexto.resize();
+      pintarEstadoEnvio();
       historialPendiente=null;
       firmaHistorialActivo='';
       cancelarArchivoSeleccionado();
@@ -972,7 +975,18 @@
       }catch(e){say('Error de conexión')}
     });
 
-    const enviosTextoEnCurso=new Set(),intentosEnvioTexto=new Map();
+    const enviosTextoEnCurso=new Set(),intentosEnvioTexto=new Map(),estadosEnvio=new Map();
+    function estadoEnvio(telefono,tipo,texto){estadosEnvio.set(telefono,{tipo,texto});if(telActivo===telefono)pintarEstadoEnvio()}
+    function pintarEstadoEnvio(){
+      const estado=estadosEnvio.get(telActivo),box=document.getElementById('send-feedback'),button=document.getElementById('send');
+      box.hidden=!estado;box.dataset.state=estado?.tipo||'';
+      document.getElementById('send-feedback-text').textContent=estado?.texto||'';
+      const busy=enviosTextoEnCurso.has(telActivo);
+      const icon=document.getElementById('send-feedback-icon');icon.classList.toggle('send-spinner',busy);icon.textContent=busy?'':estado?.tipo==='accepted'?'✓':estado?'!':'';
+      button.classList.toggle('sending',busy);button.setAttribute('aria-busy',String(busy));button.setAttribute('aria-label',busy?'Envío en curso':'Enviar');button.innerHTML=busy?'<span class="send-spinner" aria-hidden="true"></span>':'➤';
+    }
+    function terminarEnvioTexto(telefono){enviosTextoEnCurso.delete(telefono);if(telActivo!==telefono)return;const input=document.getElementById('message-input'),conv=convs.find(c=>c.telefono===telefono);input.readOnly=false;input.disabled=!!(conv?.atencion_humana_directa&&conv.atencion_humana_por!==usuarioActual);document.getElementById('send').disabled=input.disabled;pintarEstadoEnvio()}
+
     async function enviarMensaje(){
       if(!telActivo)return;
       const telefono=telActivo;
@@ -986,22 +1000,24 @@
       const firma=path+'\n'+texto;
       let intento=intentosEnvioTexto.get(telefono);if(!intento||intento.firma!==firma){intento={firma,id:crypto.randomUUID?crypto.randomUUID():Date.now()+'-'+Math.random()};intentosEnvioTexto.set(telefono,intento)}
       enviosTextoEnCurso.add(telefono);input.readOnly=true;document.getElementById('send').disabled=true;
+      estadoEnvio(telefono,'sending',modoControl[telefono]?'Enviando a WhatsApp…':'Preparando y enviando tu respuesta…');
+      let liberado=false;
+      const espera=setTimeout(()=>{if(enviosTextoEnCurso.has(telefono))estadoEnvio(telefono,'sending','Sigue en proceso. No necesitas pulsar de nuevo.')},8000);
       try{
         const r=await apiPost(path,{mensaje:texto,request_id:intento.id});
         if(r.ok){
           if((borradoresChat.get(telefono)||'').trim()===texto)borradoresChat.delete(telefono);
           if(telActivo===telefono&&input.value.trim()===texto){input.value='';editorTexto.resize()}
-          intentosEnvioTexto.delete(telefono);say('Mensaje enviado');
+          intentosEnvioTexto.delete(telefono);estadoEnvio(telefono,'accepted','WhatsApp aceptó el mensaje. Revisa Entregado o Leído en el historial.');clearTimeout(espera);terminarEnvioTexto(telefono);liberado=true;say('Mensaje enviado a WhatsApp');
           try{const rh=await apiGet(`/panel/conversacion/${telefono}`);if(rh.ok){const historial=(await rh.json()).historial;if(telActivo===telefono)renderMensajes(historial)}}catch(e){}
           recargarConversaciones();
         }else{
           let detalle='No se pudo enviar el mensaje';
           try{const j=await r.json();detalle=j.detail||j.error||detalle}catch(e){}
-          say(detalle);
+          estadoEnvio(telefono,r.status===409||r.status>=500?'uncertain':'failed',detalle+' Tu texto se conserva. Revisa el historial antes de reenviar.');say(detalle);
         }
-      }catch(e){say('Error de conexión')}
-      enviosTextoEnCurso.delete(telefono);
-      if(telActivo===telefono){input.readOnly=false;input.disabled=!!(convs.find(c=>c.telefono===telefono)?.atencion_humana_directa&&convs.find(c=>c.telefono===telefono)?.atencion_humana_por!==usuarioActual);document.getElementById('send').disabled=input.disabled;if(!input.disabled&&document.getElementById('chats').classList.contains('active'))input.focus()}
+      }catch(e){estadoEnvio(telefono,'uncertain','No pudimos confirmar el envío. Tu texto se conserva; revisa el historial antes de reenviar.');say('Envío sin confirmar')}
+      finally{clearTimeout(espera);if(!liberado)terminarEnvioTexto(telefono)}
     }
     let archivoSeleccionado=null,tipoArchivoSeleccionado=null,urlPreviewArchivo=null;
     const attachBtn=document.getElementById('attach-btn'),attachMenu=document.getElementById('attach-menu'),attachImageInput=document.getElementById('attach-image-input'),attachPdfInput=document.getElementById('attach-pdf-input'),attachPreview=document.getElementById('attach-preview');
