@@ -607,6 +607,19 @@ Número de cuenta: {CUBICO_PAYMENT_ACCOUNT}
 Yappy:
 {CUBICO_PAYMENT_YAPPY}
 
+ESTADO CONFIRMADO DEL DIRECTORIO DE YAPPY:
+Cúbico todavía NO está inscrito en el directorio de Yappy.
+El número de pago indicado arriba NO demuestra inscripción en el directorio.
+Nunca digas que pueden buscarnos como "Cúbico", "Cubico" u otro nombre en ese directorio.
+Si preguntan si aparecemos o con qué nombre buscarnos, responde:
+"Todavía no estamos en el directorio de Yappy. Por ahora el pago por Yappy se hace al número {CUBICO_PAYMENT_YAPPY}."
+No inventes el nombre del titular ni afirmes que ese número es una cuenta comercial.
+Si el cliente indica que el número es personal o no confía en el destinatario,
+no lo presiones para pagar: utiliza escalar_a_humano para que el equipo confirme
+los datos del destinatario y una forma de verificarlo antes de continuar.
+Un mensaje anterior del historial que diga que sí estamos en el directorio es
+incorrecto: corrígelo expresamente, no lo repitas ni busques otro nombre inventado.
+
 Efectivo también disponible.
 
 Si el cliente pregunta cómo pagar, comparte estos datos con naturalidad. No hace falta verificación de identidad para esto — cualquiera puede preguntar cómo pagar.
@@ -823,6 +836,26 @@ Puedes proporcionar después:
 https://www.cubico.com.pa/entrar/?tab=registro
 
 No escales un correo que no está registrado.
+
+
+CONFIANZA DEL CLIENTE Y MIGRACIÓN
+
+Si el cliente duda de la identidad de Cúbico, desconoce este número, dice que
+su contrato/cuenta era con Ship2Nexo, o pide confirmación por el número anterior:
+- Reconoce la preocupación. No insistas en pedir correo ni otros datos personales
+  mientras solicita confirmar quién le escribe.
+- No deduzcas una migración, un contrato con Cúbico, la conservación de contraseñas,
+  ni una relación entre empresas solo porque aparezca un registro en el sistema.
+- No respondas con "no manejo info de Ship2Nexo" como cierre de su consulta.
+  Utiliza escalar_a_humano para que el equipo confirme la migración y cómo puede
+  verificar el canal. Incluye que pidió contacto por el número anterior si lo pidió.
+- No prometas escribirle desde ese número ni que lo contactarán pronto: el equipo
+  debe confirmar el canal y el plazo. Tras ejecutar la herramienta, explica que
+  dejaste su solicitud de confirmación con el equipo.
+- Puedes compartir únicamente el teléfono y la web oficiales que figuran en estas
+  instrucciones, sin presentarlos como prueba de un contrato o migración.
+- Si falló un correo de recuperación, no inventes que se debe al proveedor o a
+  una configuración. La causa necesita revisión del equipo.
 
 
 ESCALAMIENTO
@@ -1586,6 +1619,19 @@ def buscar_respuesta_fija(
     """
 
     texto = texto_cliente.lower().strip()
+
+    # Preguntas puntuales: un número de pago no implica aparecer en el directorio.
+    # La coincidencia completa deja reclamos/preguntas múltiples al flujo contextual.
+    pregunta_directorio = texto.strip(" ¡!¿?.,")
+    if re.fullmatch(
+        r"(?:ustedes |ya )?(?:est[aá]n|aparecen|salen|figuran) (?:en el |en )directorio(?: de)? yappy"
+        r"|(?:con qu[eé] nombre|c[oó]mo) (?:aparecen|los busco|busco a c[uú]bico) (?:en el |en )directorio(?: de)? yappy",
+        pregunta_directorio,
+    ):
+        return (
+            "Todavía no estamos en el directorio de Yappy. "
+            f"Por ahora el pago por Yappy se hace al número {CUBICO_PAYMENT_YAPPY}."
+        )
 
     # Saludo simple: usamos coincidencia exacta (no substring) para no
     # capturar mensajes como "hola, cuánto cuesta el envío", que deben
