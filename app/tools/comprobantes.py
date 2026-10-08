@@ -1,3 +1,4 @@
+from app.services.cost_analytics import call_anthropic
 import base64
 import re
 
@@ -6,7 +7,6 @@ from anthropic import Anthropic
 
 from app.core.config import settings
 from app.ai.orchestrator import SYSTEM_PROMPT
-from app.db.session_store import registrar_uso_ia
 
 cliente_claude = Anthropic(api_key=settings.ANTHROPIC_API_KEY)
 
@@ -125,7 +125,7 @@ No escribas nada antes de "ES_COMPROBANTE:" ni nada después del texto de la sec
 """
 
     def consultar_vision(texto_instrucciones: str):
-        return cliente_claude.messages.create(
+        return call_anthropic(cliente_claude, phone=telefono or '', task='analisis_imagen',
             model="claude-sonnet-5",
             max_tokens=1200,
             system=[
@@ -155,17 +155,6 @@ No escribas nada antes de "ES_COMPROBANTE:" ni nada después del texto de la sec
         )
 
     respuesta = consultar_vision(instrucciones)
-
-    if telefono and getattr(respuesta, "usage", None) is not None:
-        try:
-            registrar_uso_ia(
-                telefono=telefono,
-                modelo=getattr(respuesta, "model", "claude-sonnet-5"),
-                input_tokens=int(getattr(respuesta.usage, "input_tokens", 0) or 0),
-                output_tokens=int(getattr(respuesta.usage, "output_tokens", 0) or 0),
-            )
-        except Exception as error:
-            print(f"[WARN] No se pudo registrar uso de IA de imagen: {error}")
 
     def extraer_texto(respuesta_vision) -> str:
         return "\n".join(

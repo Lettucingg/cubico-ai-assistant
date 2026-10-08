@@ -803,54 +803,29 @@ def obtener_uso_por_telefono(telefono: str) -> dict:
     db = SessionSesiones()
     try:
         filas = db.query(UsoIA).filter(UsoIA.telefono == telefono).all()
+        from app.services.cost_analytics import CostEvent
+        extras = db.query(CostEvent).filter(CostEvent.phone == telefono, CostEvent.legacy_id.is_(None), CostEvent.provider.in_(['anthropic','openai'])).all()
         return {
-            "input_tokens": sum(f.input_tokens for f in filas),
-            "output_tokens": sum(f.output_tokens for f in filas),
-            "costo_usd": round(sum(f.costo_usd for f in filas), 6),
-            "llamadas": len(filas),
+            "input_tokens": sum(f.input_tokens for f in filas) + sum(e.input_tokens + e.cache_read + e.cache_write for e in extras),
+            "output_tokens": sum(f.output_tokens for f in filas) + sum(e.output_tokens for e in extras),
+            "costo_usd": round(sum(f.costo_usd for f in filas) + sum(float(e.cost or 0) for e in extras), 6),
+            "llamadas": len(filas) + len(extras),
+            "sin_precio": sum(e.cost is None for e in extras),
         }
     finally:
         db.close()
 
 
 def obtener_resumen_uso(dias: int = 30) -> dict:
-    desde = datetime.utcnow() - timedelta(days=max(1, min(dias, 365)))
-    db = SessionSesiones()
-    try:
-        filas = db.query(UsoIA).filter(UsoIA.creado_en >= desde).all()
-        por_dia = {}
-        por_chat = {}
-        for fila in filas:
-            dia = fila.creado_en.date().isoformat()
-            diario = por_dia.setdefault(dia, {"input_tokens": 0, "output_tokens": 0, "costo_usd": 0.0})
-            diario["input_tokens"] += fila.input_tokens
-            diario["output_tokens"] += fila.output_tokens
-            diario["costo_usd"] += fila.costo_usd
-            chat = por_chat.setdefault(fila.telefono, {"input_tokens": 0, "output_tokens": 0, "costo_usd": 0.0, "llamadas": 0})
-            chat["input_tokens"] += fila.input_tokens
-            chat["output_tokens"] += fila.output_tokens
-            chat["costo_usd"] += fila.costo_usd
-            chat["llamadas"] += 1
-
-        total_input = sum(f.input_tokens for f in filas)
-        total_output = sum(f.output_tokens for f in filas)
-        total_costo = sum(f.costo_usd for f in filas)
-        return {
-            "dias": [
-                {"fecha": fecha, **valores, "costo_usd": round(valores["costo_usd"], 6)}
-                for fecha, valores in sorted(por_dia.items())
-            ],
-            "chats": [
-                {"telefono": telefono, **valores, "costo_usd": round(valores["costo_usd"], 6)}
-                for telefono, valores in sorted(
-                    por_chat.items(), key=lambda item: item[1]["costo_usd"], reverse=True
-                )
-            ],
-            "input_tokens": total_input,
-            "output_tokens": total_output,
-            "tokens_totales": total_input + total_output,
-            "costo_usd": round(total_costo, 6),
-            "conversaciones": len(por_chat),
-        }
-    finally:
-        db.close()
+    """Compatible summary, including all instrumented AI providers."""
+    from app.services.cost_analytics import analytics
+    hoy = datetime.now(ZONA_PANAMA).date()
+    datos = analytics(hoy - timedelta(days=max(1, min(dias, 365)) - 1), hoy)
+    t = datos['totales']
+    chats = [dict(telefono=c['nombre'], input_tokens=c['input_tokens'],
+                  output_tokens=c['output_tokens'], costo_usd=c['costo_usd'],
+                  llamadas=c['llamadas_ia']) for c in datos['chats'] if c['llamadas_ia']]
+    return dict(dias=datos['serie'], chats=chats, input_tokens=t['input_tokens'],
+                output_tokens=t['output_tokens'], tokens_totales=t['tokens'],
+                costo_usd=round(t['costo_usd'], 6), conversaciones=t['conversaciones_ia'],
+                sin_precio=t['sin_precio'], costo_estimado=True)

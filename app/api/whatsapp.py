@@ -1,3 +1,4 @@
+from app.services.cost_analytics import record_whatsapp_response, record_whatsapp_receipts
 import asyncio
 import json
 import re
@@ -75,6 +76,7 @@ async def enviar_mensaje_whatsapp(telefono_destino: str, texto: str):
 
     async with httpx.AsyncClient(timeout=10.0) as client:
         respuesta = await client.post(url, headers=headers, json=payload)
+    record_whatsapp_response(respuesta, telefono_destino, payload['type'])
 
     if respuesta.status_code != 200:
         print(f"Error al enviar mensaje a {telefono_destino}: {respuesta.text}")
@@ -105,6 +107,7 @@ async def enviar_imagen_whatsapp(telefono_destino: str, media_id: str, caption: 
 
     async with httpx.AsyncClient(timeout=10.0) as client:
         respuesta = await client.post(url, headers=headers, json=payload)
+    record_whatsapp_response(respuesta, telefono_destino, payload['type'])
 
     if respuesta.status_code != 200:
         print(f"Error al enviar imagen a {telefono_destino}: {respuesta.text}")
@@ -151,6 +154,7 @@ async def enviar_audio_whatsapp(telefono_destino: str, media_id: str):
     }
     async with httpx.AsyncClient(timeout=30.0) as client:
         respuesta = await client.post(url, headers=headers, json=payload)
+    record_whatsapp_response(respuesta, telefono_destino, payload['type'])
     if not respuesta.is_success:
         raise RuntimeError(f"Meta rechazó el envío del audio ({respuesta.status_code})")
     return respuesta
@@ -191,6 +195,7 @@ async def enviar_documento_whatsapp(telefono_destino: str, media_id: str, nombre
         payload["document"]["filename"] = nombre_archivo
     async with httpx.AsyncClient(timeout=30.0) as client:
         respuesta = await client.post(url, headers=headers, json=payload)
+    record_whatsapp_response(respuesta, telefono_destino, payload['type'])
     if not respuesta.is_success:
         raise RuntimeError(f"Meta rechazó el envío del documento ({respuesta.status_code})")
     return respuesta
@@ -220,6 +225,7 @@ async def enviar_plantilla_whatsapp(
     }
     async with httpx.AsyncClient(timeout=15.0) as client:
         respuesta = await client.post(url, headers=headers, json=payload)
+    record_whatsapp_response(respuesta, telefono_destino, payload['type'])
     if not respuesta.is_success:
         mensaje = ""
         codigo = None
@@ -775,7 +781,7 @@ async def agregar_mensaje_a_buffer(mensaje: dict):
     """
     if mensaje["tipo"] == "audio":
         try:
-            texto_transcrito = await procesar_nota_de_voz(mensaje["media_id"])
+            texto_transcrito = await procesar_nota_de_voz(mensaje["media_id"], mensaje["telefono"])
             print(f"Transcripción de audio: {texto_transcrito}")
             mensaje = {**mensaje, "texto": texto_transcrito, "tipo": "text"}
         except Exception as error:
@@ -1135,7 +1141,7 @@ async def procesar_respuesta_de_asesor(telefono_asesor: str, numero_cliente: str
             "el cliente escaló su caso a un asesor",
         )
 
-        texto_redactado = redactar_respuesta_de_asesor(texto_cliente_original, solucion_del_asesor)
+        texto_redactado = redactar_respuesta_de_asesor(texto_cliente_original, solucion_del_asesor, numero_cliente)
 
         agregar_al_historial(
             numero_cliente,
@@ -1174,6 +1180,7 @@ async def recibir_mensaje(request: Request, background_tasks: BackgroundTasks):
         print("Se recibió una petición sin un JSON válido.")
         return {"status": "ignorado", "razon": "cuerpo vacío o inválido"}
 
+    record_whatsapp_receipts(payload)
     recibo = extraer_estado_entrega(payload)
     if recibo and recibo.get("id") and recibo.get("estado"):
         encontrado = actualizar_estado_mensaje_whatsapp(

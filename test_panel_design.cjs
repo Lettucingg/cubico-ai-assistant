@@ -26,7 +26,7 @@ w.fetch=async(url,options={})=>{const path=new URL(url).pathname;let data;
  else data=fixtures[path.split('/').at(-1)]||{};
  return {ok:true,status:200,json:async()=>structuredClone(data)};
 };
-for(const f of ['panel-personalization.js','panel-mobile-layout.js','chat-text-editor.js','daily-report.js','alert-management.js'])w.eval(fs.readFileSync('app/static/'+f,'utf8'));
+for(const f of ['panel-personalization.js','panel-mobile-layout.js','chat-text-editor.js','bot-cost-analytics.js','daily-report.js','alert-management.js'])w.eval(fs.readFileSync('app/static/'+f,'utf8'));
 const inline=html.match(/<script>\s*([\s\S]*?)<\/script>/)[1];new Function(inline);
 w.eval(inline+`\nwindow.seedDesign=()=>{creds='test';usuarioActual='alexander';document.querySelector('.app').style.display='grid';document.getElementById('login-overlay').style.display='none';};`);
 const tick=()=>new Promise(setImmediate);

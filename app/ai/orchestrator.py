@@ -1,3 +1,4 @@
+from app.services.cost_analytics import call_anthropic
 import random
 import re
 from datetime import datetime
@@ -21,7 +22,6 @@ from app.db.session_store import (
     guardar_oportunidad_comercial,
     obtener_oportunidad_comercial_abierta,
     obtener_sesion_existente,
-    registrar_uso_ia,
 )
 
 
@@ -2353,7 +2353,7 @@ def generar_respuesta(
     max_iteraciones_herramientas = 8
 
     def _llamar_claude():
-        respuesta = cliente_claude.messages.create(
+        respuesta = call_anthropic(cliente_claude, phone=telefono, task='respuesta_automatica',
             model="claude-sonnet-5",
             max_tokens=1200,
             system=[
@@ -2366,18 +2366,6 @@ def generar_respuesta(
             tools=HERRAMIENTAS,
             messages=mensajes,
         )
-        usage = getattr(respuesta, "usage", None)
-        if usage is not None:
-            try:
-                registrar_uso_ia(
-                    telefono=telefono,
-                    modelo=getattr(respuesta, "model", "claude-sonnet-5"),
-                    input_tokens=int(getattr(usage, "input_tokens", 0) or 0),
-                    output_tokens=int(getattr(usage, "output_tokens", 0) or 0),
-                )
-            except Exception as error:
-                # Las métricas nunca deben impedir que el bot responda.
-                print(f"[WARN] No se pudo registrar uso de IA: {error}")
         return respuesta
 
     def _extraer_texto(respuesta) -> str | None:
@@ -2480,6 +2468,7 @@ def generar_respuesta(
 def redactar_respuesta_de_asesor(
     texto_cliente_original: str,
     solucion_del_asesor: str,
+    telefono: str = '',
 ) -> str:
     """
     Convierte una solución interna del equipo en una respuesta natural
@@ -2533,7 +2522,7 @@ Información confirmada por el equipo:
 Responde únicamente con el mensaje final para WhatsApp.
 """
 
-    respuesta = cliente_claude.messages.create(
+    respuesta = call_anthropic(cliente_claude, phone=telefono, task='redaccion_asistida',
         model="claude-sonnet-5",
         max_tokens=500,
         system=[
