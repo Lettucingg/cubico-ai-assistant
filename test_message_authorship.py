@@ -30,7 +30,7 @@ def test_respuesta_iniciada_en_panel_se_registra_como_humana_asistida(monkeypatc
 
     monkeypatch.setattr(panel, "obtener_sesion_existente", lambda _telefono: sesion)
     monkeypatch.setattr(panel, "_validar_operador_conversacion", lambda *_args, **_kwargs: sesion)
-    monkeypatch.setattr(panel, "redactar_respuesta_de_asesor", lambda _original, borrador: borrador)
+    monkeypatch.setattr(panel, "redactar_respuesta_de_asesor", lambda _original, borrador, telefono="": borrador)
 
     async def enviar(*_args, **_kwargs):
         return SimpleNamespace(is_success=True)

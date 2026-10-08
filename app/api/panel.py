@@ -1220,7 +1220,7 @@ async def responder_cliente(
     )
 
     texto_redactado = await asyncio.to_thread(
-        redactar_respuesta_de_asesor, texto_cliente_original, mensaje
+        redactar_respuesta_de_asesor, texto_cliente_original, mensaje, telefono
     )
 
     respuesta_meta = await enviar_respuesta_natural(
@@ -1655,3 +1655,52 @@ async def enviar_directo(
         modo_envio="directo",
     )
     return {"status": "enviado"}
+
+# Cost analytics uses Panama calendar dates, not rolling UTC days.
+from datetime import date
+from decimal import Decimal
+from app.services.cost_analytics import analytics, save_expense
+
+
+class GastoBot(BaseModel):
+    request_id: str = Field(min_length=8, max_length=80, pattern=r'^[a-zA-Z0-9_-]+$')
+    proveedor: Literal['anthropic', 'openai', 'meta', 'servidor', 'otro']
+    concepto: str = Field(min_length=1, max_length=160, pattern=r'.*\S.*')
+    referencia: str = Field(default='', max_length=100)
+    fecha: date
+    monto_usd: Decimal = Field(gt=0, le=1000000, max_digits=16, decimal_places=6, allow_inf_nan=False)
+
+
+@router.get('/costos')
+def costos_panel(desde: date | None = None, hasta: date | None = None,
+                 agrupacion: Literal['dia','mes','ano'] = 'dia',
+                 proveedor: Literal['','anthropic','openai','meta'] = '', funcion: str = '',
+                 usuario: str = Depends(verificar_credenciales_panel)):
+    hoy = datetime.now(ZoneInfo('America/Panama')).date()
+    try:
+        return analytics(desde or hoy.replace(day=1), hasta or hoy, agrupacion, proveedor, funcion)
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+
+@router.post('/costos/gastos')
+def registrar_gasto_bot(body: GastoBot, usuario: str = Depends(verificar_credenciales_panel)):
+    try:
+        return {'id': save_expense(body, usuario), 'status':'ok'}
+    except ValueError as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+
+
+class EstadoGastoBot(BaseModel):
+    accion: Literal['archivar','restaurar']
+
+
+@router.post('/costos/gastos/{gasto_id}/estado')
+def estado_gasto_bot(gasto_id: int, body: EstadoGastoBot,
+                     usuario: str = Depends(verificar_credenciales_panel)):
+    from app.services.cost_analytics import archive_expense
+    try:
+        archive_expense(gasto_id, body.accion == 'archivar', usuario)
+        return {'status':'ok'}
+    except ValueError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error

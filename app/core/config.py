@@ -18,8 +18,8 @@ class Settings(BaseSettings):
     # En Railway debe apuntar a PostgreSQL o a un volumen persistente.
     SESSION_DATABASE_URL: str = "sqlite:///sesiones.db"
 
-    # Precios configurables para calcular el costo real de Claude. Se guardan
-    # con cada llamada, de modo que cambiar la tarifa no altera el histórico.
+    # Compatibilidad del contador anterior. El registro detallado utiliza tarifas
+    # por modelo, incluyendo caché; estas variables no modifican datos históricos.
     ANTHROPIC_INPUT_USD_PER_MTOK: float = 3.0
     ANTHROPIC_OUTPUT_USD_PER_MTOK: float = 15.0
 

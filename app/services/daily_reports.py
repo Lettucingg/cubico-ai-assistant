@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
 from sqlalchemy import func
+from app.services.cost_analytics import CostEvent
 
 from app.core.config import settings
 from app.db.session_store import InformeDiario, OportunidadComercial, Sesion, SessionSesiones, UsoIA
@@ -105,6 +106,8 @@ def datos_informe() -> dict:
         inicio = _inicio_hoy_utc()
         sesiones = db.query(Sesion).all()
         costo = db.query(func.coalesce(func.sum(UsoIA.costo_usd), 0)).filter(UsoIA.creado_en >= inicio).scalar()
+        costo_audio = db.query(func.coalesce(func.sum(CostEvent.cost), 0)).filter(CostEvent.provider == 'openai', CostEvent.created_at >= inicio).scalar()
+        costo = float(costo or 0) + float(costo_audio or 0)
         nuevas = db.query(OportunidadComercial).filter(OportunidadComercial.creada_en >= inicio).count()
         return {
             "conversaciones_hoy": sum(_actividad_cliente_hoy(s, inicio) for s in sesiones),
@@ -141,7 +144,7 @@ def informe_cierre(datos: dict, estado_api: str) -> str:
         f"Bruno ahora: {estado_api}.\n"
         f"Hoy: {datos['conversaciones_hoy']} conversaciones con actividad · "
         f"{datos['oportunidades_nuevas']} oportunidades nuevas · "
-        f"IA ${datos['costo_hoy']:.2f}.\n"
+        f"IA ${datos['costo_hoy']:.2f} estimados.\n"
         f"Quedan pendientes: {datos['humanos_pendientes']} atención humana · "
         f"{datos['pagos_pendientes']} pagos · "
         f"{datos['retiros_pendientes']} retiros · "
