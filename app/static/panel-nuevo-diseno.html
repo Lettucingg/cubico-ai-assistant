@@ -63,8 +63,9 @@
   <link rel="stylesheet" href="/static/panel-theme.css?v=20261007-send">
 <link rel="stylesheet" href="/static/bot-cost-analytics.css?v=20261008">
 <link rel="stylesheet" href="/static/operational-context.css?v=20261012">
+<style>.release-banner{display:flex;gap:14px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding:15px 18px;margin-bottom:20px;background:#fff5d9;border:1px solid #e8d29c;border-radius:14px;font-size:13px;line-height:1.5}.release-banner[hidden]{display:none}.release-warning{color:#916a14!important}.release-card details summary{cursor:pointer;font-size:13px}.release-card [hidden]{display:none!important}</style>
 </head>
-<body>
+<body data-panel-version="1.1.1">
   <div id="login-overlay" style="position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:50;padding:20px">
     <div class="card" style="width:100%;max-width:380px;padding:32px 28px">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:24px">
@@ -96,11 +97,12 @@
       </nav>
       <div class="nav-label" style="margin-top:22px">Sistema</div>
       <nav class="nav"><button data-view="operations"><span>◉</span><span>Contexto operativo</span></button><button data-view="alerts"><span>△</span><span>Alertas</span><span class="count" id="nav-count-alerts">0</span></button><button data-view="settings"><span>⚙</span><span>Configuración</span></button></nav>
-      <div class="side-bottom"><div class="health"><div class="health-top"><span><i class="dot"></i>Panel conectado</span><b>API</b></div><p>Los estados mostrados vienen del backend de Bruno.</p></div></div>
+      <div class="side-bottom"><div class="health"><div class="health-top"><span><i class="dot"></i>Panel conectado</span><b>API</b></div><p>Los estados mostrados vienen del backend de Bruno.</p><p id="app-version-footer">Panel · v1.1.1</p></div></div>
     </aside>
     <main>
       <header class="topbar"><div class="title"><h1 id="page-title">Buenos días</h1><p id="page-sub">Esto es lo que está pasando en Cúbico hoy.</p></div><div class="top-actions"><input class="search" id="global-search" placeholder="Buscar chat, cliente o paquete…" aria-label="Buscar"/><button class="icon-btn" id="notifications" aria-label="Notificaciones" title="Ver alertas y activar notificaciones">🔔<span class="notification-count" id="notification-count">0</span></button><div class="avatar" id="settings-shortcut" role="button" tabindex="0" aria-label="Abrir configuración" title="Configuración">—</div></div></header>
 
+      <div class="release-banner" id="app-release-banner" hidden role="status"><span id="app-release-banner-text"></span><button class="btn" type="button" id="app-release-banner-reload">Recargar panel</button></div>
       <section class="view active" id="overview"><div class="overview-hero"><div><h2>Tu operación, de un vistazo</h2><p>El movimiento de hoy y lo que necesita tu equipo.</p></div><img class="hero-mark" src="/static/logo.png" alt="" aria-hidden="true"></div><article class="card oc-overview"><div><h3>Contexto operativo</h3><p id="oc-overview-summary">Registra cambios para que Bruno responda con información vigente.</p></div><button class="btn" type="button" data-view="operations">Gestionar avisos →</button></article><article class="card" id="daily-reports-card" style="display:none;padding:16px;margin-bottom:14px"><div class="reports-heading"><h3 style="margin:0">Informes de hoy</h3><button class="btn" id="daily-reports-history-toggle" aria-expanded="false" aria-controls="daily-reports-history">Ver historial</button></div><p style="color:var(--muted);font-size:12px">Estado 8:00 a. m. · Resumen 5:00 p. m. · Hora de Panamá</p><div id="daily-reports-list"></div><div id="daily-reports-history" hidden><h4>Informes anteriores</h4><p class="reports-history-note">Se muestran los anteriores disponibles entre los últimos 30 informes.</p><div id="daily-reports-history-list"></div></div></article>
         <div class="demo-note">● Mensajes cada 5 segundos · métricas cada 30 segundos</div>
         <div class="kpis">
@@ -202,6 +204,8 @@
   <article class="card oc-editor" id="oc-history" hidden><div class="oc-heading"><h3 id="oc-history-title">Historial del aviso</h3><button type="button" id="oc-history-close" aria-label="Cerrar historial">× Cerrar</button></div><div id="oc-history-list"></div></article>
 </div></section>
 <section class="view" id="settings"><div class="settings-layout">
+        <article class="card settings-section release-card"><h2>Versión de Cúbico</h2><b id="app-installed-version" style="font-size:25px">Sin confirmar</b><p class="personalization-note" id="app-release-date"></p><p id="app-release-status" class="personalization-note" role="status">Comprueba la versión instalada en el servidor.</p><div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn" type="button" id="app-release-check">Comprobar versión</button><button class="btn dark" type="button" id="app-release-reload" hidden>Recargar panel</button></div><details style="margin-top:16px"><summary>Ver novedades</summary><h3 id="app-release-title" style="margin-top:12px;font-size:15px"></h3><ul id="app-release-changes" style="padding-left:20px;font-size:13px;line-height:1.7"></ul></details><p class="personalization-note">Muestra la versión instalada. No consulta automáticamente nuevas versiones en GitHub.</p></article>
+
         <article class="card settings-section"><h2>Mi perfil</h2><form id="account-profile-form" class="profile-form"><div class="profile-photo-row"><div class="account-photo" id="account-photo">—</div><div><label class="btn" for="account-photo-input">Elegir foto</label><input id="account-photo-input" type="file" accept="image/jpeg,image/png,image/webp" hidden><button class="btn" id="account-photo-remove" type="button">Quitar foto</button></div></div><label>Nombre visible<input id="account-name" maxlength="80" required autocomplete="name"></label><p class="personalization-note" id="account-user">Tu usuario de acceso permanece igual.</p><button class="btn dark" type="submit">Guardar perfil</button><p id="account-profile-status" class="profile-message" role="status" aria-live="polite"></p></form></article>
         <article class="card settings-section"><h2>Cambiar contraseña</h2><form id="account-password-form" class="profile-form"><label>Contraseña actual<input id="account-password-current" type="password" autocomplete="current-password" required maxlength="256"></label><label>Nueva contraseña<input id="account-password-new" type="password" autocomplete="new-password" minlength="10" maxlength="128" required></label><label>Confirmar nueva contraseña<input id="account-password-confirm" type="password" autocomplete="new-password" minlength="10" maxlength="128" required></label><p class="personalization-note">Usa al menos 10 caracteres. La contraseña anterior dejará de funcionar.</p><button class="btn" id="account-password-toggle" type="button" aria-pressed="false">Ver contraseñas</button><button class="btn dark" type="submit">Cambiar contraseña</button><p id="account-password-status" class="profile-message" role="status" aria-live="polite"></p></form></article>
         <article class="card settings-section"><h2>Notificaciones</h2><div class="setting-row"><div><b>Qué quieres recibir</b><p>Se aplica a tu cuenta en todos tus dispositivos. Los informes diarios cuentan como alertas.</p></div><select class="filter" id="notification-category" aria-label="Tipos de notificaciones"><option value="ambos">Alertas y chats</option><option value="alertas">Solo alertas</option><option value="chats">Solo chats</option></select></div><p id="notification-category-status" class="profile-message" role="status"></p><div class="setting-row"><div><b>Mientras usas el panel</b><p id="notification-status">Actívalas para recibir avisos en otra pestaña.</p></div><button class="btn" id="notification-toggle">Activar notificaciones</button></div><div class="setting-row"><div><b>En este dispositivo</b><p id="push-status">Inicia sesión para comprobar la instalación.</p></div><button class="btn" id="push-toggle">Activar en este dispositivo</button></div><div class="setting-row"><div><b>Sonido del panel</b><p>Un aviso breve al recibir nuevos mensajes.</p></div><button class="btn" id="sound-toggle">Sonido: activo</button></div></article>
@@ -222,13 +226,14 @@
   <script src="/static/panel-personalization.js"></script>
   <script src="/static/panel-mobile-layout.js?v=20261007-send"></script>
   <script src="/static/chat-text-editor.js?v=20261007-send"></script>
+  <script src="/static/app-release.js?v=1.1.1"></script>
   <script src="/static/operational-context.js?v=20261012"></script>
   <script src="/static/bot-cost-analytics.js?v=20261008"></script>
   <script src="/static/daily-report.js"></script>
   <script src="/static/alert-management.js?v=20261007-send"></script>
   <script>
     const titles={overview:['Buenos días, Alexander','Esto es lo que está pasando en Cúbico hoy.'],chats:['Conversaciones','Supervisa a Bruno y toma el control cuando haga falta.'],packages:['Retiros y domicilios','Organiza las solicitudes que llegan directamente desde WhatsApp.'],opportunities:['Oportunidades comerciales','Bruno organiza la información; el equipo decide qué propuesta preparar.'],costs:['Costos y actividad','Consumo estimado, gastos confirmados y actividad de Bruno.'],alerts:['Alertas','Lo que necesita tu atención, en un solo lugar.'],operations:['Contexto operativo','Mantén a Bruno al tanto de los cambios de la operación.'],settings:['Configuración','Integraciones y estado técnico de Bruno.']};
-    function showView(id){document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id===id));document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.view===id));document.getElementById('page-title').textContent=titles[id][0];document.getElementById('page-sub').textContent=titles[id][1];if(id!=='chats'&&typeof cerrarPanelCliente==='function')cerrarPanelCliente();if(id==='packages')cargarSolicitudes();if(id==='opportunities')cargarOportunidades();if(id==='costs'){cargarUso(30);BotCosts.load()};if(id==='alerts')cargarPapelera();if(id==='operations')OperationalContext.load();window.scrollTo({top:0,behavior:'smooth'})}
+    function showView(id){document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id===id));document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.view===id));document.getElementById('page-title').textContent=titles[id][0];document.getElementById('page-sub').textContent=titles[id][1];if(id!=='chats'&&typeof cerrarPanelCliente==='function')cerrarPanelCliente();if(id==='packages')cargarSolicitudes();if(id==='opportunities')cargarOportunidades();if(id==='costs'){cargarUso(30);BotCosts.load()};if(id==='alerts')cargarPapelera();if(id==='operations')OperationalContext.load();if(id==='settings')CubicoRelease.load();window.scrollTo({top:0,behavior:'smooth'})}
     document.querySelectorAll('[data-view]:not(.nav button)').forEach(b=>b.addEventListener('click',()=>showView(b.dataset.view)));document.querySelectorAll('.open-chats').forEach(b=>b.addEventListener('click',()=>showView('chats')));
     function abrirAccesoDirecto(elemento){
       const vista=elemento.dataset.summaryView;
@@ -275,6 +280,7 @@
       }finally{clearTimeout(timeout)}
     }
     async function apiGet(path,notificarErrores=true){return await apiRequest(path,{},creds,true,notificarErrores)}
+    CubicoRelease.init(path=>apiGet(path));
     OperationalContext.init(path=>apiGet(path),(path,body,method='POST',timeoutMs=REQUEST_TIMEOUT_MS)=>apiRequest(path,{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(body)},creds,true,true,timeoutMs));
     BotCosts.init((path)=>apiGet(path),(path,body)=>apiPost(path,body));
     async function apiPost(path,body){return await apiRequest(path,{method:'POST',headers:{'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined})}
@@ -372,6 +378,7 @@
         document.querySelector('.app').style.display='grid';
         await cargarPapelera();
         await OperationalContext.load();
+        await CubicoRelease.load();
         renderLista(await r.json());
         await refrescarPanel();
         alertasActivas().forEach(a=>alertasVistas.add(a.clave));avisosAlertasListos=true;
@@ -397,7 +404,7 @@
     }
 
     async function refrescarMensajes(){if(actualizandoRapido||!creds)return;actualizandoRapido=true;try{await Promise.all([recargarActividad(),recargarHistorialActivo()])}finally{actualizandoRapido=false}}
-    async function refrescarDatosSecundarios(){if(!creds)return;OperationalContext.load();await Promise.all([cargarAlertasPaquetes(),cargarPapelera(),recargarConversaciones(),cargarResumen(),cargarSolicitudes(),cargarOportunidades(),cargarUso(30)])}
+    async function refrescarDatosSecundarios(){if(!creds)return;OperationalContext.load();CubicoRelease.load();await Promise.all([cargarAlertasPaquetes(),cargarPapelera(),recargarConversaciones(),cargarResumen(),cargarSolicitudes(),cargarOportunidades(),cargarUso(30)])}
 
     async function recargarHistorialActivo(){
       const telefono=telActivo;
