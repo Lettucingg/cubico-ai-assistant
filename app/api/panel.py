@@ -1704,3 +1704,53 @@ def estado_gasto_bot(gasto_id: int, body: EstadoGastoBot,
         return {'status':'ok'}
     except ValueError as error:
         raise HTTPException(status_code=404, detail=str(error)) from error
+
+from app.services.operational_context import (
+    NoticeCreate, NoticeEdit, NoticeAction, ContextPreview, ContextConflict,
+    list_notices, create_notice, update_notice, act_notice, history_notice,
+    conflicts_for, preview_response,
+)
+
+
+def _context_error(error):
+    if isinstance(error, ContextConflict):
+        raise HTTPException(status_code=409, detail={'mensaje':str(error),'conflictos':error.conflicts}) from error
+    raise HTTPException(status_code=404 if isinstance(error, LookupError) else 409, detail=str(error)) from error
+
+
+@router.get('/contexto-operativo')
+def contexto_operativo_panel(usuario: str = Depends(verificar_credenciales_panel)):
+    return list_notices()
+
+
+@router.post('/contexto-operativo')
+def crear_contexto_operativo(body: NoticeCreate, usuario: str = Depends(verificar_credenciales_panel)):
+    try: return create_notice(body,usuario)
+    except (ValueError,LookupError) as error: _context_error(error)
+
+
+@router.put('/contexto-operativo/{aviso_id}')
+def editar_contexto_operativo(aviso_id: int, body: NoticeEdit, usuario: str = Depends(verificar_credenciales_panel)):
+    try: return update_notice(aviso_id,body,usuario)
+    except (ValueError,LookupError) as error: _context_error(error)
+
+
+@router.post('/contexto-operativo/{aviso_id}/estado')
+def estado_contexto_operativo(aviso_id: int, body: NoticeAction, usuario: str = Depends(verificar_credenciales_panel)):
+    try: return act_notice(aviso_id,body,usuario)
+    except (ValueError,LookupError) as error: _context_error(error)
+
+
+@router.get('/contexto-operativo/{aviso_id}/historial')
+def historial_contexto_operativo(aviso_id: int, usuario: str = Depends(verificar_credenciales_panel)):
+    try: return history_notice(aviso_id)
+    except LookupError as error: _context_error(error)
+
+
+@router.post('/contexto-operativo/prueba')
+async def prueba_contexto_operativo(body: ContextPreview, usuario: str = Depends(verificar_credenciales_panel)):
+    try:
+        return await asyncio.to_thread(preview_response,body)
+    except Exception:
+        logging.getLogger(__name__).exception('No se pudo probar el contexto operativo')
+        raise HTTPException(status_code=503,detail='No se pudo generar la prueba. No se envió ningún mensaje ni se activó el aviso.')

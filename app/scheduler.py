@@ -11,6 +11,8 @@ from app.core.config import settings
 from app.services.daily_reports import datos_informe, informe_manana, informe_cierre, guardar_informe, usuarios_informes
 from app.services.push_notifications import notificar_informe_push
 from app.services.package_alerts import revisar_trackings
+from app.services.operational_context import service_block, due_reviews
+from app.services.push_notifications import _enviar_a_dispositivos
 from app.db.session_store import (
     listar_sesiones_con_factura_pendiente,
     actualizar_sesion,
@@ -98,6 +100,8 @@ async def _continuar_domicilio_tras_pago_confirmado(sesion, codigo_factura: str)
     notifica al equipo directamente, como si el cliente lo hubiera
     vuelto a pedir. Si no, le pide la dirección.
     """
+    if service_block('domicilios', ', '.join(filter(None, [getattr(sesion, 'paquetes_a_domicilio', None), getattr(sesion, 'paquetes_a_retirar', None)]))):
+        return  # Preserve the pending follow-up for when the service resumes.
     if not sesion.direccion_domicilio:
         await enviar_mensaje_whatsapp(
             sesion.telefono,
@@ -202,8 +206,24 @@ def iniciar_scheduler():
     scheduler.add_job(revisar_trackings, CronTrigger(hour=9, minute=0, timezone=ZONA_HORARIA),
                       id="revisar_demoras_tracking", replace_existing=True,
                       misfire_grace_time=3600, max_instances=1)
+    scheduler.add_job(revisar_contexto_operativo, IntervalTrigger(minutes=5),
+                      id="revisar_contexto_operativo", replace_existing=True,
+                      misfire_grace_time=300, max_instances=1)
     scheduler.start()
     log.info(
         f"Scheduler iniciado: informe 8:00 AM + revisión de pagos "
         f"cada 30 min + resumen fin de día 5:00 PM ({ZONA_HORARIA})."
     )
+
+
+async def revisar_contexto_operativo():
+    try:
+        avisos = await asyncio.to_thread(due_reviews)
+        for aviso in avisos:
+            await asyncio.to_thread(_enviar_a_dispositivos, {
+                'categoria':'alertas', 'title':'Cúbico · Revisar contexto operativo',
+                'body':('Aviso vencido: ' if aviso['estado_efectivo']=='vencido' else 'Confirma si continúa: ')+aviso['titulo'],
+                'url':'/admin?vista=operations', 'tag':'contexto-operativo-'+str(aviso['id']),
+            })
+    except Exception:
+        log.exception('No se pudo revisar el contexto operativo')

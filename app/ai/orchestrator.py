@@ -1,3 +1,4 @@
+from app.services.operational_context import active_context, system_with_context, service_block
 from app.services.cost_analytics import call_anthropic
 import random
 import re
@@ -1908,7 +1909,8 @@ def generar_respuesta(
         nombre_cliente=nombre_cliente,
     )
 
-    if respuesta_fija:
+    contexto_operativo = active_context(texto_cliente, historial)
+    if respuesta_fija and not contexto_operativo:
         return respuesta_fija
 
     def _verificar_identidad(codigo_cliente: str, email: str):
@@ -2038,6 +2040,8 @@ def generar_respuesta(
         }
 
     def _avisar_retiro(codigo_cliente: str):
+        bloqueo = service_block("retiros", texto_cliente, historial)
+        if bloqueo: return bloqueo
         codigo_normalizado = normalizar_codigo_cliente(codigo_cliente)
 
         resultado_paquetes = consultar_paquetes_por_codigo(
@@ -2063,6 +2067,8 @@ def generar_respuesta(
             for paquete in paquetes_listos
             if paquete.get("tracking")
         ]
+        bloqueo = service_block('retiros', ' '.join(trackings))
+        if bloqueo: return bloqueo
 
         cambios_retiro = {
             "aviso_retiro_pendiente": True,
@@ -2093,6 +2099,8 @@ def generar_respuesta(
         }
 
     def _solicitar_entrega_domicilio(codigo_cliente: str, direccion: str = None):
+        bloqueo = service_block("domicilios", texto_cliente, historial)
+        if bloqueo: return bloqueo
         codigo_normalizado = normalizar_codigo_cliente(codigo_cliente)
 
         resultado_facturas = consultar_facturas_por_codigo(codigo_normalizado)
@@ -2174,6 +2182,8 @@ def generar_respuesta(
             for paquete in paquetes_listos
             if paquete.get("tracking")
         ]
+        bloqueo = service_block('domicilios', ' '.join(trackings))
+        if bloqueo: return bloqueo
 
         cambios_domicilio = {
             "solicitud_domicilio_pendiente": True,
@@ -2240,7 +2250,12 @@ def generar_respuesta(
             ),
         }
 
+    trackings_consultados = []
+
     def _tracking_con_alertas(numero_tracking: str):
+        trackings_consultados.append(numero_tracking)
+        bloqueo = service_block("tracking", numero_tracking)
+        if bloqueo: return bloqueo
         resultado = consultar_tracking(numero_tracking)
         try:
             from app.services.package_alerts import observar
@@ -2341,6 +2356,9 @@ def generar_respuesta(
     # los roles user/assistant, así que normalizamos antes de enviarlo.
     mensajes = normalizar_historial_para_claude(historial)
 
+    if respuesta_fija:
+        texto_para_claude += "\n[Referencia general verificada; adapta solo lo afectado por avisos vigentes: " + respuesta_fija + "]"
+
     mensajes.append(
         {
             "role": "user",
@@ -2356,13 +2374,7 @@ def generar_respuesta(
         respuesta = call_anthropic(cliente_claude, phone=telefono, task='respuesta_automatica',
             model="claude-sonnet-5",
             max_tokens=1200,
-            system=[
-                {
-                    "type": "text",
-                    "text": SYSTEM_PROMPT,
-                    "cache_control": {"type": "ephemeral"},
-                }
-            ],
+            system=system_with_context(SYSTEM_PROMPT, active_context(" ".join([texto_cliente, *trackings_consultados]), historial)),
             tools=HERRAMIENTAS,
             messages=mensajes,
         )
@@ -2525,13 +2537,7 @@ Responde únicamente con el mensaje final para WhatsApp.
     respuesta = call_anthropic(cliente_claude, phone=telefono, task='redaccion_asistida',
         model="claude-sonnet-5",
         max_tokens=500,
-        system=[
-            {
-                "type": "text",
-                "text": SYSTEM_PROMPT,
-                "cache_control": {"type": "ephemeral"},
-            }
-        ],
+        system=system_with_context(SYSTEM_PROMPT, active_context(texto_cliente_original)),
         messages=[
             {
                 "role": "user",
