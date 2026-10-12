@@ -62,6 +62,7 @@
 </style>
   <link rel="stylesheet" href="/static/panel-theme.css?v=20261007-send">
 <link rel="stylesheet" href="/static/bot-cost-analytics.css?v=20261008">
+<link rel="stylesheet" href="/static/operational-context.css?v=20261012">
 </head>
 <body>
   <div id="login-overlay" style="position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:50;padding:20px">
@@ -94,13 +95,13 @@
         <button data-view="costs"><span>⌁</span><span><span class="desktop-label">Costos y actividad</span><span class="mobile-label">Costos</span></span></button>
       </nav>
       <div class="nav-label" style="margin-top:22px">Sistema</div>
-      <nav class="nav"><button data-view="alerts"><span>△</span><span>Alertas</span><span class="count" id="nav-count-alerts">0</span></button><button data-view="settings"><span>⚙</span><span>Configuración</span></button></nav>
+      <nav class="nav"><button data-view="operations"><span>◉</span><span>Contexto operativo</span></button><button data-view="alerts"><span>△</span><span>Alertas</span><span class="count" id="nav-count-alerts">0</span></button><button data-view="settings"><span>⚙</span><span>Configuración</span></button></nav>
       <div class="side-bottom"><div class="health"><div class="health-top"><span><i class="dot"></i>Panel conectado</span><b>API</b></div><p>Los estados mostrados vienen del backend de Bruno.</p></div></div>
     </aside>
     <main>
       <header class="topbar"><div class="title"><h1 id="page-title">Buenos días</h1><p id="page-sub">Esto es lo que está pasando en Cúbico hoy.</p></div><div class="top-actions"><input class="search" id="global-search" placeholder="Buscar chat, cliente o paquete…" aria-label="Buscar"/><button class="icon-btn" id="notifications" aria-label="Notificaciones" title="Ver alertas y activar notificaciones">🔔<span class="notification-count" id="notification-count">0</span></button><div class="avatar" id="settings-shortcut" role="button" tabindex="0" aria-label="Abrir configuración" title="Configuración">—</div></div></header>
 
-      <section class="view active" id="overview"><div class="overview-hero"><div><h2>Tu operación, de un vistazo</h2><p>El movimiento de hoy y lo que necesita tu equipo.</p></div><img class="hero-mark" src="/static/logo.png" alt="" aria-hidden="true"></div><article class="card" id="daily-reports-card" style="display:none;padding:16px;margin-bottom:14px"><div class="reports-heading"><h3 style="margin:0">Informes de hoy</h3><button class="btn" id="daily-reports-history-toggle" aria-expanded="false" aria-controls="daily-reports-history">Ver historial</button></div><p style="color:var(--muted);font-size:12px">Estado 8:00 a. m. · Resumen 5:00 p. m. · Hora de Panamá</p><div id="daily-reports-list"></div><div id="daily-reports-history" hidden><h4>Informes anteriores</h4><p class="reports-history-note">Se muestran los anteriores disponibles entre los últimos 30 informes.</p><div id="daily-reports-history-list"></div></div></article>
+      <section class="view active" id="overview"><div class="overview-hero"><div><h2>Tu operación, de un vistazo</h2><p>El movimiento de hoy y lo que necesita tu equipo.</p></div><img class="hero-mark" src="/static/logo.png" alt="" aria-hidden="true"></div><article class="card oc-overview"><div><h3>Contexto operativo</h3><p id="oc-overview-summary">Registra cambios para que Bruno responda con información vigente.</p></div><button class="btn" type="button" data-view="operations">Gestionar avisos →</button></article><article class="card" id="daily-reports-card" style="display:none;padding:16px;margin-bottom:14px"><div class="reports-heading"><h3 style="margin:0">Informes de hoy</h3><button class="btn" id="daily-reports-history-toggle" aria-expanded="false" aria-controls="daily-reports-history">Ver historial</button></div><p style="color:var(--muted);font-size:12px">Estado 8:00 a. m. · Resumen 5:00 p. m. · Hora de Panamá</p><div id="daily-reports-list"></div><div id="daily-reports-history" hidden><h4>Informes anteriores</h4><p class="reports-history-note">Se muestran los anteriores disponibles entre los últimos 30 informes.</p><div id="daily-reports-history-list"></div></div></article>
         <div class="demo-note">● Mensajes cada 5 segundos · métricas cada 30 segundos</div>
         <div class="kpis">
           <button type="button" class="card kpi click-card" data-summary-view="chats" aria-label="Abrir las conversaciones de hoy"><div class="kpi-top"><span>Conversaciones hoy</span><span class="kpi-icon">◫</span></div><div class="kpi-value" id="kpi-conversations">—</div><div class="delta neutral">Ver conversaciones</div></button>
@@ -173,7 +174,34 @@
         <div class="alert-bulk" id="alert-bulk" hidden><label><input type="checkbox" id="alert-select-all"> Seleccionar visibles</label><span id="alert-selected-count">0 seleccionadas</span><button class="btn" id="alert-bulk-resolve">✓ Ya resueltas</button><button class="btn" id="alert-bulk-discard">Descartar</button></div>
         <div id="alerts-list"></div><p class="alert-footnote">Quitar un aviso no cambia pagos ni solicitudes. Puedes recuperarlo en Papelera.</p></article>
       </section>
-      <section class="view" id="settings"><div class="settings-layout">
+      <section class="view" id="operations"><div class="oc-panel">
+  <div class="oc-heading"><div><h2>Lo que Bruno debe tener presente</h2><p class="oc-muted">Cambios temporales de la operación, registrados por el equipo.</p></div><button type="button" id="oc-new" class="oc-primary">Nuevo aviso</button></div>
+  <div class="oc-summary"><article class="card"><span>Aplicándose ahora</span><b id="oc-count-active">0</b></article><article class="card"><span>Por revisar</span><b id="oc-count-review">0</b></article><article class="card"><span>Programados</span><b id="oc-count-future">0</b></article></div>
+  <div class="oc-help">Bruno utiliza únicamente avisos activos dentro de su vigencia. Los borradores, pausados, resueltos y vencidos dejan de aplicarse. La fecha de revisión genera un recordatorio; no resuelve el problema ni desactiva el aviso por sí sola. Para que deje de aplicarse automáticamente, indica un fin.</div>
+  <p class="oc-state" id="oc-status" role="status" aria-live="polite"></p>
+  <div class="oc-grid"><div><div class="oc-filterbar"><select id="oc-filter" aria-label="Filtrar avisos"><option value="todos">Todos los avisos</option><option value="vigentes">Activos y programados</option><option value="revision">Por revisar</option><option value="borrador">Borradores</option><option value="pausado">Pausados</option><option value="resuelto">Resueltos</option><option value="vencido">Vencidos</option></select><button type="button" id="oc-refresh">Actualizar</button></div><div id="oc-list" class="oc-list"></div></div>
+    <article class="card oc-editor" id="oc-editor"><h3 id="oc-form-title">Nuevo aviso</h3><p class="oc-state" id="oc-editor-state"></p><form id="oc-form"><div class="oc-fields">
+      <label>Situación<select id="oc-type"><option value="otro">Otra situación</option><option value="terremoto">Terremoto</option><option value="sin_repartidor">Sin repartidor</option><option value="sistema_caido">Sistema o panel dañado</option><option value="vuelo_atrasado">Vuelo atrasado</option><option value="sin_carga">Sin carga / carga pendiente</option><option value="sin_luz">Sin luz</option></select></label>
+      <label>Impacto<select id="oc-effect"><option value="informativo">Información temporal</option><option value="retraso">Servicio con retraso</option><option value="suspendido">Servicio suspendido</option></select></label>
+      <label class="oc-full">Título<input id="oc-title" minlength="3" maxlength="100" required placeholder="Ej.: Domicilios suspendidos hoy"></label>
+      <fieldset class="oc-full"><legend>Qué está afectado</legend><div class="oc-areas" id="oc-areas"></div></fieldset>
+      <label>Ruta<select id="oc-route"><option value="todas">Todas las rutas</option><option value="miami_panama">Miami → Panamá</option><option value="china_panama">China → Panamá</option></select></label>
+      <label>Trackings específicos (opcional)<textarea id="oc-trackings" rows="2" placeholder="Uno por línea; vacío aplica al alcance general"></textarea></label>
+      <p class="oc-muted oc-full">Una ruta no confirma dónde está un paquete. Bruno debe verificar su relación antes de atribuirle un retraso. Para incidentes de paquetes concretos, escribe sus trackings. Para suspender domicilios o retiros específicos, usa trackings y Todas las rutas.</p>
+      <label class="oc-full">Información que Bruno puede decir al cliente<textarea id="oc-public" minlength="5" maxlength="1200" required rows="4" placeholder="Describe lo confirmado, qué cambia y qué sigue pendiente. No inventes fechas."></textarea></label>
+      <label class="oc-full">Alternativa disponible (opcional)<textarea id="oc-alternative" maxlength="500" rows="2" placeholder="Ej.: Puede retirar en el local durante el horario habitual, si está disponible."></textarea></label>
+      <label class="oc-full">Notas internas · solo para el equipo<textarea id="oc-internal" maxlength="1000" rows="2" placeholder="Responsable, coordinación interna o detalles que no deben compartirse."></textarea></label>
+      <label>Inicio · hora de Panamá<input id="oc-start" type="datetime-local" required></label>
+      <label>Fin automático (opcional)<input id="oc-end" type="datetime-local"></label>
+      <label class="oc-full">Revisar nuevamente · hora de Panamá<input id="oc-review" type="datetime-local" required></label>
+      <p class="oc-muted oc-full">Guardar un cambio devuelve el aviso a borrador; revísalo y actívalo de nuevo. Las notas internas no se envían al modelo. La información para clientes y la alternativa sí orientan a Bruno.</p>
+      <button type="submit" id="oc-save" class="oc-primary oc-full">Guardar borrador</button>
+    </div></form>
+    <div class="oc-preview"><label>Pregunta de un cliente<textarea id="oc-question" maxlength="1200" rows="2" placeholder="Ej.: ¿Me pueden enviar mi paquete a domicilio hoy?"></textarea></label><p class="oc-muted" id="oc-preview-caption">Una prueba consume una llamada de IA. No envía mensajes ni consulta datos privados.</p><button type="button" id="oc-preview" disabled>Probar respuesta</button><p id="oc-preview-result" class="oc-preview-result" hidden></p></div></article>
+  </div>
+  <article class="card oc-editor" id="oc-history" hidden><div class="oc-heading"><h3 id="oc-history-title">Historial del aviso</h3><button type="button" id="oc-history-close" aria-label="Cerrar historial">× Cerrar</button></div><div id="oc-history-list"></div></article>
+</div></section>
+<section class="view" id="settings"><div class="settings-layout">
         <article class="card settings-section"><h2>Mi perfil</h2><form id="account-profile-form" class="profile-form"><div class="profile-photo-row"><div class="account-photo" id="account-photo">—</div><div><label class="btn" for="account-photo-input">Elegir foto</label><input id="account-photo-input" type="file" accept="image/jpeg,image/png,image/webp" hidden><button class="btn" id="account-photo-remove" type="button">Quitar foto</button></div></div><label>Nombre visible<input id="account-name" maxlength="80" required autocomplete="name"></label><p class="personalization-note" id="account-user">Tu usuario de acceso permanece igual.</p><button class="btn dark" type="submit">Guardar perfil</button><p id="account-profile-status" class="profile-message" role="status" aria-live="polite"></p></form></article>
         <article class="card settings-section"><h2>Cambiar contraseña</h2><form id="account-password-form" class="profile-form"><label>Contraseña actual<input id="account-password-current" type="password" autocomplete="current-password" required maxlength="256"></label><label>Nueva contraseña<input id="account-password-new" type="password" autocomplete="new-password" minlength="10" maxlength="128" required></label><label>Confirmar nueva contraseña<input id="account-password-confirm" type="password" autocomplete="new-password" minlength="10" maxlength="128" required></label><p class="personalization-note">Usa al menos 10 caracteres. La contraseña anterior dejará de funcionar.</p><button class="btn" id="account-password-toggle" type="button" aria-pressed="false">Ver contraseñas</button><button class="btn dark" type="submit">Cambiar contraseña</button><p id="account-password-status" class="profile-message" role="status" aria-live="polite"></p></form></article>
         <article class="card settings-section"><h2>Notificaciones</h2><div class="setting-row"><div><b>Qué quieres recibir</b><p>Se aplica a tu cuenta en todos tus dispositivos. Los informes diarios cuentan como alertas.</p></div><select class="filter" id="notification-category" aria-label="Tipos de notificaciones"><option value="ambos">Alertas y chats</option><option value="alertas">Solo alertas</option><option value="chats">Solo chats</option></select></div><p id="notification-category-status" class="profile-message" role="status"></p><div class="setting-row"><div><b>Mientras usas el panel</b><p id="notification-status">Actívalas para recibir avisos en otra pestaña.</p></div><button class="btn" id="notification-toggle">Activar notificaciones</button></div><div class="setting-row"><div><b>En este dispositivo</b><p id="push-status">Inicia sesión para comprobar la instalación.</p></div><button class="btn" id="push-toggle">Activar en este dispositivo</button></div><div class="setting-row"><div><b>Sonido del panel</b><p>Un aviso breve al recibir nuevos mensajes.</p></div><button class="btn" id="sound-toggle">Sonido: activo</button></div></article>
@@ -194,12 +222,13 @@
   <script src="/static/panel-personalization.js"></script>
   <script src="/static/panel-mobile-layout.js?v=20261007-send"></script>
   <script src="/static/chat-text-editor.js?v=20261007-send"></script>
+  <script src="/static/operational-context.js?v=20261012"></script>
   <script src="/static/bot-cost-analytics.js?v=20261008"></script>
   <script src="/static/daily-report.js"></script>
   <script src="/static/alert-management.js?v=20261007-send"></script>
   <script>
-    const titles={overview:['Buenos días, Alexander','Esto es lo que está pasando en Cúbico hoy.'],chats:['Conversaciones','Supervisa a Bruno y toma el control cuando haga falta.'],packages:['Retiros y domicilios','Organiza las solicitudes que llegan directamente desde WhatsApp.'],opportunities:['Oportunidades comerciales','Bruno organiza la información; el equipo decide qué propuesta preparar.'],costs:['Costos y actividad','Consumo estimado, gastos confirmados y actividad de Bruno.'],alerts:['Alertas','Lo que necesita tu atención, en un solo lugar.'],settings:['Configuración','Integraciones y estado técnico de Bruno.']};
-    function showView(id){document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id===id));document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.view===id));document.getElementById('page-title').textContent=titles[id][0];document.getElementById('page-sub').textContent=titles[id][1];if(id!=='chats'&&typeof cerrarPanelCliente==='function')cerrarPanelCliente();if(id==='packages')cargarSolicitudes();if(id==='opportunities')cargarOportunidades();if(id==='costs'){cargarUso(30);BotCosts.load()};if(id==='alerts')cargarPapelera();window.scrollTo({top:0,behavior:'smooth'})}
+    const titles={overview:['Buenos días, Alexander','Esto es lo que está pasando en Cúbico hoy.'],chats:['Conversaciones','Supervisa a Bruno y toma el control cuando haga falta.'],packages:['Retiros y domicilios','Organiza las solicitudes que llegan directamente desde WhatsApp.'],opportunities:['Oportunidades comerciales','Bruno organiza la información; el equipo decide qué propuesta preparar.'],costs:['Costos y actividad','Consumo estimado, gastos confirmados y actividad de Bruno.'],alerts:['Alertas','Lo que necesita tu atención, en un solo lugar.'],operations:['Contexto operativo','Mantén a Bruno al tanto de los cambios de la operación.'],settings:['Configuración','Integraciones y estado técnico de Bruno.']};
+    function showView(id){document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id===id));document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.view===id));document.getElementById('page-title').textContent=titles[id][0];document.getElementById('page-sub').textContent=titles[id][1];if(id!=='chats'&&typeof cerrarPanelCliente==='function')cerrarPanelCliente();if(id==='packages')cargarSolicitudes();if(id==='opportunities')cargarOportunidades();if(id==='costs'){cargarUso(30);BotCosts.load()};if(id==='alerts')cargarPapelera();if(id==='operations')OperationalContext.load();window.scrollTo({top:0,behavior:'smooth'})}
     document.querySelectorAll('[data-view]:not(.nav button)').forEach(b=>b.addEventListener('click',()=>showView(b.dataset.view)));document.querySelectorAll('.open-chats').forEach(b=>b.addEventListener('click',()=>showView('chats')));
     function abrirAccesoDirecto(elemento){
       const vista=elemento.dataset.summaryView;
@@ -232,9 +261,9 @@
 
     function authHeaders(authCreds=creds){return {'Authorization':'Basic '+authCreds}}
     function mostrarLogin(mensaje='Tu sesión venció. Inicia sesión nuevamente.'){categoriaAvisos='ambos';alertasPaquetes=[];avisosAlertasListos=false;alertasVistas.clear();creds=null;usuarioActual=null;alertasArchivadas=[];papeleraCargada=false;verPapelera=false;ultimaAlertaQuitada=null;loteDeshacer=[];seleccionAlertas.clear();seleccionandoAlertas=false;document.getElementById('alert-undo').hidden=true;clearInterval(refreshTimer);clearInterval(quickRefreshTimer);document.querySelector('.app').style.display='none';document.getElementById('login-overlay').style.display='flex';const err=document.getElementById('login-err');err.textContent=mensaje;err.style.display='block'}
-    async function apiRequest(path,options={},authCreds=creds,reloginOn401=true,notificarErrores=true){
+    async function apiRequest(path,options={},authCreds=creds,reloginOn401=true,notificarErrores=true,timeoutMs=REQUEST_TIMEOUT_MS){
       const controller=new AbortController();
-      const timeout=setTimeout(()=>controller.abort(),REQUEST_TIMEOUT_MS);
+      const timeout=setTimeout(()=>controller.abort(),timeoutMs);
       try{
         const r=await fetch(API_BASE+path,{...options,headers:{...authHeaders(authCreds),...(options.headers||{})},signal:controller.signal});
         if(r.status===401&&reloginOn401&&authCreds===creds&&!cambiandoContrasena)mostrarLogin();
@@ -246,6 +275,7 @@
       }finally{clearTimeout(timeout)}
     }
     async function apiGet(path,notificarErrores=true){return await apiRequest(path,{},creds,true,notificarErrores)}
+    OperationalContext.init(path=>apiGet(path),(path,body,method='POST',timeoutMs=REQUEST_TIMEOUT_MS)=>apiRequest(path,{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(body)},creds,true,true,timeoutMs));
     BotCosts.init((path)=>apiGet(path),(path,body)=>apiPost(path,body));
     async function apiPost(path,body){return await apiRequest(path,{method:'POST',headers:{'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined})}
     async function apiAudio(path,blob){return await apiRequest(path,{method:'POST',headers:{'Content-Type':blob.type||'application/octet-stream'},body:blob})}
@@ -341,6 +371,7 @@
         document.getElementById('login-overlay').style.display='none';
         document.querySelector('.app').style.display='grid';
         await cargarPapelera();
+        await OperationalContext.load();
         renderLista(await r.json());
         await refrescarPanel();
         alertasActivas().forEach(a=>alertasVistas.add(a.clave));avisosAlertasListos=true;
@@ -348,7 +379,7 @@
         await actualizarEstadoPush();
         const informePendiente=new URLSearchParams(location.search).get('informe');
         if(informePendiente){await cargarInformesDiarios();showView('overview');abrirInformeDiario(informePendiente);history.replaceState({},'',location.pathname)}
-        if(new URLSearchParams(location.search).get('vista')==='alerts')showView('alerts');
+        const vistaSolicitada=new URLSearchParams(location.search).get('vista');if(['alerts','operations'].includes(vistaSolicitada))showView(vistaSolicitada);
         const telefonoPendiente=new URLSearchParams(location.search).get('telefono');
         if(telefonoPendiente){showView('chats');await abrirChat(telefonoPendiente);history.replaceState({},'',location.pathname)}
         iniciarAutoRefresh();
@@ -366,7 +397,7 @@
     }
 
     async function refrescarMensajes(){if(actualizandoRapido||!creds)return;actualizandoRapido=true;try{await Promise.all([recargarActividad(),recargarHistorialActivo()])}finally{actualizandoRapido=false}}
-    async function refrescarDatosSecundarios(){if(!creds)return;await Promise.all([cargarAlertasPaquetes(),cargarPapelera(),recargarConversaciones(),cargarResumen(),cargarSolicitudes(),cargarOportunidades(),cargarUso(30)])}
+    async function refrescarDatosSecundarios(){if(!creds)return;OperationalContext.load();await Promise.all([cargarAlertasPaquetes(),cargarPapelera(),recargarConversaciones(),cargarResumen(),cargarSolicitudes(),cargarOportunidades(),cargarUso(30)])}
 
     async function recargarHistorialActivo(){
       const telefono=telActivo;
