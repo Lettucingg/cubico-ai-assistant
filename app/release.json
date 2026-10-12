@@ -1,0 +1,11 @@
+{
+  "version": "1.1.1",
+  "fecha": "2026-10-12",
+  "titulo": "Contexto operativo, costos y versión de la plataforma",
+  "novedades": [
+    "Versión instalada visible, fecha de actualización y novedades en Configuración.",
+    "Aviso para recargar cuando el panel abierto y el servidor tengan versiones diferentes.",
+    "Contexto operativo para Bruno: avisos con alcance, vigencia, revisión, historial y prueba de respuesta.",
+    "Costos y actividad: gráficos por período, consumo por proveedor y función, y gastos confirmados separados."
+  ]
+}

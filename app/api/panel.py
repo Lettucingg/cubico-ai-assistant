@@ -1754,3 +1754,10 @@ async def prueba_contexto_operativo(body: ContextPreview, usuario: str = Depends
     except Exception:
         logging.getLogger(__name__).exception('No se pudo probar el contexto operativo')
         raise HTTPException(status_code=503,detail='No se pudo generar la prueba. No se envió ningún mensaje ni se activó el aviso.')
+
+
+@router.get('/version')
+def version_instalada_panel(response: Response, usuario: str = Depends(verificar_credenciales_panel)):
+    from pathlib import Path
+    response.headers['Cache-Control'] = 'no-store'
+    return json.loads((Path(__file__).resolve().parents[1] / 'release.json').read_text(encoding='utf-8'))
