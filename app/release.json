@@ -1,11 +1,10 @@
 {
-  "version": "1.1.1",
-  "fecha": "2026-10-12",
-  "titulo": "Contexto operativo, costos y versión de la plataforma",
+  "version": "1.1.2",
+  "fecha": "2026-10-13",
+  "titulo": "Corrección de identidad y nombres en conversaciones",
   "novedades": [
-    "Versión instalada visible, fecha de actualización y novedades en Configuración.",
-    "Aviso para recargar cuando el panel abierto y el servidor tengan versiones diferentes.",
-    "Contexto operativo para Bruno: avisos con alcance, vigencia, revisión, historial y prueba de respuesta.",
-    "Costos y actividad: gráficos por período, consumo por proveedor y función, y gastos confirmados separados."
+    "Bruno distingue al cliente de los operadores del equipo al interpretar el historial.",
+    "El contexto de respuesta incluye el nombre del registro verificado; sin un nombre confirmado, evita deducirlo de mensajes del equipo.",
+    "Se conserva la autoría original en el panel y las conversaciones guardadas."
   ]
 }
