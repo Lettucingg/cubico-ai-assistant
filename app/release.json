@@ -1,10 +1,10 @@
 {
-  "version": "1.1.2",
+  "version": "1.1.3",
   "fecha": "2026-10-13",
-  "titulo": "Corrección de identidad y nombres en conversaciones",
+  "titulo": "Ubicación de retiro verificada",
   "novedades": [
-    "Bruno distingue al cliente de los operadores del equipo al interpretar el historial.",
-    "El contexto de respuesta incluye el nombre del registro verificado; sin un nombre confirmado, evita deducirlo de mensajes del equipo.",
-    "Se conserva la autoría original en el panel y las conversaciones guardadas."
+    "Las indicaciones de retiro requieren una dirección y un pin vigente confirmados por el equipo.",
+    "Si no hay un punto verificado, Bruno deriva la consulta de ubicación al equipo.",
+    "Bruno no debe confirmar negocios vecinos, cercanía o llegada basándose en sugerencias del cliente o imágenes."
   ]
 }

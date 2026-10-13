@@ -1,3 +1,4 @@
+from app.services.business_location import verified_location, location_question, location_rules
 from app.services.operational_context import active_context, system_with_context, service_block
 from app.services.cost_analytics import call_anthropic
 import random
@@ -40,7 +41,7 @@ CUBICO_CHINA_OCEAN_ADDRESS = settings.CUBICO_CHINA_OCEAN_ADDRESS
 CUBICO_CHINA_OCEAN_ROUTE_CODE = settings.CUBICO_CHINA_OCEAN_ROUTE_CODE
 CUBICO_CHINA_OCEAN_PHONE_PRIMARY = settings.CUBICO_CHINA_OCEAN_PHONE_PRIMARY
 CUBICO_CHINA_OCEAN_PHONE_SECONDARY = settings.CUBICO_CHINA_OCEAN_PHONE_SECONDARY
-CUBICO_LOCAL_ADDRESS = settings.CUBICO_LOCAL_ADDRESS
+CUBICO_LOCAL_ADDRESS = (verified_location() or {}).get("direccion", "Punto de retiro pendiente de confirmación por el equipo; no indicar una dirección.")
 CUBICO_LOCAL_PHONE = settings.CUBICO_LOCAL_PHONE
 
 
@@ -1176,6 +1177,8 @@ for _clave_privada in (
     )
 
 
+SYSTEM_PROMPT += "\n\n" + location_rules()
+
 HERRAMIENTAS = [
     {
         "name": "verificar_identidad_cliente",
@@ -1889,6 +1892,15 @@ def generar_respuesta(
     Claude decide cuándo necesita utilizar herramientas y cuándo necesita
     verificar la identidad del cliente.
     """
+
+    if location_question(texto_cliente, historial):
+        punto = verified_location()
+        if punto and not active_context(texto_cliente, historial):
+            return f"Esta es la ubicación exacta para retirar:\n{punto['enlace']}\n{punto['direccion']}"
+        if not punto:
+            actualizar_sesion(telefono, necesita_atencion_humana=True,
+                              motivo_escalamiento="Ubicación de retiro sin pin vigente verificado; confirmar el punto exacto antes de dirigir al cliente.")
+            return "Para evitar darte una dirección equivocada, dejé tu consulta al equipo para que te confirmen el punto exacto de retiro."
 
     nombre_cliente = None
     nombre_completo = None

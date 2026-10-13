@@ -78,6 +78,9 @@ class Settings(BaseSettings):
     CUBICO_CHINA_OCEAN_PHONE_SECONDARY: str = ""
     CUBICO_LOCAL_ADDRESS: str = ""
     CUBICO_LOCAL_PHONE: str = ""
+    # Only publish pickup directions after the team confirms the current pin.
+    CUBICO_LOCATION_URL: str = ""
+    CUBICO_LOCATION_VERIFIED: bool = False
 
     class Config:
         env_file = ".env"
