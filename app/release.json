@@ -1,10 +1,10 @@
 {
-  "version": "1.1.3",
+  "version": "1.1.4",
   "fecha": "2026-10-13",
-  "titulo": "Ubicación de retiro verificada",
+  "titulo": "Recuperación del diseño al volver a la app",
   "novedades": [
-    "Las indicaciones de retiro requieren una dirección y un pin vigente confirmados por el equipo.",
-    "Si no hay un punto verificado, Bruno deriva la consulta de ubicación al equipo.",
-    "Bruno no debe confirmar negocios vecinos, cercanía o llegada basándose en sugerencias del cliente o imágenes."
+    "La navegación móvil permanece anclada al borde inferior, sin conservar la posición reducida del teclado.",
+    "El chat recalcula su espacio al volver desde otra app o restaurar la página.",
+    "Se conservan los borradores al recuperar el diseño."
   ]
 }

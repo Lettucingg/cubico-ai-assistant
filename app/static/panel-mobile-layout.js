@@ -6,27 +6,48 @@
     const inbox=doc.querySelector('.inbox'),chats=doc.getElementById('chats'),nav=doc.querySelector('.sidebar'),header=doc.querySelector('.topbar');
     if(!inbox||!nav||!chats)return;
     let gesture=null,lastTap=null,pending=false,closedViewportHeight=root.visualViewport?root.visualViewport.height:root.innerHeight;
+    const resumeTimers=[];
     function update(){
       pending=false;
+      if(doc.hidden)return;
       if(gesture)return;
       if(!root.matchMedia('(max-width:760px)').matches){inbox.style.removeProperty('--mobile-inbox-height');nav.style.removeProperty('top');nav.style.removeProperty('bottom');doc.body.style.removeProperty('--mobile-navigation-height');doc.body.classList.remove('chat-keyboard-open','chat-editor-open');inbox.style.removeProperty('--editor-viewport-top');inbox.style.removeProperty('--editor-viewport-height');return}
-      const viewport=root.visualViewport,bottom=viewport?viewport.offsetTop+viewport.height:root.innerHeight;
+      const viewport=root.visualViewport;let bottom=viewport?viewport.offsetTop+viewport.height:root.innerHeight;
       const focused=doc.activeElement,editing=focused&&doc.querySelector('.app').contains(focused)&&focused.matches('input,textarea,[contenteditable=true]');
       const chatEditing=Boolean(editing&&inbox.contains(focused)&&chats.classList.contains('active'));
-      if(!editing)closedViewportHeight=viewport?viewport.height:root.innerHeight;
       const keyboard=chatEditing||Boolean(editing&&viewport&&closedViewportHeight-viewport.height>120&&viewport.scale<=1.05);
       doc.body.classList.toggle('chat-editor-open',chatEditing);
       if(chatEditing){inbox.style.setProperty('--editor-viewport-top',(viewport?viewport.offsetTop:0)+'px');inbox.style.setProperty('--editor-viewport-height',(viewport?viewport.height:root.innerHeight)+'px')}
       doc.body.classList.toggle('chat-keyboard-open',keyboard);
-      const navHeight=keyboard?0:nav.getBoundingClientRect().height;
-      const navTop=navigationTop(bottom,navHeight);
-      nav.style.top=navTop+'px';nav.style.bottom='auto';
+      // CSS anchors navigation to the real viewport, never a remembered keyboard height.
+      nav.style.top='auto';nav.style.bottom='0px';
+      const bounds=nav.getBoundingClientRect();
+      const navHeight=keyboard?0:bounds.height;
+      const nativeBounds=!keyboard&&Number.isFinite(bounds.bottom)&&bounds.bottom>0;
+      if(nativeBounds)bottom=bounds.bottom;
+      const navTop=nativeBounds&&Number.isFinite(bounds.top)&&bounds.top>=0?bounds.top:navigationTop(bottom,navHeight);
+      if(!editing)closedViewportHeight=Math.max(0,bottom-(viewport?viewport.offsetTop:0));
       if(!keyboard)doc.body.style.setProperty('--mobile-navigation-height',navHeight+'px');
       if(!chats.classList.contains('active'))return;
       const height=availableHeight(inbox.getBoundingClientRect().top,bottom,keyboard?bottom:navTop);
       inbox.style.setProperty('--mobile-inbox-height',height+'px');
     }
-    function schedule(){if(!pending){pending=true;root.requestAnimationFrame(update)}}
+    function schedule(){if(doc.hidden)return;if(!pending){pending=true;root.requestAnimationFrame(update)}}
+    function resume(){
+      if(doc.hidden)return;
+      gesture=null;lastTap=null;pending=false;
+      resumeTimers.splice(0).forEach(id=>root.clearTimeout(id));
+      if(!root.matchMedia('(max-width:760px)').matches){update();return}
+      const focused=doc.activeElement;
+      if(focused&&doc.querySelector('.app').contains(focused)&&focused.matches('input,textarea,[contenteditable=true]'))focused.blur();
+      // Safari/PWA updates visualViewport asynchronously after returning from another app.
+      update();[120,350,750].forEach(delay=>resumeTimers.push(root.setTimeout(update,delay)));
+    }
+    doc.addEventListener('visibilitychange',()=>{
+      gesture=null;lastTap=null;pending=false;
+      if(!doc.hidden)resume();else resumeTimers.splice(0).forEach(id=>root.clearTimeout(id));
+    });
+    root.addEventListener('pageshow',resume);root.addEventListener('focus',resume);
     root.addEventListener('scroll',schedule,{passive:true});root.addEventListener('resize',schedule);root.addEventListener('orientationchange',schedule);
     if(root.visualViewport){root.visualViewport.addEventListener('resize',schedule);root.visualViewport.addEventListener('scroll',schedule)}
     doc.addEventListener('focusin',schedule);doc.addEventListener('focusout',schedule);
@@ -35,7 +56,7 @@
     if(root.MutationObserver){const observer=new root.MutationObserver(schedule);observer.observe(chats,{attributes:true,attributeFilter:['class']});observer.observe(doc.querySelector('.app'),{attributes:true,attributeFilter:['style']})}
     if(typeof navigate==='function'){
       function buttonFor(event){const button=event.target.closest&&event.target.closest('.nav button[data-view]');return button&&nav.contains(button)?button:null}
-      nav.addEventListener('pointerdown',event=>{const button=buttonFor(event);if(!button||event.pointerType==='mouse'||event.isPrimary===false||!root.matchMedia('(max-width:760px)').matches)return;gesture={id:event.pointerId,button,x:event.clientX,y:event.clientY,moved:false}});
+      nav.addEventListener('pointerdown',event=>{const button=buttonFor(event);if(!button||event.pointerType==='mouse'||event.isPrimary===false||!root.matchMedia('(max-width:760px)').matches)return;const bounds=nav.getBoundingClientRect(),viewport=root.visualViewport;const top=Number.isFinite(bounds.top)?bounds.top:navigationTop(viewport?viewport.offsetTop+viewport.height:root.innerHeight,bounds.height);nav.style.top=top+'px';nav.style.bottom='auto';gesture={id:event.pointerId,button,x:event.clientX,y:event.clientY,moved:false}});
       root.addEventListener('pointermove',event=>{if(gesture&&gesture.id===event.pointerId&&Math.hypot(event.clientX-gesture.x,event.clientY-gesture.y)>10)gesture.moved=true});
       nav.addEventListener('pointerup',event=>{if(!gesture||gesture.id!==event.pointerId)return;const press=gesture;gesture=null;const button=buttonFor(event);lastTap={button:press.button,time:Date.now()};if(!press.moved&&Math.hypot(event.clientX-press.x,event.clientY-press.y)<=10&&button===press.button){event.preventDefault();navigate(button.dataset.view)}schedule()});
       function cancel(event){if(gesture&&gesture.id===event.pointerId){gesture=null;schedule()}}
