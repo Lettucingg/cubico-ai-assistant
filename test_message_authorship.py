@@ -18,7 +18,8 @@ def test_contexto_conserva_mensaje_humano_sin_presentarlo_como_voz_de_bruno():
     ])
 
     assert mensajes[0]["role"] == "assistant"
-    assert "enviado por alexander, no por Bruno" in mensajes[0]["content"]
+    assert "un operador del equipo de Cúbico, no por Bruno ni por el cliente" in mensajes[0]["content"]
+    assert "alexander" not in mensajes[0]["content"]
     assert "no imites automáticamente su tono" in mensajes[0]["content"]
 
 
