@@ -1,10 +1,10 @@
 {
-  "version": "1.1.4",
-  "fecha": "2026-10-13",
-  "titulo": "Recuperación del diseño al volver a la app",
+  "version": "1.1.5",
+  "fecha": "2026-10-15",
+  "titulo": "Alertas y atenciones con contexto",
   "novedades": [
-    "La navegación móvil permanece anclada al borde inferior, sin conservar la posición reducida del teclado.",
-    "El chat recalcula su espacio al volver desde otra app o restaurar la página.",
-    "Se conservan los borradores al recuperar el diseño."
+    "Las atenciones incluyen motivo, últimos mensajes, pasos de revisión y un borrador orientativo.",
+    "Las alertas de pagos, envíos fallidos, paquetes y negocios explican qué revisar.",
+    "La guía interna se puede consultar dentro del chat y no envía mensajes automáticamente."
   ]
 }

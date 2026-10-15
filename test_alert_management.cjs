@@ -24,3 +24,14 @@ assert.equal(filter(all,'arthur','pagos').length,0);
 assert.equal(filter(all,'  CLIENTE  ','equipo').length,2);
 assert.equal(filter(all,'','all').length,all.length);
 console.log('Alert search and category filters: passed');
+const {context,detail}=require('./app/static/alert-management.js');
+for(const kind of ['malid','demora_miami','pago','direccion','fallido','oportunidad','humano']){
+ const ctx=context({kind,descripcion:'Motivo real'},c);
+ assert.ok(ctx.pasos.length);assert.ok(ctx.borrador);assert.equal(ctx.ultimo_cliente.texto,'Hola');
+ assert.match(detail(ctx),/Qué hacer/);
+}
+const structured={categoria:'Paquete mal identificado',motivo:'<script>bad()</script>',pasos:['<img src=x>'],borrador:'No enviado',nota:'Interno'};
+const enriched=collect([{...human,contexto_atencion:structured}],[],[])[0];
+assert.equal(enriched.contexto,structured);assert.match(detail(structured),/&lt;script&gt;/);assert.ok(!detail(structured).includes('<script>'));
+assert.equal(filter([enriched],'paquete mal identificado').length,1);
+console.log('Actionable guides, real quotes, search and HTML escaping: passed');

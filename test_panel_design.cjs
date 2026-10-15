@@ -22,7 +22,7 @@ w.fetch=async(url,options={})=>{const path=new URL(url).pathname;let data;
  if(path==='/panel/alertas/papelera')data=archived;
  else if(path==='/panel/alertas/archivar'){data={...JSON.parse(options.body),id:archived.length+1,usuario:'alexander',creado_en:new Date().toISOString()};archived.push(data)}
  else if(path.match(/alertas\/\d+\/restaurar/)){archived=archived.filter(a=>a.id!==Number(path.split('/').at(-2)));data={restaurada:true}}
- else if(path.startsWith('/panel/conversacion/'))data={historial:[{role:'user',content:'Hola',timestamp:new Date().toISOString()}]};
+ else if(path.startsWith('/panel/conversacion/'))data={contexto_atencion:path.endsWith('5072')?{categoria:'Tracking pendiente',motivo:'Consulta fallida',pasos:['Verificar el tracking real'],borrador:'Necesito verificar el estado.',nota:'Solo guía interna'}:null,historial:[{role:'user',content:'Hola',timestamp:new Date().toISOString()}]};
  else data=fixtures[path.split('/').at(-1)]||{};
  return {ok:true,status:200,json:async()=>structuredClone(data)};
 };
@@ -38,6 +38,7 @@ const tick=()=>new Promise(setImmediate);
  d.querySelector('[data-chat-filter-tab="sin_leer"]').click();assert.equal(d.querySelectorAll('#chat-items .chat-item').length,1);
  d.querySelector('[data-chat-filter-tab="humano"]').click();assert.equal(d.querySelector('#chat-items .chat-name b').textContent,'Cliente');
  d.querySelector('[data-chat-filter-tab="todas"]').click();await w.abrirChat('5071');
+ await w.abrirChat('5072');assert.equal(d.getElementById('attention-guide').hidden,false);assert.match(d.getElementById('attention-guide').textContent,/Verificar el tracking real/);assert.match(d.getElementById('attention-guide').textContent,/Necesito verificar/);await w.abrirChat('5071');assert.equal(d.getElementById('attention-guide').hidden,true);assert.equal(d.getElementById('attention-guide').textContent,'');
  assert.equal(d.getElementById('message-input').tagName,'TEXTAREA');
  d.getElementById('message-input').value='Primera línea\nSegunda línea';d.getElementById('message-input').dispatchEvent(new w.Event('input'));d.getElementById('draft-select-all').click();assert.equal(d.getElementById('message-input').selectionEnd,'Primera línea\nSegunda línea'.length);await w.abrirChat('5072');await w.abrirChat('5071');assert.equal(d.getElementById('message-input').value,'Primera línea\nSegunda línea');d.getElementById('message-input').value='';d.getElementById('message-input').dispatchEvent(new w.Event('input'));
  d.getElementById('chat-actions-toggle').click();assert.equal(d.getElementById('customer-panel').getAttribute('role'),'dialog');assert.ok(d.getElementById('customer-backdrop').classList.contains('open'));
