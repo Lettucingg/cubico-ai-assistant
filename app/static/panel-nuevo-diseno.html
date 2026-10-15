@@ -60,12 +60,12 @@
 
 .reports-heading{display:flex;justify-content:space-between;align-items:center;gap:12px}.reports-history-note{font-size:12px;color:var(--muted);line-height:1.5}#daily-reports-history{margin-top:18px;padding-top:14px;border-top:1px solid var(--line)}#daily-reports-history[hidden]{display:none}#daily-reports-history h4{margin:0 0 6px;font-size:14px}#daily-reports-history-list{max-height:420px;overflow:auto}@media(max-width:760px){.reports-heading h3{font-size:15px}.reports-heading .btn{font-size:12px;padding:9px 11px}}
 </style>
-  <link rel="stylesheet" href="/static/panel-theme.css?v=20261007-send">
+  <link rel="stylesheet" href="/static/panel-theme.css?v=1.1.5">
 <link rel="stylesheet" href="/static/bot-cost-analytics.css?v=20261008">
 <link rel="stylesheet" href="/static/operational-context.css?v=20261012">
 <style>.release-banner{display:flex;gap:14px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding:15px 18px;margin-bottom:20px;background:#fff5d9;border:1px solid #e8d29c;border-radius:14px;font-size:13px;line-height:1.5}.release-banner[hidden]{display:none}.release-warning{color:#916a14!important}.release-card details summary{cursor:pointer;font-size:13px}.release-card [hidden]{display:none!important}</style>
 </head>
-<body data-panel-version="1.1.4">
+<body data-panel-version="1.1.5">
   <div id="login-overlay" style="position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:50;padding:20px">
     <div class="card" style="width:100%;max-width:380px;padding:32px 28px">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:24px">
@@ -97,7 +97,7 @@
       </nav>
       <div class="nav-label" style="margin-top:22px">Sistema</div>
       <nav class="nav"><button data-view="operations"><span>◉</span><span>Contexto operativo</span></button><button data-view="alerts"><span>△</span><span>Alertas</span><span class="count" id="nav-count-alerts">0</span></button><button data-view="settings"><span>⚙</span><span>Configuración</span></button></nav>
-      <div class="side-bottom"><div class="health"><div class="health-top"><span><i class="dot"></i>Panel conectado</span><b>API</b></div><p>Los estados mostrados vienen del backend de Bruno.</p><p id="app-version-footer">Panel · v1.1.4</p></div></div>
+      <div class="side-bottom"><div class="health"><div class="health-top"><span><i class="dot"></i>Panel conectado</span><b>API</b></div><p>Los estados mostrados vienen del backend de Bruno.</p><p id="app-version-footer">Panel · v1.1.5</p></div></div>
     </aside>
     <main>
       <header class="topbar"><div class="title"><h1 id="page-title">Buenos días</h1><p id="page-sub">Esto es lo que está pasando en Cúbico hoy.</p></div><div class="top-actions"><input class="search" id="global-search" placeholder="Buscar chat, cliente o paquete…" aria-label="Buscar"/><button class="icon-btn" id="notifications" aria-label="Notificaciones" title="Ver alertas y activar notificaciones">🔔<span class="notification-count" id="notification-count">0</span></button><div class="avatar" id="settings-shortcut" role="button" tabindex="0" aria-label="Abrir configuración" title="Configuración">—</div></div></header>
@@ -123,7 +123,7 @@
           <aside class="chat-list"><div class="pane-head"><div class="pane-head-row"><h2>Conversaciones</h2><select class="filter" id="filtro-select"><option>Todas</option><option>Sin leer</option><option>Necesitan humano</option><option>Bruno atendiendo</option></select></div><div class="chat-filter-tabs" aria-label="Filtrar conversaciones"><button type="button" data-chat-filter-tab="todas" aria-pressed="true">Todas · <span id="chat-total-count">0</span></button><button type="button" data-chat-filter-tab="sin_leer" aria-pressed="false">Sin leer</button><button type="button" data-chat-filter-tab="humano" aria-pressed="false">Atención</button></div><input class="chat-search" id="chat-search" placeholder="Buscar conversación…" /></div><div class="chat-items" id="chat-items">
             <div style="padding:30px 16px;text-align:center;color:var(--muted);font-size:12px">Cargando conversaciones…</div>
           </div></aside>
-          <section class="conversation"><header class="conv-head"><div class="conv-person"><button class="mobile-chat-back" id="mobile-chat-back" aria-label="Volver a conversaciones">‹</button><div class="person" id="conv-avatar">—</div><div><b id="conv-name">Selecciona una conversación</b><small><i class="dot"></i><span id="conv-status-line">Elige un chat de la lista</span></small></div></div><div class="conv-actions"><button class="btn chat-editing-done" id="chat-editing-done" type="button" aria-label="Cerrar teclado">Listo</button><div class="chat-actions-wrap"><button class="btn" id="chat-actions-toggle" aria-controls="customer-panel" aria-expanded="false" disabled>Gestionar</button></div><span id="extra-actions" style="display:contents"></span></div></header><div class="messages" id="messages" tabindex="0" aria-label="Historial de la conversación"><div class="day">Selecciona una conversación para ver su historial</div></div><footer class="composer"><div class="attach-menu" id="attach-menu"><button class="attach-option" type="button" data-attach-kind="image"><span class="attach-option-icon">▧</span><span><b>Foto</b><small>JPG o PNG</small></span></button><button class="attach-option" type="button" data-attach-kind="document"><span class="attach-option-icon">PDF</span><span><b>Documento</b><small>Archivo PDF</small></span></button></div><div class="attach-preview" id="attach-preview" style="display:none"></div><div class="compose-row"><button class="voice" id="voice" aria-label="Grabar mensaje de voz">●</button><button class="attach" id="attach-btn" aria-label="Añadir foto o documento" title="Añadir archivo" disabled>＋</button><input type="file" id="attach-image-input" accept="image/jpeg,image/png" style="display:none"/><input type="file" id="attach-pdf-input" accept="application/pdf,.pdf" style="display:none"/><textarea class="compose-input" id="message-input" rows="1" aria-label="Mensaje para el cliente" placeholder="Escribe como Cúbico…" disabled></textarea><button class="send" id="send" aria-label="Enviar" disabled>➤</button></div><div class="send-feedback" id="send-feedback" role="status" aria-live="polite" hidden><span id="send-feedback-icon" aria-hidden="true"></span><span id="send-feedback-text"></span></div><div class="draft-tools" id="draft-tools" hidden><button type="button" id="draft-select-all">Seleccionar todo</button><button type="button" id="draft-copy">Copiar</button></div><div class="compose-foot"><span id="mode-label">Selecciona una conversación para comenzar</span><span>Enter: nueva línea · Ctrl/⌘ + Enter: enviar</span></div></footer></section>
+          <section class="conversation"><header class="conv-head"><div class="conv-person"><button class="mobile-chat-back" id="mobile-chat-back" aria-label="Volver a conversaciones">‹</button><div class="person" id="conv-avatar">—</div><div><b id="conv-name">Selecciona una conversación</b><small><i class="dot"></i><span id="conv-status-line">Elige un chat de la lista</span></small></div></div><div class="conv-actions"><button class="btn chat-editing-done" id="chat-editing-done" type="button" aria-label="Cerrar teclado">Listo</button><div class="chat-actions-wrap"><button class="btn" id="chat-actions-toggle" aria-controls="customer-panel" aria-expanded="false" disabled>Gestionar</button></div><span id="extra-actions" style="display:contents"></span></div></header><aside id="attention-guide" hidden aria-label="Contexto de atención"></aside><div class="messages" id="messages" tabindex="0" aria-label="Historial de la conversación"><div class="day">Selecciona una conversación para ver su historial</div></div><footer class="composer"><div class="attach-menu" id="attach-menu"><button class="attach-option" type="button" data-attach-kind="image"><span class="attach-option-icon">▧</span><span><b>Foto</b><small>JPG o PNG</small></span></button><button class="attach-option" type="button" data-attach-kind="document"><span class="attach-option-icon">PDF</span><span><b>Documento</b><small>Archivo PDF</small></span></button></div><div class="attach-preview" id="attach-preview" style="display:none"></div><div class="compose-row"><button class="voice" id="voice" aria-label="Grabar mensaje de voz">●</button><button class="attach" id="attach-btn" aria-label="Añadir foto o documento" title="Añadir archivo" disabled>＋</button><input type="file" id="attach-image-input" accept="image/jpeg,image/png" style="display:none"/><input type="file" id="attach-pdf-input" accept="application/pdf,.pdf" style="display:none"/><textarea class="compose-input" id="message-input" rows="1" aria-label="Mensaje para el cliente" placeholder="Escribe como Cúbico…" disabled></textarea><button class="send" id="send" aria-label="Enviar" disabled>➤</button></div><div class="send-feedback" id="send-feedback" role="status" aria-live="polite" hidden><span id="send-feedback-icon" aria-hidden="true"></span><span id="send-feedback-text"></span></div><div class="draft-tools" id="draft-tools" hidden><button type="button" id="draft-select-all">Seleccionar todo</button><button type="button" id="draft-copy">Copiar</button></div><div class="compose-foot"><span id="mode-label">Selecciona una conversación para comenzar</span><span>Enter: nueva línea · Ctrl/⌘ + Enter: enviar</span></div></footer></section>
           <aside class="customer" id="customer-panel" aria-labelledby="management-title"><div class="customer-head"><h3 id="management-title">Gestionar conversación</h3><button class="customer-close" id="customer-close" type="button" aria-label="Cerrar panel">×</button></div>
 <div class="profile"><div class="person" id="profile-avatar">—</div><div><h3 id="profile-name">—</h3><p id="profile-code">—</p><span class="risk" id="profile-risk">Sin conversación</span></div></div>
 <div class="management-tabs" role="tablist" aria-label="Gestionar conversación"><button type="button" role="tab" id="tab-cliente" aria-controls="management-cliente" aria-selected="true">Cliente</button><button type="button" role="tab" id="tab-chat" aria-controls="management-chat" aria-selected="false" tabindex="-1">Chat</button></div>
@@ -226,11 +226,11 @@
   <script src="/static/panel-personalization.js"></script>
   <script src="/static/panel-mobile-layout.js?v=20261013-resume"></script>
   <script src="/static/chat-text-editor.js?v=20261007-send"></script>
-  <script src="/static/app-release.js?v=1.1.4"></script>
+  <script src="/static/app-release.js?v=1.1.5"></script>
   <script src="/static/operational-context.js?v=20261012"></script>
   <script src="/static/bot-cost-analytics.js?v=20261008"></script>
   <script src="/static/daily-report.js"></script>
-  <script src="/static/alert-management.js?v=20261007-send"></script>
+  <script src="/static/alert-management.js?v=1.1.5?v=20261007-send"></script>
   <script>
     const titles={overview:['Buenos días, Alexander','Esto es lo que está pasando en Cúbico hoy.'],chats:['Conversaciones','Supervisa a Bruno y toma el control cuando haga falta.'],packages:['Retiros y domicilios','Organiza las solicitudes que llegan directamente desde WhatsApp.'],opportunities:['Oportunidades comerciales','Bruno organiza la información; el equipo decide qué propuesta preparar.'],costs:['Costos y actividad','Consumo estimado, gastos confirmados y actividad de Bruno.'],alerts:['Alertas','Lo que necesita tu atención, en un solo lugar.'],operations:['Contexto operativo','Mantén a Bruno al tanto de los cambios de la operación.'],settings:['Configuración','Integraciones y estado técnico de Bruno.']};
     function showView(id){document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id===id));document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.view===id));document.getElementById('page-title').textContent=titles[id][0];document.getElementById('page-sub').textContent=titles[id][1];if(id!=='chats'&&typeof cerrarPanelCliente==='function')cerrarPanelCliente();if(id==='packages')cargarSolicitudes();if(id==='opportunities')cargarOportunidades();if(id==='costs'){cargarUso(30);BotCosts.load()};if(id==='alerts')cargarPapelera();if(id==='operations')OperationalContext.load();if(id==='settings')CubicoRelease.load();window.scrollTo({top:0,behavior:'smooth'})}
@@ -412,7 +412,9 @@
       try{
         const r=await apiGet(`/panel/conversacion/${telefono}`);
         if(!r.ok||telefono!==telActivo)return;
-        const historial=(await r.json()).historial||[];
+        const datos=await r.json();
+        pintarContextoAtencion(datos.contexto_atencion);
+        const historial=datos.historial||[];
         const firma=JSON.stringify(historial);
         if(firma!==firmaHistorialActivo){renderMensajes(historial);const marcado=await apiPost(`/panel/marcar-leido/${telefono}`);if(marcado.ok&&telefono===telActivo){const c=convs.find(x=>x.telefono===telefono);if(c)c.tiene_no_leidos=false;actualizarContadorNotificaciones()}}
       }catch(e){}
@@ -947,6 +949,13 @@
       cargarImagenesChat();
     }
 
+    function pintarContextoAtencion(ctx){
+      const box=document.getElementById('attention-guide');
+      const wasOpen=box.querySelector('details')?.open;
+      box.hidden=!ctx;
+      const markup=ctx?'<b>Atención pendiente · '+esc(ctx.categoria)+'</b>'+CubicoAlerts.detail(ctx):'';
+      if(box.dataset.markup!==markup){box.innerHTML=markup;box.dataset.markup=markup;if(wasOpen&&box.querySelector('details'))box.querySelector('details').open=true}
+    }
     async function abrirChat(tel){
       const inputMensaje=document.getElementById('message-input');
       if(telActivo)borradoresChat.set(telActivo,inputMensaje.value);
@@ -962,11 +971,12 @@
       const conv=convs.find(c=>c.telefono===tel);
       habilitarComposer(true);
       actualizarEncabezadoChat(conv);
+      pintarContextoAtencion(conv?.contexto_atencion);
       document.getElementById('messages').innerHTML='<div class="day">Cargando historial…</div>';
 
       try{
         const r=await apiGet(`/panel/conversacion/${tel}`);
-        if(r.ok){const historial=(await r.json()).historial;if(tel===telActivo)renderMensajes(historial)}
+        if(r.ok){const datos=await r.json();if(tel===telActivo){pintarContextoAtencion(datos.contexto_atencion);renderMensajes(datos.historial)}}
         else if(tel===telActivo){document.getElementById('messages').innerHTML='<div class="day">No se pudo cargar el historial</div>'}
       }catch(e){if(tel===telActivo)document.getElementById('messages').innerHTML='<div class="day">Error de conexión</div>'}
       try{
@@ -1251,7 +1261,7 @@
     document.getElementById('alerts-trash').addEventListener('click',()=>{verPapelera=true;renderAlertas();cargarPapelera()});
     document.getElementById('alert-undo-button').addEventListener('click',()=>{for(const id of [...loteDeshacer])restaurarAlerta(id)});
     document.getElementById('alert-undo-close').addEventListener('click',()=>{document.getElementById('alert-undo').hidden=true});
-    function alertasActivas(){const ocultas=new Set(alertasArchivadas.map(a=>a.clave));return [...CubicoAlerts.collect(convs,solicitudes,oportunidades).filter(a=>!(a.kind==='humano'&&/mal identificado/i.test(a.descripcion)&&alertasPaquetes.some(p=>p.kind==='malid'&&p.telefono===a.target.tel))),...alertasPaquetes].filter(a=>!ocultas.has(a.clave))}
+    function alertasActivas(){const ocultas=new Set(alertasArchivadas.map(a=>a.clave));return [...CubicoAlerts.collect(convs,solicitudes,oportunidades).filter(a=>!(a.kind==='humano'&&/mal identificado/i.test(a.descripcion)&&alertasPaquetes.some(p=>p.kind==='malid'&&p.telefono===a.target.tel))),...alertasPaquetes.map(a=>({...a,contexto:CubicoAlerts.context(a,convs.find(c=>c.telefono===a.telefono))}))].filter(a=>!ocultas.has(a.clave))}
     function alertasVisibles(){return CubicoAlerts.filter(alertasActivas(),document.getElementById('alert-search').value,document.getElementById('alert-filter').value)}
     document.getElementById('alert-search').addEventListener('input',renderAlertas);
     document.getElementById('alert-filter').addEventListener('change',renderAlertas);
@@ -1269,13 +1279,14 @@
     document.getElementById('alert-bulk-resolve').addEventListener('click',()=>quitarSeleccionadas('resuelta'));
     document.getElementById('alert-bulk-discard').addEventListener('click',()=>quitarSeleccionadas('descartada'));
     function renderAlertas(){
+      const guiasAbiertas=new Set([...document.querySelectorAll('[data-alert-key] .attention-detail[open]')].map(el=>el.closest('[data-alert-key]').dataset.alertKey));
       const activas=alertasActivas();avisarAlertasNuevas(activas);const visibles=alertasVisibles(),keys=new Set(activas.map(a=>a.clave));
       for(const key of seleccionAlertas)if(!keys.has(key))seleccionAlertas.delete(key);
       const labels=CubicoAlerts.labels,groups=CubicoAlerts.groups;
       const icon=g=>({equipo:'♙',pagos:'▤',negocios:'▱',operaciones:'◇'})[g]||'◇';
       const empty=t=>'<div class="alert-empty">'+t+'</div>';
       function row(a,i,selection){const group=groups[a.kind],busy=!papeleraCargada||alertasEnProceso.has(a.clave)||loteAlertas;
-        return `<article class="alert-item">${selection&&seleccionandoAlertas?`<input class="alert-check" type="checkbox" data-index="${i}" aria-label="Seleccionar ${esc(a.titulo)}" ${seleccionAlertas.has(a.clave)?'checked':''} ${loteAlertas?'disabled':''}>`:''}<span class="alert-icon ${group}" aria-hidden="true">${icon(group)}</span><div class="alert-copy"><b>${esc(a.titulo)}</b><p class="alert-excerpt">${esc(a.descripcion)}</p>${a.descripcion.length>130?`<details class="alert-detail"><summary>Ver detalle</summary><p>${esc(a.descripcion)}</p></details>`:''}</div><div class="alert-actions"><button class="btn dark alert-open" data-index="${i}">Revisar</button><details class="alert-menu"><summary class="btn" aria-label="Opciones de ${esc(a.titulo)}">⋯</summary><div class="alert-menu-panel"><button class="btn alert-remove" data-index="${i}" data-reason="resuelta" ${busy?'disabled':''}>✓ Ya resuelta</button><button class="btn alert-remove" data-index="${i}" data-reason="descartada" ${busy?'disabled':''}>Descartar</button></div></details></div></article>`;
+        return `<article class="alert-item" data-alert-key="${esc(a.clave)}">${selection&&seleccionandoAlertas?`<input class="alert-check" type="checkbox" data-index="${i}" aria-label="Seleccionar ${esc(a.titulo)}" ${seleccionAlertas.has(a.clave)?'checked':''} ${loteAlertas?'disabled':''}>`:''}<span class="alert-icon ${group}" aria-hidden="true">${icon(group)}</span><div class="alert-copy"><b>${esc(a.titulo)}</b><p class="alert-excerpt">${esc(a.descripcion)}</p>${CubicoAlerts.detail(a.contexto)}${a.descripcion.length>130?`<details class="alert-detail"><summary>Ver detalle</summary><p>${esc(a.descripcion)}</p></details>`:''}</div><div class="alert-actions"><button class="btn dark alert-open" data-index="${i}">Revisar</button><details class="alert-menu"><summary class="btn" aria-label="Opciones de ${esc(a.titulo)}">⋯</summary><div class="alert-menu-panel"><button class="btn alert-remove" data-index="${i}" data-reason="resuelta" ${busy?'disabled':''}>✓ Ya resuelta</button><button class="btn alert-remove" data-index="${i}" data-reason="descartada" ${busy?'disabled':''}>Descartar</button></div></details></div></article>`;
       }
       const grouped=Object.keys(labels).map(g=>{const rows=visibles.map((a,i)=>({a,i})).filter(x=>groups[x.a.kind]===g);return rows.length?`<section class="alert-group"><h3>${labels[g]} <span>${rows.length}</span></h3>${rows.map(x=>row(x.a,x.i,true)).join('')}</section>`:''}).join('');
       const warning=!papeleraCargada?empty('No se pudo cargar la Papelera. Vuelve a abrir Alertas para reintentar.'):'';
@@ -1289,6 +1300,7 @@
       const selected=visibles.filter(a=>seleccionAlertas.has(a.clave)).length;
       document.getElementById('alert-selected-count').textContent=selected+' seleccionadas';const all=document.getElementById('alert-select-all');all.checked=visibles.length>0&&selected===visibles.length;all.indeterminate=selected>0&&selected<visibles.length;all.disabled=loteAlertas;
       for(const id of ['alert-bulk-resolve','alert-bulk-discard'])document.getElementById(id).disabled=!selected||loteAlertas||!papeleraCargada;
+      document.querySelectorAll('[data-alert-key] .attention-detail').forEach(el=>{el.open=guiasAbiertas.has(el.closest('[data-alert-key]').dataset.alertKey)});
       document.querySelectorAll('.alert-open,.alert-remove,.alert-check').forEach(b=>{const list=b.closest('#overview-alerts')?activas:visibles,a=list[Number(b.dataset.index)];if(b.classList.contains('alert-open'))b.addEventListener('click',()=>{const t=a.target;showView(t.view);if(t.view==='chats')abrirChat(t.tel);else if(t.view==='packages')seleccionarSolicitud(t.tel,t.type);else seleccionarOportunidad(t.id)});else if(b.classList.contains('alert-check'))b.addEventListener('change',()=>{b.checked?seleccionAlertas.add(a.clave):seleccionAlertas.delete(a.clave);renderAlertas()});else b.addEventListener('click',()=>quitarAlerta(a,b.dataset.reason))});
       document.querySelectorAll('.alert-menu').forEach(menu=>menu.addEventListener('toggle',()=>{if(menu.open)document.querySelectorAll('.alert-menu[open]').forEach(other=>{if(other!==menu)other.open=false})}));
       document.querySelectorAll('.alert-restore').forEach(b=>b.addEventListener('click',()=>restaurarAlerta(Number(b.dataset.id))));

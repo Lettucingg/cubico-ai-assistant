@@ -29,6 +29,7 @@ from app.db.session_store import (
     actualizar_oportunidad_comercial,
 )
 from app.services import panel_profile, notification_preferences
+from app.services.attention_context import attention_context
 from app.services.panel_send_once import envio_unico
 from app.services.push_notifications import push_configurado
 from app.services.daily_reports import listar_informes, usuarios_informes
@@ -421,6 +422,7 @@ def listar_conversaciones(usuario: str = Depends(verificar_credenciales_panel)):
             "aviso_retiro_pendiente": sesion.aviso_retiro_pendiente,
             "solicitud_domicilio_pendiente": sesion.solicitud_domicilio_pendiente,
             "motivo_escalamiento": sesion.motivo_escalamiento or None,
+            "contexto_atencion": attention_context(sesion.motivo_escalamiento, historial, sesion.necesita_atencion_humana),
             "atencion_humana_directa": bool(sesion.atencion_humana_directa),
             "atencion_humana_por": sesion.atencion_humana_por,
             "atencion_humana_desde": (
@@ -546,6 +548,7 @@ def listar_actividad_panel(usuario: str = Depends(verificar_credenciales_panel))
             ),
             "necesita_atencion_humana": bool(sesion.necesita_atencion_humana),
             "motivo_escalamiento": sesion.motivo_escalamiento or None,
+            "contexto_atencion": attention_context(sesion.motivo_escalamiento, historial, sesion.necesita_atencion_humana),
             "atencion_humana_directa": bool(sesion.atencion_humana_directa),
             "atencion_humana_por": sesion.atencion_humana_por,
             "atencion_humana_desde": (
@@ -1108,6 +1111,7 @@ def obtener_conversacion(telefono: str, usuario: str = Depends(verificar_credenc
     return {
         "telefono": sesion.telefono,
         "historial": sesion.obtener_historial(),
+        "contexto_atencion": attention_context(sesion.motivo_escalamiento, sesion.obtener_historial(), sesion.necesita_atencion_humana),
     }
 
 
