@@ -1,10 +1,10 @@
 {
-  "version": "1.1.6",
+  "version": "1.1.7",
   "fecha": "2026-10-15",
-  "titulo": "Lectura y comprobación de notificaciones",
+  "titulo": "Conversaciones más simples",
   "novedades": [
-    "Modo de lectura grande con mayor contraste y vistas previas del mensaje del cliente.",
-    "Chats sin leer destacados y al principio de la lista.",
-    "Registro del dispositivo comprobado con el servidor y prueba de notificaciones para tu cuenta."
+    "Lista de mensajes minimalista, con filas pulsables, hora y una indicación para abrir cada conversación.",
+    "Pantalla inicial con acceso directo al primer chat sin leer.",
+    "El editor aparece al abrir un chat; se conservan los borradores y las herramientas de gestión."
   ]
 }
