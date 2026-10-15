@@ -1,10 +1,10 @@
 {
-  "version": "1.1.5",
+  "version": "1.1.6",
   "fecha": "2026-10-15",
-  "titulo": "Alertas y atenciones con contexto",
+  "titulo": "Lectura y comprobación de notificaciones",
   "novedades": [
-    "Las atenciones incluyen motivo, últimos mensajes, pasos de revisión y un borrador orientativo.",
-    "Las alertas de pagos, envíos fallidos, paquetes y negocios explican qué revisar.",
-    "La guía interna se puede consultar dentro del chat y no envía mensajes automáticamente."
+    "Modo de lectura grande con mayor contraste y vistas previas del mensaje del cliente.",
+    "Chats sin leer destacados y al principio de la lista.",
+    "Registro del dispositivo comprobado con el servidor y prueba de notificaciones para tu cuenta."
   ]
 }

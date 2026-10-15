@@ -60,12 +60,12 @@
 
 .reports-heading{display:flex;justify-content:space-between;align-items:center;gap:12px}.reports-history-note{font-size:12px;color:var(--muted);line-height:1.5}#daily-reports-history{margin-top:18px;padding-top:14px;border-top:1px solid var(--line)}#daily-reports-history[hidden]{display:none}#daily-reports-history h4{margin:0 0 6px;font-size:14px}#daily-reports-history-list{max-height:420px;overflow:auto}@media(max-width:760px){.reports-heading h3{font-size:15px}.reports-heading .btn{font-size:12px;padding:9px 11px}}
 </style>
-  <link rel="stylesheet" href="/static/panel-theme.css?v=1.1.5">
+  <link rel="stylesheet" href="/static/panel-theme.css?v=1.1.6">
 <link rel="stylesheet" href="/static/bot-cost-analytics.css?v=20261008">
 <link rel="stylesheet" href="/static/operational-context.css?v=20261012">
 <style>.release-banner{display:flex;gap:14px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding:15px 18px;margin-bottom:20px;background:#fff5d9;border:1px solid #e8d29c;border-radius:14px;font-size:13px;line-height:1.5}.release-banner[hidden]{display:none}.release-warning{color:#916a14!important}.release-card details summary{cursor:pointer;font-size:13px}.release-card [hidden]{display:none!important}</style>
 </head>
-<body data-panel-version="1.1.5">
+<body data-panel-version="1.1.6">
   <div id="login-overlay" style="position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:50;padding:20px">
     <div class="card" style="width:100%;max-width:380px;padding:32px 28px">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:24px">
@@ -97,7 +97,7 @@
       </nav>
       <div class="nav-label" style="margin-top:22px">Sistema</div>
       <nav class="nav"><button data-view="operations"><span>◉</span><span>Contexto operativo</span></button><button data-view="alerts"><span>△</span><span>Alertas</span><span class="count" id="nav-count-alerts">0</span></button><button data-view="settings"><span>⚙</span><span>Configuración</span></button></nav>
-      <div class="side-bottom"><div class="health"><div class="health-top"><span><i class="dot"></i>Panel conectado</span><b>API</b></div><p>Los estados mostrados vienen del backend de Bruno.</p><p id="app-version-footer">Panel · v1.1.5</p></div></div>
+      <div class="side-bottom"><div class="health"><div class="health-top"><span><i class="dot"></i>Panel conectado</span><b>API</b></div><p>Los estados mostrados vienen del backend de Bruno.</p><p id="app-version-footer">Panel · v1.1.6</p></div></div>
     </aside>
     <main>
       <header class="topbar"><div class="title"><h1 id="page-title">Buenos días</h1><p id="page-sub">Esto es lo que está pasando en Cúbico hoy.</p></div><div class="top-actions"><input class="search" id="global-search" placeholder="Buscar chat, cliente o paquete…" aria-label="Buscar"/><button class="icon-btn" id="notifications" aria-label="Notificaciones" title="Ver alertas y activar notificaciones">🔔<span class="notification-count" id="notification-count">0</span></button><div class="avatar" id="settings-shortcut" role="button" tabindex="0" aria-label="Abrir configuración" title="Configuración">—</div></div></header>
@@ -120,7 +120,7 @@
 
       <section class="view" id="chats">
         <div class="inbox card">
-          <aside class="chat-list"><div class="pane-head"><div class="pane-head-row"><h2>Conversaciones</h2><select class="filter" id="filtro-select"><option>Todas</option><option>Sin leer</option><option>Necesitan humano</option><option>Bruno atendiendo</option></select></div><div class="chat-filter-tabs" aria-label="Filtrar conversaciones"><button type="button" data-chat-filter-tab="todas" aria-pressed="true">Todas · <span id="chat-total-count">0</span></button><button type="button" data-chat-filter-tab="sin_leer" aria-pressed="false">Sin leer</button><button type="button" data-chat-filter-tab="humano" aria-pressed="false">Atención</button></div><input class="chat-search" id="chat-search" placeholder="Buscar conversación…" /></div><div class="chat-items" id="chat-items">
+          <aside class="chat-list"><div class="pane-head"><div class="pane-head-row"><h2>Conversaciones</h2><button class="btn" id="reading-toggle" type="button" aria-pressed="false" aria-label="Activar lectura grande">Aa</button><select class="filter" id="filtro-select"><option>Todas</option><option>Sin leer</option><option>Necesitan humano</option><option>Bruno atendiendo</option></select></div><div class="chat-filter-tabs" aria-label="Filtrar conversaciones"><button type="button" data-chat-filter-tab="todas" aria-pressed="true">Todas · <span id="chat-total-count">0</span></button><button type="button" data-chat-filter-tab="sin_leer" aria-pressed="false">Sin leer</button><button type="button" data-chat-filter-tab="humano" aria-pressed="false">Atención</button></div><input class="chat-search" id="chat-search" placeholder="Buscar conversación…" /></div><button class="unread-notice" id="unread-notice" type="button" hidden></button><div class="chat-items" id="chat-items">
             <div style="padding:30px 16px;text-align:center;color:var(--muted);font-size:12px">Cargando conversaciones…</div>
           </div></aside>
           <section class="conversation"><header class="conv-head"><div class="conv-person"><button class="mobile-chat-back" id="mobile-chat-back" aria-label="Volver a conversaciones">‹</button><div class="person" id="conv-avatar">—</div><div><b id="conv-name">Selecciona una conversación</b><small><i class="dot"></i><span id="conv-status-line">Elige un chat de la lista</span></small></div></div><div class="conv-actions"><button class="btn chat-editing-done" id="chat-editing-done" type="button" aria-label="Cerrar teclado">Listo</button><div class="chat-actions-wrap"><button class="btn" id="chat-actions-toggle" aria-controls="customer-panel" aria-expanded="false" disabled>Gestionar</button></div><span id="extra-actions" style="display:contents"></span></div></header><aside id="attention-guide" hidden aria-label="Contexto de atención"></aside><div class="messages" id="messages" tabindex="0" aria-label="Historial de la conversación"><div class="day">Selecciona una conversación para ver su historial</div></div><footer class="composer"><div class="attach-menu" id="attach-menu"><button class="attach-option" type="button" data-attach-kind="image"><span class="attach-option-icon">▧</span><span><b>Foto</b><small>JPG o PNG</small></span></button><button class="attach-option" type="button" data-attach-kind="document"><span class="attach-option-icon">PDF</span><span><b>Documento</b><small>Archivo PDF</small></span></button></div><div class="attach-preview" id="attach-preview" style="display:none"></div><div class="compose-row"><button class="voice" id="voice" aria-label="Grabar mensaje de voz">●</button><button class="attach" id="attach-btn" aria-label="Añadir foto o documento" title="Añadir archivo" disabled>＋</button><input type="file" id="attach-image-input" accept="image/jpeg,image/png" style="display:none"/><input type="file" id="attach-pdf-input" accept="application/pdf,.pdf" style="display:none"/><textarea class="compose-input" id="message-input" rows="1" aria-label="Mensaje para el cliente" placeholder="Escribe como Cúbico…" disabled></textarea><button class="send" id="send" aria-label="Enviar" disabled>➤</button></div><div class="send-feedback" id="send-feedback" role="status" aria-live="polite" hidden><span id="send-feedback-icon" aria-hidden="true"></span><span id="send-feedback-text"></span></div><div class="draft-tools" id="draft-tools" hidden><button type="button" id="draft-select-all">Seleccionar todo</button><button type="button" id="draft-copy">Copiar</button></div><div class="compose-foot"><span id="mode-label">Selecciona una conversación para comenzar</span><span>Enter: nueva línea · Ctrl/⌘ + Enter: enviar</span></div></footer></section>
@@ -208,7 +208,7 @@
 
         <article class="card settings-section"><h2>Mi perfil</h2><form id="account-profile-form" class="profile-form"><div class="profile-photo-row"><div class="account-photo" id="account-photo">—</div><div><label class="btn" for="account-photo-input">Elegir foto</label><input id="account-photo-input" type="file" accept="image/jpeg,image/png,image/webp" hidden><button class="btn" id="account-photo-remove" type="button">Quitar foto</button></div></div><label>Nombre visible<input id="account-name" maxlength="80" required autocomplete="name"></label><p class="personalization-note" id="account-user">Tu usuario de acceso permanece igual.</p><button class="btn dark" type="submit">Guardar perfil</button><p id="account-profile-status" class="profile-message" role="status" aria-live="polite"></p></form></article>
         <article class="card settings-section"><h2>Cambiar contraseña</h2><form id="account-password-form" class="profile-form"><label>Contraseña actual<input id="account-password-current" type="password" autocomplete="current-password" required maxlength="256"></label><label>Nueva contraseña<input id="account-password-new" type="password" autocomplete="new-password" minlength="10" maxlength="128" required></label><label>Confirmar nueva contraseña<input id="account-password-confirm" type="password" autocomplete="new-password" minlength="10" maxlength="128" required></label><p class="personalization-note">Usa al menos 10 caracteres. La contraseña anterior dejará de funcionar.</p><button class="btn" id="account-password-toggle" type="button" aria-pressed="false">Ver contraseñas</button><button class="btn dark" type="submit">Cambiar contraseña</button><p id="account-password-status" class="profile-message" role="status" aria-live="polite"></p></form></article>
-        <article class="card settings-section"><h2>Notificaciones</h2><div class="setting-row"><div><b>Qué quieres recibir</b><p>Se aplica a tu cuenta en todos tus dispositivos. Los informes diarios cuentan como alertas.</p></div><select class="filter" id="notification-category" aria-label="Tipos de notificaciones"><option value="ambos">Alertas y chats</option><option value="alertas">Solo alertas</option><option value="chats">Solo chats</option></select></div><p id="notification-category-status" class="profile-message" role="status"></p><div class="setting-row"><div><b>Mientras usas el panel</b><p id="notification-status">Actívalas para recibir avisos en otra pestaña.</p></div><button class="btn" id="notification-toggle">Activar notificaciones</button></div><div class="setting-row"><div><b>En este dispositivo</b><p id="push-status">Inicia sesión para comprobar la instalación.</p></div><button class="btn" id="push-toggle">Activar en este dispositivo</button></div><div class="setting-row"><div><b>Sonido del panel</b><p>Un aviso breve al recibir nuevos mensajes.</p></div><button class="btn" id="sound-toggle">Sonido: activo</button></div></article>
+        <article class="card settings-section"><h2>Notificaciones</h2><div class="setting-row"><div><b>Comprobar recepción</b><p>Envía un aviso de prueba a los dispositivos registrados en tu cuenta. Confirma si lo ves en este equipo o celular.</p></div><button class="btn" id="push-test" type="button">Enviar prueba a mis dispositivos</button></div><p id="push-test-status" class="profile-message" role="status"></p><div class="setting-row"><div><b>Qué quieres recibir</b><p>Se aplica a tu cuenta en todos tus dispositivos. Los informes diarios cuentan como alertas.</p></div><select class="filter" id="notification-category" aria-label="Tipos de notificaciones"><option value="ambos">Alertas y chats</option><option value="alertas">Solo alertas</option><option value="chats">Solo chats</option></select></div><p id="notification-category-status" class="profile-message" role="status"></p><div class="setting-row"><div><b>Mientras usas el panel</b><p id="notification-status">Actívalas para recibir avisos en otra pestaña.</p></div><button class="btn" id="notification-toggle">Activar notificaciones</button></div><div class="setting-row"><div><b>En este dispositivo</b><p id="push-status">Inicia sesión para comprobar la instalación.</p></div><button class="btn" id="push-toggle">Activar en este dispositivo</button></div><div class="setting-row"><div><b>Sonido del panel</b><p>Un aviso breve al recibir nuevos mensajes.</p></div><button class="btn" id="sound-toggle">Sonido: activo</button></div></article>
         <article class="card settings-section"><h2>Tu panel</h2><div class="setting-row"><div><b>Conexión de la sesión</b><p>El panel utiliza tu acceso para consultar la operación.</p></div><span class="status-pill ready">Sesión iniciada</span></div><div class="setting-row"><div><b>Informes de Bruno</b><p>Estado a las 8:00 a. m. y resumen a las 5:00 p. m., hora de Panamá.</p></div><button class="btn" data-view="overview">Ver informes</button></div></article>
         <article class="card settings-section wide"><h2>Personalización</h2><b style="font-size:13px">Fondo de conversaciones</b><p class="personalization-note">Elige un fondo para el área de mensajes. Las listas mantienen su fondo limpio.</p><div class="background-options"><button class="background-choice" type="button" data-chat-background="plain" aria-pressed="false"><div class="background-sample plain"></div><strong>Liso</strong></button><button class="background-choice" type="button" data-chat-background="cubes" aria-pressed="true"><div class="background-sample cubes"></div><strong>Cubos</strong></button><button class="background-choice" type="button" data-chat-background="brand" aria-pressed="false"><div class="background-sample brand"></div><strong>Marca Cúbico</strong></button></div><p class="personalization-note" id="background-status" role="status">Se guarda automáticamente en este navegador.</p></article>
       </div></section>
@@ -226,11 +226,11 @@
   <script src="/static/panel-personalization.js"></script>
   <script src="/static/panel-mobile-layout.js?v=20261013-resume"></script>
   <script src="/static/chat-text-editor.js?v=20261007-send"></script>
-  <script src="/static/app-release.js?v=1.1.5"></script>
+  <script src="/static/app-release.js?v=1.1.6"></script>
   <script src="/static/operational-context.js?v=20261012"></script>
   <script src="/static/bot-cost-analytics.js?v=20261008"></script>
   <script src="/static/daily-report.js"></script>
-  <script src="/static/alert-management.js?v=1.1.5?v=20261007-send"></script>
+  <script src="/static/alert-management.js?v=1.1.6?v=20261007-send"></script>
   <script>
     const titles={overview:['Buenos días, Alexander','Esto es lo que está pasando en Cúbico hoy.'],chats:['Conversaciones','Supervisa a Bruno y toma el control cuando haga falta.'],packages:['Retiros y domicilios','Organiza las solicitudes que llegan directamente desde WhatsApp.'],opportunities:['Oportunidades comerciales','Bruno organiza la información; el equipo decide qué propuesta preparar.'],costs:['Costos y actividad','Consumo estimado, gastos confirmados y actividad de Bruno.'],alerts:['Alertas','Lo que necesita tu atención, en un solo lugar.'],operations:['Contexto operativo','Mantén a Bruno al tanto de los cambios de la operación.'],settings:['Configuración','Integraciones y estado técnico de Bruno.']};
     function showView(id){document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id===id));document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.view===id));document.getElementById('page-title').textContent=titles[id][0];document.getElementById('page-sub').textContent=titles[id][1];if(id!=='chats'&&typeof cerrarPanelCliente==='function')cerrarPanelCliente();if(id==='packages')cargarSolicitudes();if(id==='opportunities')cargarOportunidades();if(id==='costs'){cargarUso(30);BotCosts.load()};if(id==='alerts')cargarPapelera();if(id==='operations')OperationalContext.load();if(id==='settings')CubicoRelease.load();window.scrollTo({top:0,behavior:'smooth'})}
@@ -317,11 +317,15 @@
         const config=await r.json();
         if(!config.disponible){estado.textContent='Falta activar la clave segura del servidor.';boton.disabled=true;boton.textContent='Pendiente del servidor';return}
         const registro=await registroPush(),suscripcion=await registro.pushManager.getSubscription();
-        pushSuscrito=Boolean(suscripcion);
-        if(pushSuscrito){estado.textContent='Activas en este dispositivo, incluso con el panel cerrado.';boton.textContent='Desactivar en este dispositivo'}
+        if(suscripcion&&Notification.permission==='granted'){
+          const guardar=await apiPost('/panel/push/suscripcion',suscripcion.toJSON());
+          if(!guardar.ok)throw Error('No se pudo registrar el dispositivo en tu cuenta');
+          pushSuscrito=true;
+        }
+        if(pushSuscrito){estado.textContent='Dispositivo registrado en tu cuenta. Usa la prueba para comprobar que el aviso aparece.';boton.textContent='Desactivar en este dispositivo'}
         else{estado.textContent='Recibe mensajes aunque cierres el panel.';boton.textContent='Activar en este dispositivo'}
         boton.disabled=false;
-      }catch(e){estado.textContent='No se pudo comprobar el servicio push.';boton.disabled=false}
+      }catch(e){estado.textContent='No se pudo confirmar el registro de este dispositivo. Reintenta antes de dar las notificaciones por activas.';boton.disabled=false}
     }
     async function cambiarPush(){
       const boton=document.getElementById('push-toggle');boton.disabled=true;
@@ -341,6 +345,20 @@
       }catch(e){say(e.message||'No se pudieron configurar las notificaciones')}finally{await actualizarEstadoPush()}
     }
 
+    document.getElementById('push-test').addEventListener('click',async()=>{
+      const button=document.getElementById('push-test'),status=document.getElementById('push-test-status');
+      button.disabled=true;status.textContent='Enviando prueba…';
+      try{
+        const response=await apiPost('/panel/push/prueba');if(!response.ok)throw Error();
+        const result=await response.json();
+        status.textContent=!result.configurado?'El servidor no tiene push configurado.':result.enviadas>0?'El servicio aceptó la prueba para '+result.enviadas+' dispositivo(s). Confirma si apareció; esto todavía no acredita que la hayas visto.':'Ningún dispositivo aceptó la prueba. Activa las notificaciones en este dispositivo y vuelve a intentar.';
+      }catch(e){status.textContent='No se pudo enviar la prueba. Revisa la conexión y vuelve a intentar.'}finally{button.disabled=false}
+    });
+    const readingToggle=document.getElementById('reading-toggle');
+    function aplicarLectura(grande){document.body.classList.toggle('reading-large',grande);readingToggle.setAttribute('aria-pressed',String(grande));readingToggle.textContent=grande?'Aa −':'Aa +';readingToggle.setAttribute('aria-label',grande?'Volver al tamaño normal':'Activar lectura grande')}
+    try{aplicarLectura(localStorage.getItem('cubico.reading.large')==='true')}catch(e){}
+    readingToggle.addEventListener('click',()=>{const grande=!document.body.classList.contains('reading-large');aplicarLectura(grande);try{localStorage.setItem('cubico.reading.large',String(grande))}catch(e){}});
+    document.getElementById('unread-notice').addEventListener('click',()=>aplicarFiltroChat('sin_leer'));
     let fotoCuenta=null,cambiandoContrasena=false;
     function codificarAcceso(usuario,password){return btoa(String.fromCharCode(...new TextEncoder().encode(usuario+':'+password)))}
     function estadoCuenta(id,mensaje,error=false){const el=document.getElementById(id);el.textContent=mensaje;el.classList.toggle('error',error)}
@@ -406,6 +424,7 @@
     async function refrescarMensajes(){if(actualizandoRapido||!creds)return;actualizandoRapido=true;try{await Promise.all([recargarActividad(),recargarHistorialActivo()])}finally{actualizandoRapido=false}}
     async function refrescarDatosSecundarios(){if(!creds)return;OperationalContext.load();CubicoRelease.load();await Promise.all([cargarAlertasPaquetes(),cargarPapelera(),recargarConversaciones(),cargarResumen(),cargarSolicitudes(),cargarOportunidades(),cargarUso(30)])}
 
+    function puedeMarcarLeido(telefono){return telefono===telActivo&&!document.hidden&&document.getElementById('chats').classList.contains('active')&&(!window.matchMedia('(max-width:760px)').matches||document.querySelector('.inbox').classList.contains('mobile-chat-open'))}
     async function recargarHistorialActivo(){
       const telefono=telActivo;
       if(!telefono)return;
@@ -416,7 +435,8 @@
         pintarContextoAtencion(datos.contexto_atencion);
         const historial=datos.historial||[];
         const firma=JSON.stringify(historial);
-        if(firma!==firmaHistorialActivo){renderMensajes(historial);const marcado=await apiPost(`/panel/marcar-leido/${telefono}`);if(marcado.ok&&telefono===telActivo){const c=convs.find(x=>x.telefono===telefono);if(c)c.tiene_no_leidos=false;actualizarContadorNotificaciones()}}
+        if(firma!==firmaHistorialActivo)renderMensajes(historial);
+        if(puedeMarcarLeido(telefono)&&convs.find(c=>c.telefono===telefono)?.tiene_no_leidos){const marcado=await apiPost(`/panel/marcar-leido/${telefono}`);if(marcado.ok&&telefono===telActivo){const c=convs.find(x=>x.telefono===telefono);if(c)c.tiene_no_leidos=false;actualizarContadorNotificaciones()}}
       }catch(e){}
     }
 
@@ -464,14 +484,16 @@
       document.querySelectorAll('[data-chat-filter-tab]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.chatFilterTab===filtroEstado)));
       actualizarContadorNotificaciones(data);
       const cont=document.getElementById('chat-items');
-      const lista=data.filter(coincideFiltro).filter(coincideBusqueda);
+      const lista=data.filter(coincideFiltro).filter(coincideBusqueda).sort((a,b)=>Number(!!b.tiene_no_leidos)-Number(!!a.tiene_no_leidos));
+      const unreadCount=data.filter(c=>c.tiene_no_leidos).length,notice=document.getElementById('unread-notice');notice.hidden=!unreadCount;notice.textContent=unreadCount+' chat(s) sin leer · Ver mensajes';
       if(!lista.length){
         cont.innerHTML='<div style="padding:30px 16px;text-align:center;color:var(--muted);font-size:12px">Sin conversaciones para este filtro</div>';
         return;
       }
       cont.innerHTML=lista.map(c=>{
         const nombre=c.nombre||c.telefono;
-        const prev=esc((c.ultimo_mensaje?.contenido||'').slice(0,58))||'—';
+        const preview=c.ultimo_mensaje_cliente?.contenido;
+        const prev=esc((preview?'Cliente: '+preview:c.ultimo_mensaje?.contenido||'Sin mensaje del cliente').slice(0,240));
         const enControl=!!c.atencion_humana_directa;
         const tagControl=enControl?'<span class="bot-tag human-tag">Humano · '+esc(c.atencion_humana_por||'equipo')+'</span>':'<span class="bot-tag">Bruno</span>';
         const badges=[
@@ -479,7 +501,7 @@
           c.aviso_retiro_pendiente?'<span class="bot-tag">📦 Retiro</span>':'',
           c.solicitud_domicilio_pendiente?'<span class="bot-tag">🏠 Domicilio</span>':'',
         ].join('');
-        return`<button class="chat-item${c.telefono===telActivo?' active':''}" data-telefono="${c.telefono}"><div class="person${colorClass(c.telefono)}">${initials(nombre)}</div><div class="chat-copy"><div class="chat-name"><b>${esc(nombre)}</b>${tagControl}${badges}</div><p>${prev}</p></div><div class="chat-meta">${c.tiene_no_leidos?'<span class="unread"></span>':''}</div></button>`;
+        return`<button class="chat-item${c.telefono===telActivo?' active':''}${c.tiene_no_leidos?' is-unread':''}" data-telefono="${c.telefono}"><div class="person${colorClass(c.telefono)}">${initials(nombre)}</div><div class="chat-copy"><div class="chat-name"><b>${esc(nombre)}</b>${tagControl}${badges}</div><p>${prev}</p></div><div class="chat-meta">${c.tiene_no_leidos?'<span class="unread-label">Sin leer</span>':''}</div></button>`;
       }).join('');
       document.querySelectorAll('#chat-items .chat-item').forEach(btn=>btn.addEventListener('click',()=>abrirChat(btn.dataset.telefono)));
     }
@@ -980,6 +1002,7 @@
         else if(tel===telActivo){document.getElementById('messages').innerHTML='<div class="day">No se pudo cargar el historial</div>'}
       }catch(e){if(tel===telActivo)document.getElementById('messages').innerHTML='<div class="day">Error de conexión</div>'}
       try{
+        if(!puedeMarcarLeido(tel))return;
         const r2=await apiPost(`/panel/marcar-leido/${tel}`);
         if(r2.ok){
           const c=convs.find(x=>x.telefono===tel);

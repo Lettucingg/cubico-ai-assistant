@@ -104,3 +104,15 @@ async def notificar_alerta_push(titulo: str, descripcion: str, telefono: str | N
         import logging
         logging.getLogger(__name__).exception("No se pudo enviar el aviso push")
         return {"enviadas": 0, "eliminadas": 0, "configurado": push_configurado()}
+
+
+async def enviar_prueba_push(usuario: str) -> dict:
+    """Prueba explícita a los dispositivos de la cuenta autenticada, sin datos de clientes."""
+    from app.services.notification_preferences import obtener
+    categoria = obtener(usuario)
+    return await asyncio.to_thread(_enviar_a_dispositivos, {
+        "categoria": "chats" if categoria == "chats" else "alertas",
+        "title": "CÚBICO · Prueba de notificaciones",
+        "body": "Si ves este aviso, la prueba llegó a este dispositivo.",
+        "url": "/admin", "tag": "cubico-prueba",
+    }, {usuario})

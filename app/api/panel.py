@@ -334,6 +334,12 @@ def configuracion_push(usuario: str = Depends(verificar_credenciales_panel)):
     }
 
 
+@router.post("/push/prueba")
+async def probar_push_panel(usuario: str = Depends(verificar_credenciales_panel)):
+    from app.services.push_notifications import enviar_prueba_push
+    return await enviar_prueba_push(usuario)
+
+
 @router.get("/alertas/papelera")
 def alertas_papelera(usuario: str = Depends(verificar_credenciales_panel)):
     return listar_archivadas()
