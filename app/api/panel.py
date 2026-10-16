@@ -1199,6 +1199,57 @@ async def obtener_audio_panel(
     )
 
 
+class ConsultaBrunoPayload(BaseModel):
+    pregunta: str = Field(min_length=1, max_length=2000, pattern=r'.*\S.*')
+    modo: Literal['consulta', 'borrador'] = 'consulta'
+
+
+@router.post('/asistente/{telefono}')
+async def consultar_bruno_panel(telefono: str, payload: ConsultaBrunoPayload,
+                                usuario: str = Depends(verificar_credenciales_panel)):
+    from app.services.internal_assistant import query_chat, UnlinkedCustomer
+    from app.tools.clientes import normalizar_codigo_cliente
+    sesion = obtener_sesion_existente(telefono)
+    if sesion is None:
+        raise HTTPException(status_code=404, detail='No existe esa conversación')
+    codigo = normalizar_codigo_cliente(sesion.codigo_cliente_verificado or '')
+    try:
+        result = await asyncio.to_thread(query_chat, sesion, payload.pregunta.strip(), payload.modo)
+    except UnlinkedCustomer as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    except Exception:
+        logging.getLogger(__name__).exception('No se pudo completar una consulta interna a Bruno')
+        raise HTTPException(status_code=502, detail='No se pudo completar la consulta. No se envió ningún mensaje; puedes reintentar.') from None
+    actual = obtener_sesion_existente(telefono)
+    if actual is None or normalizar_codigo_cliente(actual.codigo_cliente_verificado or '') != codigo or actual.tipo_cliente_verificado != sesion.tipo_cliente_verificado:
+        raise HTTPException(status_code=409, detail='Cambió el cliente asociado al chat. Vuelve a consultar antes de usar el resultado.')
+    return result
+
+
+@router.post('/responder-revisado/{telefono}')
+@envio_unico
+async def enviar_respuesta_revisada(telefono: str, body: dict,
+                                   usuario: str = Depends(verificar_credenciales_panel)):
+    from app.tools.clientes import normalizar_codigo_cliente
+    mensaje = body.get('mensaje')
+    if not isinstance(mensaje, str) or not mensaje.strip() or len(mensaje) > 4000:
+        raise HTTPException(status_code=422, detail='La respuesta debe tener entre 1 y 4000 caracteres.')
+    sesion = _validar_operador_conversacion(telefono, usuario)
+    codigo = normalizar_codigo_cliente(sesion.codigo_cliente_verificado or '')
+    if not codigo or normalizar_codigo_cliente(str(body.get('codigo_cliente') or '')) != codigo:
+        raise HTTPException(status_code=409, detail='El cliente asociado cambió o no está verificado. Vuelve a consultar a Bruno.')
+    # Human-reviewed text is sent exactly once, without a second AI rewrite.
+    respuesta_meta = await enviar_respuesta_natural(telefono, mensaje.strip(), message_id='',
+                                                   simular_escritura=False, dividir=False)
+    if hasattr(respuesta_meta, 'is_success') and not respuesta_meta.is_success:
+        raise HTTPException(status_code=502, detail='Meta no pudo enviar el mensaje')
+    agregar_al_historial(telefono, 'humano', mensaje.strip(),
+                        whatsapp_message_id=extraer_id_mensaje_meta(respuesta_meta),
+                        estado_entrega='accepted', autor_tipo='humano', operador=usuario,
+                        modo_envio='revisado_bruno')
+    return {'status': 'enviado'}
+
+
 @router.post("/responder/{telefono}")
 @envio_unico
 async def responder_cliente(

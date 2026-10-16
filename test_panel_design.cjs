@@ -20,7 +20,8 @@ w.fetch=async(url,options={})=>{const path=new URL(url).pathname;let data;
  if(path==='/panel/perfil'&&options.method==='PUT')fixtures.perfil=JSON.parse(options.body);
  if(path==='/panel/perfil/contrasena')data={status:'ok'};
  else
- if(path==='/panel/push/prueba')data={configurado:true,enviadas:1,eliminadas:0};
+ if(path.startsWith('/panel/asistente/'))data={telefono:path.split('/').at(-1),privado:true,codigo_cliente:'CBC-1',consultado_en:new Date().toISOString(),respuesta:'Saldo total: $10.00',borrador:'Tu saldo total pendiente es de $10.00.',datos:{}};
+ else if(path==='/panel/push/prueba')data={configurado:true,enviadas:1,eliminadas:0};
  else if(path==='/panel/alertas/papelera')data=archived;
  else if(path==='/panel/alertas/archivar'){data={...JSON.parse(options.body),id:archived.length+1,usuario:'alexander',creado_en:new Date().toISOString()};archived.push(data)}
  else if(path.match(/alertas\/\d+\/restaurar/)){archived=archived.filter(a=>a.id!==Number(path.split('/').at(-2)));data={restaurada:true}}
@@ -28,7 +29,7 @@ w.fetch=async(url,options={})=>{const path=new URL(url).pathname;let data;
  else data=fixtures[path.split('/').at(-1)]||{};
  return {ok:true,status:200,json:async()=>structuredClone(data)};
 };
-for(const f of ['panel-personalization.js','panel-mobile-layout.js','chat-text-editor.js','app-release.js','operational-context.js','bot-cost-analytics.js','daily-report.js','alert-management.js'])w.eval(fs.readFileSync('app/static/'+f,'utf8'));
+for(const f of ['panel-personalization.js','panel-mobile-layout.js','chat-text-editor.js','app-release.js','operational-context.js','bot-cost-analytics.js','daily-report.js','alert-management.js','internal-assistant.js'])w.eval(fs.readFileSync('app/static/'+f,'utf8'));
 const inline=html.match(/<script>\s*([\s\S]*?)<\/script>/)[1];new Function(inline);
 w.eval(inline+`\nwindow.seedDesign=()=>{creds='test';usuarioActual='alexander';document.querySelector('.app').style.display='grid';document.getElementById('login-overlay').style.display='none';};`);
 const tick=()=>new Promise(setImmediate);
@@ -100,6 +101,7 @@ const tick=()=>new Promise(setImmediate);
  d.getElementById('message-input').value='Primero';const oldSend=w.enviarMensaje();postGates[0](success);await tick();assert.equal(d.getElementById('send').disabled,false);assert.equal(historyGates.length,1);
  d.getElementById('message-input').value='Segundo';const newSend=w.enviarMensaje();assert.equal(d.getElementById('send').disabled,true);historyGates[0](snapshot);await oldSend;assert.equal(d.getElementById('send').disabled,true);assert.equal(d.getElementById('send').getAttribute('aria-busy'),'true');
  postGates[1](success);await tick();historyGates[1](snapshot);await newSend;assert.equal(d.getElementById('send').disabled,false);w.fetch=oldFetch;
+ await w.abrirChat('5071');d.getElementById('message-input').value='';d.getElementById('bruno-question').value='Saldo';d.getElementById('bruno-prepare').click();await tick();await tick();const sendsBefore=posts.filter(p=>p.includes('/responder')).length;assert.equal(d.getElementById('bruno-draft').value,'Tu saldo total pendiente es de $10.00.');d.getElementById('bruno-use').click();assert.equal(posts.filter(p=>p.includes('/responder')).length,sendsBefore);assert.equal(d.getElementById('message-input').value,'Tu saldo total pendiente es de $10.00.');await w.enviarMensaje();assert.equal(posts.filter(p=>p==='/panel/responder-revisado/5071').length,1);assert.equal(w.CubicoBruno.meta('5071'),undefined);
  fixtures.preferencias={categoria:'alertas'};await w.cargarPreferenciasAvisos();assert.equal(d.getElementById('notification-category').value,'alertas');
  d.getElementById('notification-category').value='chats';d.getElementById('notification-category').dispatchEvent(new w.Event('change'));await tick();assert.match(d.getElementById('notification-category-status').textContent,/guardada/i);
 

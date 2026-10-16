@@ -51,3 +51,19 @@
 body.reading-large #chats .chat-name b{font-size:18px}body.reading-large #chats .chat-copy p{font-size:17px}
 @media(prefers-reduced-motion:reduce){#chats .chat-item{transition:none}}
 #chats .pane-head-row{position:relative;gap:8px}#chats .chat-more-filters{position:relative}#chats .chat-more-filters summary{list-style:none;cursor:pointer;font-size:20px;line-height:1;padding:8px;color:#777;min-width:32px;text-align:center;border-radius:6px}#chats .chat-more-filters summary::-webkit-details-marker{display:none}#chats .chat-more-filters summary:hover{background:#f4f2ec}#chats .chat-more-filters[open] select{position:absolute;right:0;top:100%;z-index:5;min-width:170px;padding:10px;background:white;box-shadow:0 5px 15px #17171414}
+
+/* Consultas internas dentro del editor, con altura acotada y selección nativa. */
+.internal-assistant{border:1px solid #e7e2d6;border-radius:9px;background:#fffdf8;margin-bottom:8px;min-width:0}
+.internal-assistant>summary{cursor:pointer;padding:10px 12px;font-size:12px;font-weight:650;min-height:40px}
+.internal-assistant>summary small{font-size:10px;font-weight:400;color:#777;margin-left:8px}
+.bruno-body{padding:0 12px 12px;max-height:min(390px,42dvh);overflow:auto;overscroll-behavior:contain;min-width:0}
+.bruno-body label{display:block;margin:10px 0 6px;font-size:12px;font-weight:650}
+.bruno-body textarea{display:block;width:100%;max-height:170px;overflow:auto;resize:vertical;font:inherit;font-size:16px;line-height:1.5;padding:9px;border:1px solid #ded9cd;border-radius:8px;background:white;color:#24231f;user-select:text;-webkit-user-select:text}
+.bruno-buttons,.bruno-shortcuts{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
+.bruno-shortcuts button{border:0;background:#f4f0e5;border-radius:6px;padding:8px;font-size:11px;min-height:36px}
+#bruno-status,#bruno-source{display:block;font-size:11px;color:#777;line-height:1.5;overflow-wrap:anywhere}
+#bruno-answer{white-space:pre-wrap;font-size:13px;line-height:1.6;user-select:text;-webkit-user-select:text;overflow-wrap:anywhere}
+.bruno-sources{border-top:1px solid #e8e4d9;margin-top:8px;padding-top:8px;font-size:12px}.bruno-sources summary{cursor:pointer;padding:6px 0}.bruno-sources p{overflow-wrap:anywhere;margin:7px 0;line-height:1.5}
+#bruno-reviewed-label{font-size:11px;color:#80601b;line-height:1.5;margin:4px 0 9px}
+#bruno-result[hidden],#bruno-draft-section[hidden],#bruno-reviewed-label[hidden]{display:none}
+.chat-keyboard-open .bruno-body{max-height:28dvh}
