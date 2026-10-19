@@ -96,3 +96,17 @@ body.reading-large .messages{background-image:none;background-color:#f4f2ed}
 
 /* Status toasts contain no actions. Opacity alone never removes a hit target. */
 .toast{pointer-events:none}
+
+.location-dialog{box-sizing:border-box;width:min(440px,calc(100% - 32px));max-height:calc(100dvh - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px) - 32px);overflow:auto;border:1px solid var(--line,#e5e3dc);border-radius:22px;padding:22px;color:var(--text,#171714);background:var(--surface,#fff);margin:auto;box-shadow:0 20px 60px #0003}
+.location-dialog::backdrop{background:#0007}
+.location-dialog header{display:flex;align-items:center;justify-content:space-between;gap:16px}
+.location-dialog h2{margin:0;font-size:20px}
+.location-dialog header button{flex-shrink:0;min-width:44px;min-height:44px;padding:0;font-size:28px;line-height:1}
+.location-dialog section{padding:18px;border-radius:16px;background:#faf6e8;overflow-wrap:anywhere}
+.location-dialog section[hidden]{display:none}
+.location-pin{display:block;font-size:36px;color:#a77c21;margin-bottom:8px}
+.location-dialog p{line-height:1.5;overflow-wrap:anywhere}
+.location-dialog [data-location-send]{width:100%;min-height:46px}
+.location-card{display:block;color:inherit;text-decoration:none;border:1px solid #b48b3466;border-radius:12px;padding:14px;background:#fff5;overflow-wrap:anywhere}
+.location-card span,.location-card small{display:block;margin-top:6px}
+.location-card:hover{box-shadow:0 3px 12px #0002}

@@ -86,6 +86,19 @@ async def enviar_mensaje_whatsapp(telefono_destino: str, texto: str):
     return respuesta
 
 
+async def enviar_ubicacion_whatsapp(telefono_destino: str, ubicacion: dict):
+    """Send a verified native map pin; callers must validate the configured point."""
+    url = f"https://graph.facebook.com/v21.0/{settings.WHATSAPP_PHONE_NUMBER_ID}/messages"
+    headers = {"Authorization": f"Bearer {settings.WHATSAPP_TOKEN}",
+               "Content-Type": "application/json"}
+    payload = {"messaging_product": "whatsapp", "to": telefono_destino,
+               "type": "location", "location": ubicacion}
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        respuesta = await client.post(url, headers=headers, json=payload)
+    record_whatsapp_response(respuesta, telefono_destino, 'location')
+    return respuesta
+
+
 async def enviar_imagen_whatsapp(telefono_destino: str, media_id: str, caption: str = None):
     """
     Reenvía una imagen ya existente en WhatsApp (por su media_id)

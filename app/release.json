@@ -1,11 +1,10 @@
 {
-  "version": "1.2.1",
+  "version": "1.2.2",
   "fecha": "2026-10-19",
-  "titulo": "Navegación móvil y filtros de costos",
+  "titulo": "Ubicación del local en WhatsApp",
   "novedades": [
-    "Los avisos emergentes, visibles u ocultos, ya no bloquean los toques en la barra inferior.",
-    "Los botones inferiores usan el clic nativo, sin mover la barra al tocarla ni descartar pulsaciones posteriores.",
-    "Los filtros de costos y fechas se ajustan al ancho disponible en el teléfono.",
-    "Se mantienen el ajuste del teclado y la recuperación al volver a la app."
+    "Nueva opción para revisar y enviar el pin del local como mapa nativo en WhatsApp.",
+    "El envío requiere una ubicación confirmada y control del chat; evita duplicados y conserva el estado de entrega.",
+    "Las ubicaciones enviadas aparecen en el historial y en las estadísticas de mensajes."
   ]
 }

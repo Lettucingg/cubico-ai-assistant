@@ -688,6 +688,7 @@ def agregar_al_historial(
     autor_tipo: str | None = None,
     operador: str | None = None,
     modo_envio: str | None = None,
+    ubicacion: dict | None = None,
 ):
     """
     Agrega un mensaje al historial de la conversación, y recorta
@@ -727,6 +728,7 @@ def agregar_al_historial(
             "autor_tipo": autor_inferido,
             "operador": operador,
             "modo_envio": modo_envio,
+            "ubicacion": ubicacion,
         }
         mensaje.update({clave: valor for clave, valor in metadatos.items() if valor})
         historial.append(mensaje)

@@ -2,7 +2,7 @@
 window.BotCosts = (() => {
   let get, post, last, version=0, busy=false, draftId=null;
   const $=id=>document.getElementById(id);
-  const labels={anthropic:'Anthropic',openai:'OpenAI',meta:'WhatsApp / Meta',respuesta_automatica:'Respuestas de Bruno',redaccion_asistida:'Redacción del equipo',asistente_interno:'Consultas internas a Bruno',analisis_imagen:'Imágenes y comprobantes',transcripcion_audio:'Notas de voz',prueba_contexto_operativo:'Pruebas de contexto operativo',historico_sin_desglose:'Histórico sin desglose',mensaje_text:'Mensajes de texto',mensaje_template:'Plantillas',mensaje_image:'Imágenes enviadas',mensaje_audio:'Audios enviados',mensaje_document:'Documentos',sin_asignar:'Sin chat asignado'};
+  const labels={anthropic:'Anthropic',openai:'OpenAI',meta:'WhatsApp / Meta',respuesta_automatica:'Respuestas de Bruno',redaccion_asistida:'Redacción del equipo',asistente_interno:'Consultas internas a Bruno',analisis_imagen:'Imágenes y comprobantes',transcripcion_audio:'Notas de voz',prueba_contexto_operativo:'Pruebas de contexto operativo',historico_sin_desglose:'Histórico sin desglose',mensaje_text:'Mensajes de texto',mensaje_template:'Plantillas',mensaje_image:'Imágenes enviadas',mensaje_audio:'Audios enviados',mensaje_location:'Ubicaciones enviadas',mensaje_document:'Documentos',sin_asignar:'Sin chat asignado'};
   const name=s=>labels[s]||s;
   const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const number=n=>new Intl.NumberFormat('es-PA',{maximumFractionDigits:1}).format(n||0);

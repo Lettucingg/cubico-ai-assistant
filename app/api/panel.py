@@ -49,6 +49,7 @@ from app.ai.orchestrator import (
 )
 from app.api.whatsapp import (
     enviar_audio_whatsapp,
+    enviar_ubicacion_whatsapp,
     enviar_documento_whatsapp,
     enviar_imagen_whatsapp,
     enviar_plantilla_whatsapp,
@@ -1430,6 +1431,39 @@ async def enviar_audio_desde_panel(
         modo_envio="directo",
     )
     return {"status": "enviado"}
+
+
+@router.get('/ubicacion-local')
+def ubicacion_local(usuario: str = Depends(verificar_credenciales_panel)):
+    from app.services.business_location import native_location
+    point = native_location()
+    return {'disponible': bool(point), **(point or {})}
+
+
+@router.post('/enviar-ubicacion/{telefono}')
+@envio_unico
+async def enviar_ubicacion_desde_panel(telefono: str, body: dict,
+                                      usuario: str = Depends(verificar_credenciales_panel)):
+    from app.services.business_location import native_location
+    _validar_operador_conversacion(telefono, usuario, requiere_control=True)
+    point = native_location()
+    if not point:
+        raise HTTPException(status_code=409, detail='La ubicación del local aún no está confirmada y configurada.')
+    if not body.get('request_id') or body.get('mensaje') != point['revision']:
+        raise HTTPException(status_code=409, detail='La ubicación cambió. Abre de nuevo la vista previa antes de enviar.')
+    try:
+        response = await enviar_ubicacion_whatsapp(telefono, point['ubicacion'])
+    except httpx.HTTPError as error:
+        raise HTTPException(status_code=502, detail='No pudimos confirmar el envío. Revisa el historial antes de reenviar.') from error
+    message_id = extraer_id_mensaje_meta(response)
+    if not response.is_success or not message_id:
+        raise HTTPException(status_code=502, detail='Meta no confirmó la ubicación. Revisa el historial; si la ventana de atención cerró, usa primero una plantilla y espera la respuesta del cliente.')
+    agregar_al_historial(telefono, 'humano',
+        f"Ubicación de Cúbico: {point['ubicacion']['address']}\n{point['enlace']}",
+        tipo='location', ubicacion=point['ubicacion'],
+        whatsapp_message_id=message_id, estado_entrega='accepted',
+        autor_tipo='humano', operador=usuario, modo_envio='directo')
+    return {'status': 'enviado', 'whatsapp_message_id': message_id}
 
 
 TIPOS_ARCHIVO_PERMITIDOS = {
