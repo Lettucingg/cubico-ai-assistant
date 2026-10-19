@@ -60,13 +60,13 @@
 
 .reports-heading{display:flex;justify-content:space-between;align-items:center;gap:12px}.reports-history-note{font-size:12px;color:var(--muted);line-height:1.5}#daily-reports-history{margin-top:18px;padding-top:14px;border-top:1px solid var(--line)}#daily-reports-history[hidden]{display:none}#daily-reports-history h4{margin:0 0 6px;font-size:14px}#daily-reports-history-list{max-height:420px;overflow:auto}@media(max-width:760px){.reports-heading h3{font-size:15px}.reports-heading .btn{font-size:12px;padding:9px 11px}}
 </style>
-  <link rel="stylesheet" href="/static/panel-theme.css?v=1.2.0">
-  <link rel="stylesheet" href="/static/chat-minimal.css?v=1.2.0">
-<link rel="stylesheet" href="/static/bot-cost-analytics.css?v=20261008">
+  <link rel="stylesheet" href="/static/panel-theme.css?v=1.2.1">
+  <link rel="stylesheet" href="/static/chat-minimal.css?v=1.2.1">
+<link rel="stylesheet" href="/static/bot-cost-analytics.css?v=1.2.1">
 <link rel="stylesheet" href="/static/operational-context.css?v=20261012">
 <style>.release-banner{display:flex;gap:14px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding:15px 18px;margin-bottom:20px;background:#fff5d9;border:1px solid #e8d29c;border-radius:14px;font-size:13px;line-height:1.5}.release-banner[hidden]{display:none}.release-warning{color:#916a14!important}.release-card details summary{cursor:pointer;font-size:13px}.release-card [hidden]{display:none!important}</style>
 </head>
-<body data-panel-version="1.2.0">
+<body data-panel-version="1.2.1">
   <div id="login-overlay" style="position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:50;padding:20px">
     <div class="card" style="width:100%;max-width:380px;padding:32px 28px">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:24px">
@@ -98,7 +98,7 @@
       </nav>
       <div class="nav-label" style="margin-top:22px">Sistema</div>
       <nav class="nav"><button data-view="operations"><span>◉</span><span>Contexto operativo</span></button><button data-view="alerts"><span>△</span><span>Alertas</span><span class="count" id="nav-count-alerts">0</span></button><button data-view="settings"><span>⚙</span><span>Configuración</span></button></nav>
-      <div class="side-bottom"><div class="health"><div class="health-top"><span><i class="dot"></i>Panel conectado</span><b>API</b></div><p>Los estados mostrados vienen del backend de Bruno.</p><p id="app-version-footer">Panel · v1.2.0</p></div></div>
+      <div class="side-bottom"><div class="health"><div class="health-top"><span><i class="dot"></i>Panel conectado</span><b>API</b></div><p>Los estados mostrados vienen del backend de Bruno.</p><p id="app-version-footer">Panel · v1.2.1</p></div></div>
     </aside>
     <main>
       <header class="topbar"><div class="title"><h1 id="page-title">Buenos días</h1><p id="page-sub">Esto es lo que está pasando en Cúbico hoy.</p></div><div class="top-actions"><input class="search" id="global-search" placeholder="Buscar chat, cliente o paquete…" aria-label="Buscar"/><button class="icon-btn" id="notifications" aria-label="Notificaciones" title="Ver alertas y activar notificaciones">🔔<span class="notification-count" id="notification-count">0</span></button><div class="avatar" id="settings-shortcut" role="button" tabindex="0" aria-label="Abrir configuración" title="Configuración">—</div></div></header>
@@ -154,7 +154,7 @@
 
       <section class="view" id="costs"><div class="bc-panel" id="bot-cost-analytics">
   <div class="bc-heading"><div><h2>El costo de operar a Bruno</h2><p>Cuánto consume, en qué se consume y cuándo hay más movimiento.</p></div><div><button id="bc-refresh" type="button">Actualizar</button> <button id="bc-export" type="button" disabled>Descargar CSV</button></div></div>
-  <div class="card bc-controls"><label>Período<select id="bc-period"><option value="month">Este mes</option><option value="30">Últimos 30 días</option><option value="year">Este año</option><option value="365">Últimos 365 días</option><option value="all">Histórico desde 2020</option><option value="custom">Personalizado</option></select></label><label>Desde<input type="date" id="bc-from" required></label><label>Hasta<input type="date" id="bc-to" required></label><label>Agrupar por<select id="bc-group"><option value="dia">Día</option><option value="mes">Mes</option><option value="ano">Año</option></select></label><label>Proveedor<select id="bc-provider"><option value="">Todos</option><option value="anthropic">Anthropic</option><option value="openai">OpenAI</option><option value="meta">WhatsApp / Meta</option></select></label><label>Función<select id="bc-task"><option value="">Todas las funciones</option></select></label></div>
+  <div class="card bc-controls"><label>Período<select id="bc-period"><option value="month">Este mes</option><option value="30">Últimos 30 días</option><option value="year">Este año</option><option value="365">Últimos 365 días</option><option value="all">Histórico desde 2020</option><option value="custom">Personalizado</option></select></label><label>Desde<input type="date" id="bc-from" required></label><label>Hasta<input type="date" id="bc-to" required></label><label>Agrupar por<select id="bc-group"><option value="dia">Día</option><option value="mes">Mes</option><option value="ano">Año</option></select></label><label>Proveedor<select id="bc-provider"><option value="">Todos</option><option value="anthropic">Anthropic</option><option value="openai">OpenAI</option><option value="meta">WhatsApp / Meta</option></select></label><label>Función<select id="bc-task"><option value="">Todas</option></select></label></div>
   <p class="bc-status" id="bc-status" role="status" aria-live="polite"></p><p class="bc-fine" id="bc-range"></p>
   <div class="bc-kpis" id="bc-kpis"></div><div class="bc-warning" id="bc-coverage"></div>
   <article class="card bc-section"><div class="bc-chart-head"><h3>Evolución del consumo</h3><label>Medida <select id="bc-metric"><option value="costo_usd">Costo estimado USD</option><option value="llamadas_ia">Llamadas de IA</option><option value="mensajes">Mensajes salientes</option><option value="tokens">Tokens</option><option value="segundos_audio">Segundos de audio</option><option value="errores">Errores registrados</option></select></label></div><svg class="bc-chart" id="bc-chart" viewBox="0 0 900 240" role="img" aria-label="Evolución del consumo"></svg><details id="bc-series"></details></article>
@@ -225,14 +225,14 @@
   <div class="modal-overlay" id="modal-verificar-manual" role="dialog" aria-label="Verificar cliente manualmente"><div class="card modal-box"><h3>Verificar manualmente</h3><p style="font-size:12px;color:var(--muted);line-height:1.5">Escribe el código real del cliente o agencia. Se comprobará en la base de datos antes de asociarlo al chat.</p><label for="manual-code">Código de cliente o agencia</label><input type="text" id="manual-code" placeholder="CBC-0001 o código de agencia"/><div class="modal-actions"><button class="btn" type="button" id="manual-verify-cancel">Cancelar</button><button class="btn dark" type="button" id="manual-verify-save">Verificar y asociar</button></div></div></div>
   <div class="modal-overlay" id="modal-operacion-manual" role="dialog" aria-label="Crear operación manual"><div class="card modal-box"><h3 id="manual-operation-title">Crear solicitud</h3><p id="manual-operation-help" style="font-size:12px;color:var(--muted);line-height:1.5"></p><div id="manual-address-field"><label for="manual-address">Dirección exacta</label><textarea id="manual-address" rows="3" placeholder="Dirección completa de entrega"></textarea></div><div id="manual-payment-fields"><label for="manual-amount">Monto reportado (opcional)</label><input type="number" id="manual-amount" min="0.01" step="0.01" placeholder="0.00"/><label for="manual-method">Método (opcional)</label><input type="text" id="manual-method" placeholder="Yappy, transferencia, efectivo…"/><label for="manual-reference">Referencia (opcional)</label><input type="text" id="manual-reference" placeholder="Número de referencia"/></div><div class="modal-actions"><button class="btn" type="button" id="manual-operation-cancel">Cancelar</button><button class="btn dark" type="button" id="manual-operation-save">Crear caso</button></div></div></div>
   <script src="/static/panel-personalization.js"></script>
-  <script src="/static/panel-mobile-layout.js?v=20261013-resume"></script>
+  <script src="/static/panel-mobile-layout.js?v=1.2.1"></script>
   <script src="/static/chat-text-editor.js?v=20261007-send"></script>
-  <script src="/static/app-release.js?v=1.2.0"></script>
+  <script src="/static/app-release.js?v=1.2.1"></script>
   <script src="/static/operational-context.js?v=20261012"></script>
-  <script src="/static/bot-cost-analytics.js?v=1.2.0"></script>
+  <script src="/static/bot-cost-analytics.js?v=1.2.1"></script>
   <script src="/static/daily-report.js"></script>
-  <script src="/static/internal-assistant.js?v=1.2.0"></script>
-  <script src="/static/alert-management.js?v=1.2.0?v=20261007-send"></script>
+  <script src="/static/internal-assistant.js?v=1.2.1"></script>
+  <script src="/static/alert-management.js?v=1.2.1?v=20261007-send"></script>
   <script>
     const titles={overview:['Buenos días, Alexander','Esto es lo que está pasando en Cúbico hoy.'],chats:['Conversaciones','Lee y responde los mensajes de tus clientes.'],packages:['Retiros y domicilios','Organiza las solicitudes que llegan directamente desde WhatsApp.'],opportunities:['Oportunidades comerciales','Bruno organiza la información; el equipo decide qué propuesta preparar.'],costs:['Costos y actividad','Consumo estimado, gastos confirmados y actividad de Bruno.'],alerts:['Alertas','Lo que necesita tu atención, en un solo lugar.'],operations:['Contexto operativo','Mantén a Bruno al tanto de los cambios de la operación.'],settings:['Configuración','Integraciones y estado técnico de Bruno.']};
     function showView(id){document.body.dataset.view=id;document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id===id));document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.view===id));document.getElementById('page-title').textContent=titles[id][0];document.getElementById('page-sub').textContent=titles[id][1];if(id!=='chats'&&typeof cerrarPanelCliente==='function')cerrarPanelCliente();if(id==='packages')cargarSolicitudes();if(id==='opportunities')cargarOportunidades();if(id==='costs'){cargarUso(30);BotCosts.load()};if(id==='alerts')cargarPapelera();if(id==='operations')OperationalContext.load();if(id==='settings')CubicoRelease.load();window.scrollTo({top:0,behavior:'smooth'})}

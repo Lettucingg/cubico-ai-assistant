@@ -1,10 +1,11 @@
 {
-  "version": "1.2.0",
-  "fecha": "2026-10-15",
-  "titulo": "Consultar a Bruno desde cada conversación",
+  "version": "1.2.1",
+  "fecha": "2026-10-19",
+  "titulo": "Navegación móvil y filtros de costos",
   "novedades": [
-    "Consulta privada de saldos, facturas, paquetes y último pago del cliente asociado al chat.",
-    "Prepara un borrador con datos actuales, revísalo y pásalo al editor antes de enviarlo.",
-    "Las respuestas revisadas se envían sin otra reescritura; las consultas con IA se registran en Costos."
+    "Los avisos emergentes, visibles u ocultos, ya no bloquean los toques en la barra inferior.",
+    "Los botones inferiores usan el clic nativo, sin mover la barra al tocarla ni descartar pulsaciones posteriores.",
+    "Los filtros de costos y fechas se ajustan al ancho disponible en el teléfono.",
+    "Se mantienen el ajuste del teclado y la recuperación al volver a la app."
   ]
 }

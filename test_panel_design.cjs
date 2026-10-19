@@ -105,6 +105,12 @@ const tick=()=>new Promise(setImmediate);
  fixtures.preferencias={categoria:'alertas'};await w.cargarPreferenciasAvisos();assert.equal(d.getElementById('notification-category').value,'alertas');
  d.getElementById('notification-category').value='chats';d.getElementById('notification-category').dispatchEvent(new w.Event('change'));await tick();assert.match(d.getElementById('notification-category-status').textContent,/guardada/i);
 
+ for(const view of ['costs','overview','chats','packages','opportunities','costs','overview']){
+   const button=d.querySelector('.sidebar .nav button[data-view="'+view+'"]');
+   const down=new w.Event('pointerdown',{bubbles:true,cancelable:true});Object.assign(down,{pointerId:41,pointerType:'touch',isPrimary:true,clientX:20,clientY:600});button.dispatchEvent(down);
+   const up=new w.Event('pointerup',{bubbles:true,cancelable:true});Object.assign(up,{pointerId:41,pointerType:'touch',isPrimary:true,clientX:20,clientY:600});button.dispatchEvent(up);
+   button.dispatchEvent(new w.MouseEvent('click',{bubbles:true,cancelable:true,detail:1}));assert.equal(d.querySelector('.view.active').id,view);assert.equal(up.defaultPrevented,false);await tick();await tick();
+ }
  w.renderLista(fixtures.conversaciones.map(c=>({...c,tiene_no_leidos:false})));assert.equal(d.getElementById('open-first-unread').hidden,true);assert.match(d.getElementById('chat-welcome-status').textContent,/No hay chats sin leer/);w.renderLista([]);assert.equal(d.getElementById('unread-notice').hidden,true);assert.match(d.getElementById('chat-welcome-status').textContent,/Todavía no hay conversaciones/);
  console.log('All seven panel views: filters, drawer, payment guards, requests, pipeline, costs, preferences, reports/history, archive/undo passed');dom.window.close();
 })().catch(e=>{console.error(e);dom.window.close();process.exitCode=1});

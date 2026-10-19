@@ -85,3 +85,14 @@ body.reading-large .bubble{font-size:18px;line-height:1.65}body.reading-large .b
 body.reading-large .compose-input{font-size:18px}body.reading-large .chat-meta{align-self:start}
 body.reading-large .messages{background-image:none;background-color:#f4f2ed}
 @media(min-width:1100px){body.reading-large .inbox{grid-template-columns:minmax(350px,32%) minmax(0,1fr)}}
+
+/* Keep navigation geometry unchanged across touch and native click dispatch. */
+@media(max-width:760px){
+ .sidebar{position:fixed;top:auto;bottom:0;left:0;right:0;isolation:isolate}
+ .sidebar .nav{touch-action:manipulation}
+ .sidebar .nav button,.sidebar .nav button:hover,.sidebar .nav button:active{transform:none}
+ main input[type=date]{box-sizing:border-box;min-width:0;max-width:100%}
+}
+
+/* Status toasts contain no actions. Opacity alone never removes a hit target. */
+.toast{pointer-events:none}
