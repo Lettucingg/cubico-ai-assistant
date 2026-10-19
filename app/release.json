@@ -1,10 +1,11 @@
 {
-  "version": "1.2.2",
+  "version": "1.2.3",
   "fecha": "2026-10-19",
-  "titulo": "Ubicación del local en WhatsApp",
+  "titulo": "Carga de conversaciones",
   "novedades": [
-    "Nueva opción para revisar y enviar el pin del local como mapa nativo en WhatsApp.",
-    "El envío requiere una ubicación confirmada y control del chat; evita duplicados y conserva el estado de entrega.",
-    "Las ubicaciones enviadas aparecen en el historial y en las estadísticas de mensajes."
+    "Los chats se muestran antes de las consultas secundarias del panel.",
+    "Un fallo al actualizar muestra Reintentar y conserva la última lista.",
+    "Si la consulta de nombres falla, las conversaciones siguen apareciendo con su teléfono.",
+    "La opción de ubicación se inicializa al abrirla para no interrumpir los chats si su archivo no carga."
   ]
 }
