@@ -1,0 +1,20 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),{JSDOM}=require('jsdom');
+const dom=new JSDOM('<body></body>',{runScripts:'outside-only',url:'https://panel.test'}),w=dom.window,d=w.document;
+w.HTMLDialogElement.prototype.showModal=function(){this.open=true};w.HTMLDialogElement.prototype.close=function(){this.open=false};
+w.eval(fs.readFileSync('app/static/chat-location.js','utf8'));
+let phone='5071',control=false,posts=[],accepted=[],point={disponible:true,revision:'pin1',ubicacion:{name:'Cúbico',address:'<img src=x onerror=alert(1)>',latitude:8.98,longitude:-79.52}},resolve;
+const ui=w.CubicoLocation.init({document:d,getPhone:()=>phone,hasControl:()=>control,apiGet:async()=>({ok:true,json:async()=>point}),apiPost:async(path,body)=>{posts.push({path,body});return await new Promise(r=>resolve=r)},onAccepted:async p=>accepted.push(p),notify:()=>{}});
+const send=d.querySelector('[data-location-send]'),status=d.querySelector('[data-location-status]');
+(async()=>{
+ await ui.open();assert.equal(posts.length,0);assert(send.disabled);assert.match(status.textContent,/toma el control/);
+ control=true;await ui.open();assert(!send.disabled);assert.equal(d.querySelector('[data-location-point] img'),null);
+ assert.match(d.querySelector('[data-location-map]').href,/8.98,-79.52/);
+ const pending=send.onclick();send.onclick();assert.equal(posts.length,1);assert(send.disabled);assert.match(status.textContent,/Enviando/);
+ resolve({ok:true});await pending;assert.deepEqual(accepted,['5071']);assert.match(status.textContent,/aceptó/);
+ await ui.open();const retry=send.onclick();assert.equal(posts[0].body.request_id,posts[1].body.request_id);
+ resolve({ok:false,json:async()=>({detail:'Revisa el historial'})});await retry;assert.match(status.textContent,/Revisa el historial/);
+ await ui.open();phone='5072';send.onclick();assert.equal(posts.length,2);
+ point={disponible:false};await ui.open();assert(send.disabled);assert.match(status.textContent,/Falta configurar/);
+ d.querySelector('[data-location-close]').click();assert(!d.querySelector('dialog').open);
+ dom.window.close();console.log('Location preview, ownership, XSS, duplicate taps, retry, recipient and missing config passed');
+})().catch(e=>{console.error(e);process.exitCode=1;dom.window.close()});

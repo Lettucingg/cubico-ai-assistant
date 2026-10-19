@@ -81,6 +81,8 @@ class Settings(BaseSettings):
     # Only publish pickup directions after the team confirms the current pin.
     CUBICO_LOCATION_URL: str = ""
     CUBICO_LOCATION_VERIFIED: bool = False
+    CUBICO_LOCATION_LATITUDE: str = ""
+    CUBICO_LOCATION_LONGITUDE: str = ""
 
     class Config:
         env_file = ".env"

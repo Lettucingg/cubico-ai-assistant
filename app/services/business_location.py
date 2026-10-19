@@ -44,3 +44,29 @@ def location_rules():
         return ('UBICACIÓN DE RETIRO CONFIRMADA POR EL EQUIPO:\nDirección: '+point['direccion']+'\nPin exacto: '+point['enlace']+
                 '\nComparte este pin cuando pidan ubicación. No inventes referencias, distancias, rutas, fachadas o negocios vecinos. No confirmes que una foto corresponde al local ni que el cliente ya llegó sin verificación del equipo. Si hay dudas o una indicación del equipo de que ese local cerró, escala antes de mandarlo allí.')
     return ('UBICACIÓN DE RETIRO NO VERIFICADA: no hay un pin vigente confirmado. No uses direcciones antiguas, el historial, imágenes ni sugerencias del cliente para indicar dónde retirar. Nunca confirmes cercanía a El Dorado, Momi u otra referencia, ni digas que entre, pase o que ya llegó al local. Ante una consulta de ubicación, escala al equipo para confirmar el punto exacto. No inventes una dirección ni un enlace. Esto no afecta las direcciones de recepción de carga en Miami y China.')
+
+
+def native_location():
+    """Never infer a pin from an address, a shortened URL or conversation history."""
+    import math
+    import hashlib
+    import json
+    point = verified_location()
+    if not point:
+        return None
+    try:
+        latitude = float(settings.CUBICO_LOCATION_LATITUDE)
+        longitude = float(settings.CUBICO_LOCATION_LONGITUDE)
+    except (TypeError, ValueError):
+        return None
+    if not (math.isfinite(latitude) and math.isfinite(longitude)
+            and -90 <= latitude <= 90 and -180 <= longitude <= 180):
+        return None
+    location = {'latitude': latitude, 'longitude': longitude,
+                'name': 'Cúbico', 'address': point['direccion']}
+    if len(location['address']) > 1000:
+        return None
+    # The preview and WhatsApp use precisely the same coordinates.
+    link = f"https://www.google.com/maps/search/?api=1&query={latitude},{longitude}"
+    revision = hashlib.sha256(json.dumps(location, sort_keys=True).encode()).hexdigest()
+    return {'ubicacion': location, 'enlace': link, 'revision': revision}
