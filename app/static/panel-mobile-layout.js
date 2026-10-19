@@ -5,12 +5,11 @@
   function init(doc=root.document,navigate){
     const inbox=doc.querySelector('.inbox'),chats=doc.getElementById('chats'),nav=doc.querySelector('.sidebar'),header=doc.querySelector('.topbar');
     if(!inbox||!nav||!chats)return;
-    let gesture=null,lastTap=null,pending=false,closedViewportHeight=root.visualViewport?root.visualViewport.height:root.innerHeight;
+    let pending=false,closedViewportHeight=root.visualViewport?root.visualViewport.height:root.innerHeight;
     const resumeTimers=[];
     function update(){
       pending=false;
       if(doc.hidden)return;
-      if(gesture)return;
       if(!root.matchMedia('(max-width:760px)').matches){inbox.style.removeProperty('--mobile-inbox-height');nav.style.removeProperty('top');nav.style.removeProperty('bottom');doc.body.style.removeProperty('--mobile-navigation-height');doc.body.classList.remove('chat-keyboard-open','chat-editor-open');inbox.style.removeProperty('--editor-viewport-top');inbox.style.removeProperty('--editor-viewport-height');return}
       const viewport=root.visualViewport;let bottom=viewport?viewport.offsetTop+viewport.height:root.innerHeight;
       const focused=doc.activeElement,editing=focused&&doc.querySelector('.app').contains(focused)&&focused.matches('input,textarea,[contenteditable=true]');
@@ -35,7 +34,7 @@
     function schedule(){if(doc.hidden)return;if(!pending){pending=true;root.requestAnimationFrame(update)}}
     function resume(){
       if(doc.hidden)return;
-      gesture=null;lastTap=null;pending=false;
+      pending=false;
       resumeTimers.splice(0).forEach(id=>root.clearTimeout(id));
       if(!root.matchMedia('(max-width:760px)').matches){update();return}
       const focused=doc.activeElement;
@@ -44,7 +43,7 @@
       update();[120,350,750].forEach(delay=>resumeTimers.push(root.setTimeout(update,delay)));
     }
     doc.addEventListener('visibilitychange',()=>{
-      gesture=null;lastTap=null;pending=false;
+      pending=false;
       if(!doc.hidden)resume();else resumeTimers.splice(0).forEach(id=>root.clearTimeout(id));
     });
     root.addEventListener('pageshow',resume);root.addEventListener('focus',resume);
@@ -55,13 +54,15 @@
     if(root.ResizeObserver){const observer=new root.ResizeObserver(schedule);observer.observe(nav);if(header)observer.observe(header)}
     if(root.MutationObserver){const observer=new root.MutationObserver(schedule);observer.observe(chats,{attributes:true,attributeFilter:['class']});observer.observe(doc.querySelector('.app'),{attributes:true,attributeFilter:['style']})}
     if(typeof navigate==='function'){
-      function buttonFor(event){const button=event.target.closest&&event.target.closest('.nav button[data-view]');return button&&nav.contains(button)?button:null}
-      nav.addEventListener('pointerdown',event=>{const button=buttonFor(event);if(!button||event.pointerType==='mouse'||event.isPrimary===false||!root.matchMedia('(max-width:760px)').matches)return;const bounds=nav.getBoundingClientRect(),viewport=root.visualViewport;const top=Number.isFinite(bounds.top)?bounds.top:navigationTop(viewport?viewport.offsetTop+viewport.height:root.innerHeight,bounds.height);nav.style.top=top+'px';nav.style.bottom='auto';gesture={id:event.pointerId,button,x:event.clientX,y:event.clientY,moved:false}});
-      root.addEventListener('pointermove',event=>{if(gesture&&gesture.id===event.pointerId&&Math.hypot(event.clientX-gesture.x,event.clientY-gesture.y)>10)gesture.moved=true});
-      nav.addEventListener('pointerup',event=>{if(!gesture||gesture.id!==event.pointerId)return;const press=gesture;gesture=null;const button=buttonFor(event);lastTap={button:press.button,time:Date.now()};if(!press.moved&&Math.hypot(event.clientX-press.x,event.clientY-press.y)<=10&&button===press.button){event.preventDefault();navigate(button.dataset.view)}schedule()});
-      function cancel(event){if(gesture&&gesture.id===event.pointerId){gesture=null;schedule()}}
-      root.addEventListener('pointercancel',cancel);root.addEventListener('pointerup',cancel);
-      nav.addEventListener('click',event=>{const button=buttonFor(event);if(!button)return;if(event.detail!==0&&lastTap&&lastTap.button===button&&Date.now()-lastTap.time<800){event.preventDefault();return}navigate(button.dataset.view);schedule()});
+      // A native button click already handles touch, pen, mouse, keyboard and
+      // cancelled scroll gestures. Do not move the fixed bar during a press,
+      // prevent pointerup, or discard a later click using a timestamp window.
+      nav.addEventListener('click',event=>{
+        const target=event.target.nodeType===1?event.target:event.target.parentElement;
+        const button=target&&target.closest('.nav button[data-view]');
+        if(!button||!nav.contains(button)||button.disabled||event.defaultPrevented)return;
+        navigate(button.dataset.view);schedule();
+      });
     }
     const done=doc.getElementById('chat-editing-done');if(done)done.addEventListener('click',()=>{if(doc.activeElement&&doc.activeElement.blur)doc.activeElement.blur();schedule()});
     schedule();return {update};
