@@ -10,6 +10,7 @@ from zoneinfo import ZoneInfo
 from typing import Literal
 
 import httpx
+from sqlalchemy.exc import SQLAlchemyError
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, Response, UploadFile
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from pydantic import BaseModel, Field
@@ -387,12 +388,18 @@ def listar_conversaciones(usuario: str = Depends(verificar_credenciales_panel)):
     mensaje, para el panel tipo "cámaras de seguridad".
     """
     resultado = []
+    nombres_disponibles = True
     for sesion in listar_todas_sesiones():
         nombre = None
-        if sesion.codigo_cliente_verificado:
-            info = obtener_nombre_completo_cliente(sesion.codigo_cliente_verificado)
-            if info.get("encontrado"):
-                nombre = info["nombre_completo"]
+        if sesion.codigo_cliente_verificado and nombres_disponibles:
+            try:
+                info = obtener_nombre_completo_cliente(sesion.codigo_cliente_verificado)
+                if info.get("encontrado"):
+                    nombre = info["nombre_completo"]
+            except SQLAlchemyError:
+                # Billing/customer DB availability must not hide the separate chat store.
+                nombres_disponibles = False
+                logger.exception("No se pudieron cargar nombres; se mostrarán los teléfonos")
 
         historial = sesion.obtener_historial()
         ultimo_mensaje = None
