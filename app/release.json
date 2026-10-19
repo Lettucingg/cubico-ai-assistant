@@ -1,11 +1,11 @@
 {
-  "version": "1.2.3",
+  "version": "1.3.0",
   "fecha": "2026-10-19",
-  "titulo": "Carga de conversaciones",
+  "titulo": "Chat más familiar y compacto",
   "novedades": [
-    "Los chats se muestran antes de las consultas secundarias del panel.",
-    "Un fallo al actualizar muestra Reintentar y conserva la última lista.",
-    "Si la consulta de nombres falla, las conversaciones siguen apareciendo con su teléfono.",
-    "La opción de ubicación se inicializa al abrirla para no interrumpir los chats si su archivo no carga."
+    "Diseño de conversaciones inspirado en WhatsApp, con búsqueda y filtros compactos.",
+    "Más espacio para los mensajes y un editor con botones de adjuntar, audio y envío.",
+    "Consultar a Bruno queda en un acceso discreto; se mantienen sus consultas privadas y la gestión del chat.",
+    "Estados de envío con marcas visuales y errores de entrega visibles."
   ]
 }
