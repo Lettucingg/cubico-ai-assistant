@@ -1,11 +1,11 @@
 {
-  "version": "1.4.0",
+  "version": "1.4.1",
   "fecha": "2026-10-20",
-  "titulo": "Ubicación y borradores antes de enviar",
+  "titulo": "Conversaciones con continuidad y contexto acotado",
   "novedades": [
-    "Configura la dirección y el mapa vigente del local desde Configuración.",
-    "Sin coordenadas puedes enviar el enlace confirmado; con el pin completo se comparte un mapa nativo en WhatsApp.",
-    "Enviar manda exactamente el texto del editor, sin otra reescritura automática.",
-    "Mejorar mi texto crea un borrador privado con el historial reciente para revisarlo antes de enviarlo."
+    "Bruno usa entre 8 y 16 mensajes recientes según la consulta, con un resumen breve de extractos anteriores relevantes.",
+    "El resumen se prepara sin llamadas adicionales a la IA y conserva autor y estado de envío.",
+    "Un saludo en una conversación existente mantiene el contexto; los agradecimientos reciben un cierre breve.",
+    "Los saldos, paquetes y situación del local siguen dependiendo de datos y configuración vigentes."
   ]
 }
