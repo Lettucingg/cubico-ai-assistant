@@ -53,7 +53,7 @@ const screenshotDir=process.env.QA_SCREENSHOT_DIR;
    assert.deepEqual(covered,[],`${width}px: invisible layer blocks navigation`);
    // All native taps must work after scrolling the Costs page.
    await page.locator('#bc-hours').scrollIntoViewIfNeeded();
-   for(const [index,view] of ['overview','chats','packages','opportunities','costs','chats','overview','costs'].entries()){
+   for(const [index,view] of ['overview','chats','packages','opportunities','costs','alerts','chats','overview','costs'].entries()){
     if(index===2)await page.evaluate(()=>say('Aviso de prueba visible'));
     if(index===5)await page.evaluate(()=>document.getElementById('toast').classList.remove('show'));
     await page.locator(`.sidebar .nav button[data-view="${view}"]`).tap();
@@ -78,8 +78,29 @@ const screenshotDir=process.env.QA_SCREENSHOT_DIR;
    assert.equal(await page.locator('#message-input').inputValue(),'Borrador conservado');
    await page.locator('.sidebar .nav button[data-view=costs]').tap();
    await page.waitForFunction(()=>document.getElementById('costs').classList.contains('active'));
+   // Alertas is a real sixth navigation target; operations has discoverable entry points.
+   await page.locator('.sidebar .nav button[data-view=alerts]').tap();
+   await page.waitForFunction(()=>document.getElementById('alerts').classList.contains('active'));
+   const navTargets=await page.locator('.sidebar .nav').first().locator('button').count();assert.equal(navTargets,6);
+   await page.locator('.sidebar .nav button[data-view=overview]').tap();
+   await page.locator('#overview [data-view=operations]').click();
+   await page.waitForFunction(()=>document.getElementById('operations').classList.contains('active'));
+   await page.locator('#oc-new').click();await page.locator('#oc-type').selectOption('sin_repartidor');
+   assert.match(await page.locator('#oc-title').inputValue(),/domicilio|repartidor/i);
+   assert.match(await page.locator('.oc-help').textContent(),/pulsa Activar/);
+   await page.locator('#settings-shortcut').click();
+   await page.locator('#settings [data-view=operations]').click();
+   await page.waitForFunction(()=>document.getElementById('operations').classList.contains('active'));
+   // The reactivation input used to be 13px. Check real computed size and focus cleanup.
+   await page.locator('.sidebar .nav button[data-view=chats]').tap();
+   await page.locator('#chat-actions-toggle').click();
+   await page.locator('#tab-chat').click();await page.locator('#reactivar-chat').click();
+   assert.equal(await page.locator('#saludo-nombre').evaluate(el=>getComputedStyle(el).fontSize),'16px');
+   await page.locator('#saludo-nombre').focus();await page.locator('#saludo-cancelar').click();
+   assert.equal(await page.locator('#modal-saludo').isVisible(),false);
+   assert.equal(await page.locator('#saludo-nombre').evaluate(el=>el===document.activeElement),false);
    assert.deepEqual(errors,[],`${width}px: JavaScript errors`);
-   console.log(`Chromium touch ${width}×${height}: bounded dates, all navigation tabs, cancelled swipe, keyboard-sized viewport and resume passed`);
+   console.log(`Chromium touch ${width}×${height}: six navigation tabs, operations entry points, reactivation font/focus, keyboard and resume passed`);
    await context.close();
   }finally{await browser.close()}
  }
