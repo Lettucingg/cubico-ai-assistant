@@ -15,7 +15,13 @@ def attention_context(reason, history, active=True):
     steps = ['Leer el historial y confirmar qué solicitud sigue pendiente.',
              'Consultar los datos vigentes antes de confirmar una solución al cliente.']
     draft = 'Voy a revisar tu solicitud para darte una respuesta precisa. ¿Qué necesitas confirmar en este momento?'
-    if 'mal identificado' in key or 'malid' in key:
+    if 'contacto humano por llamada' in key:
+        category = 'Solicitud de contacto humano'
+        steps = ['Revisar qué consulta del cliente sigue pendiente y responderla por este chat.',
+                 'Confirmar con el responsable un número que sí reciba llamadas humanas antes de compartirlo.',
+                 'No usar el número del bot ni prometer una llamada o un contacto ya realizado sin confirmación.']
+        draft = 'Soy parte del equipo de Cúbico. Voy a revisar lo pendiente contigo por este chat.'
+    elif 'mal identificado' in key or 'malid' in key:
         category = 'Paquete mal identificado'
         steps = ['Localizar el tracking indicado y revisar la identificación del destinatario.',
                  'Confirmar el código del cliente y gestionar la corrección con bodega.',
