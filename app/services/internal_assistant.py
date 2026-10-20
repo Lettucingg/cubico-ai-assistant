@@ -1,4 +1,4 @@
-"""Read-only staff assistant bound to one verified conversation.
+"""Read-only staff assistant for verified accounts and explicit public trackings.
 
 This module never sends WhatsApp messages or changes business/session data.
 Routine account questions use deterministic answers; other questions use a
@@ -13,6 +13,8 @@ from app.core.config import settings
 from app.tools.clientes import normalizar_codigo_cliente
 from app.tools.facturas import consultar_facturas_por_codigo, consultar_ultimo_pago_por_codigo
 from app.tools.paquetes import consultar_paquetes_por_codigo
+from app.services.staff_tracking import extract_trackings, lookup as lookup_tracking
+from app.services.delivery_continuity import DELIVERY_RULES
 from app.services.human_contact import contact_rules
 from app.services.business_location import verified_location
 from app.services.operational_context import active_context
@@ -70,9 +72,18 @@ def _bounded(snapshot):
 
 
 def query_chat(session, question, mode='consulta'):
+    numbers = extract_trackings(question)
+    if not numbers and any(phrase in _key(question) for phrase in
+                           ('ultimo mensaje', 'que le contesto', 'que responder', 'respondele',
+                            'prepara una respuesta', 'preparame una respuesta', 'este paquete', 'ese paquete')):
+        last_customer = next((m.get('content', '') for m in reversed(session.obtener_historial())
+                              if m.get('role') == 'user'), '')
+        numbers = extract_trackings(last_customer)
+    if numbers:
+        return lookup_tracking(session, numbers, mode)
     code = normalizar_codigo_cliente(session.codigo_cliente_verificado or '')
     if not code:
-        raise UnlinkedCustomer('Este chat no tiene un cliente verificado asociado. Vincúlalo en Gestionar → Cliente antes de consultar saldos o paquetes.')
+        raise UnlinkedCustomer('Este chat no tiene un cliente verificado asociado. Vincúlalo en Gestionar → Cliente para consultar saldos, facturas o sus paquetes. También puedes pegar un tracking para consultar su estado público sin vincular al cliente.')
     for mentioned in re.findall(r'\bCBC[-\s]?\d+\b', question, re.IGNORECASE):
         if normalizar_codigo_cliente(mentioned) != code:
             raise UnlinkedCustomer('Esta consulta es solo para el cliente asociado al chat. Abre la conversación del otro cliente para consultar sus datos.')
@@ -155,7 +166,7 @@ Responde JSON válido, sin markdown, con dos campos: respuesta (explicación int
                    'punto_retiro_verificado': verified_location(), 'avisos_operativos': public_notices}
         response = call_anthropic(cliente_claude.with_options(timeout=35, max_retries=0), phone=session.telefono,
                                   task='asistente_interno', model='claude-sonnet-5', max_tokens=1100,
-                                  system=prompt + contact_rules(), messages=[{'role': 'user', 'content': json.dumps(payload, ensure_ascii=False, default=str)}])
+                                  system=prompt + DELIVERY_RULES + contact_rules(), messages=[{'role': 'user', 'content': json.dumps(payload, ensure_ascii=False, default=str)}])
         raw = '\n'.join(b.text for b in response.content if getattr(b, 'type', None) == 'text').strip()
         try:
             parsed = json.loads(raw)

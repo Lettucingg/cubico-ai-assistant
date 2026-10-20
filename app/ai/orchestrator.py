@@ -1,3 +1,4 @@
+from app.services.delivery_continuity import DELIVERY_RULES, delivery_complaint
 from app.services.human_contact import call_request, call_reply, contact_rules
 from app.services.conversation_context import CONTEXT_RULES, context_window, memory_digest
 from app.services.business_location import verified_location, location_question, location_rules
@@ -1909,6 +1910,17 @@ def generar_respuesta(
         actualizar_sesion(telefono, necesita_atencion_humana=True, motivo_escalamiento=motivo)
         return call_reply()
 
+    if delivery_complaint(texto_cliente):
+        sesion_reclamo = obtener_sesion_existente(telefono)
+        previo = getattr(sesion_reclamo, 'motivo_escalamiento', '') or ''
+        motivo = 'Reclamo de entrega pendiente: confirmar ubicación física, pago y autorización de entrega o recogida; el cliente reporta que no recibió el paquete. No afirmar reparto ni negar retiro sin comprobarlo.'
+        if motivo not in previo:
+            motivo = (motivo + (' | Motivo anterior: ' + previo if previo else ''))[:2000]
+        else:
+            motivo = previo
+        actualizar_sesion(telefono, necesita_atencion_humana=True, motivo_escalamiento=motivo)
+        return 'Entiendo que sigues esperando tu paquete. Dejé el reclamo al equipo para que compruebe dónde está y qué falta para completar la entrega. No tengo una fecha de entrega confirmada para darte ahora.'
+
     if location_question(texto_cliente, historial):
         punto = verified_location()
         if punto and not active_context(texto_cliente, historial):
@@ -2431,7 +2443,7 @@ def generar_respuesta(
         respuesta = call_anthropic(cliente_claude, phone=telefono, task='respuesta_automatica',
             model="claude-sonnet-5",
             max_tokens=1200,
-            system=system_with_context(SYSTEM_PROMPT + "\n\n" + CONTEXT_RULES + contact_rules() + "\n" + location_rules(), active_context(" ".join([texto_cliente, *trackings_consultados]), historial)),
+            system=system_with_context(SYSTEM_PROMPT + "\n\n" + CONTEXT_RULES + DELIVERY_RULES + contact_rules() + "\n" + location_rules(), active_context(" ".join([texto_cliente, *trackings_consultados]), historial)),
             tools=HERRAMIENTAS,
             messages=mensajes,
         )
@@ -2579,7 +2591,7 @@ Borrador del operador: {json.dumps(solucion_del_asesor, ensure_ascii=False)}
     respuesta = call_anthropic(cliente_claude, phone=telefono, task='redaccion_asistida',
         model="claude-sonnet-5",
         max_tokens=500,
-        system=system_with_context(CONTEXT_RULES + contact_rules() + "\nEres un editor de mensajes del equipo de Cúbico, no estás atendiendo al cliente ni ejecutando gestiones. Conserva el sentido del borrador y la continuidad, sin añadir saludos o preguntas genéricas.\n" + location_rules(), active_context(texto_cliente_original)),
+        system=system_with_context(CONTEXT_RULES + DELIVERY_RULES + contact_rules() + "\nEres un editor de mensajes del equipo de Cúbico, no estás atendiendo al cliente ni ejecutando gestiones. Conserva el sentido del borrador y la continuidad, sin añadir saludos o preguntas genéricas.\n" + location_rules(), active_context(texto_cliente_original)),
         messages=[
             {
                 "role": "user",
