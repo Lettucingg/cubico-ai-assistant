@@ -292,6 +292,7 @@ def system_with_context(base, notices):
 def preview_response(body):
     """Same response rules, but no tools, no session, and no outbound transport."""
     from app.ai.orchestrator import SYSTEM_PROMPT, cliente_claude
+    from app.services.business_location import location_rules
     from app.services.cost_analytics import call_anthropic
     notices=active_context(body.pregunta)
     if body.aviso_id is not None: notices=[r for r in notices if r['id']!=body.aviso_id]
@@ -300,7 +301,7 @@ def preview_response(body):
     included=not proposed['trackings'] or any(re.search(r'(?<![A-Z0-9_-])'+re.escape(t)+r'(?![A-Z0-9_-])',body.pregunta.upper()) for t in proposed['trackings'])
     if included: notices.append(proposed)
     response=call_anthropic(cliente_claude,task='prueba_contexto_operativo',model='claude-sonnet-5',max_tokens=600,
-        system=system_with_context(SYSTEM_PROMPT,notices)+[{'type':'text','text':'SIMULACIÓN: No tienes herramientas ni datos de un cliente verificado. No afirmes consultar paquetes, pagos, enviar mensajes o crear solicitudes. El aviso propuesto se simula vigente solo para la prueba. Responde con el texto que dirías al cliente, sin ejecutar ninguna acción.'}],
+        system=system_with_context(SYSTEM_PROMPT + "\n\n" + location_rules(),notices)+[{'type':'text','text':'SIMULACIÓN: No tienes herramientas ni datos de un cliente verificado. No afirmes consultar paquetes, pagos, enviar mensajes o crear solicitudes. El aviso propuesto se simula vigente solo para la prueba. Responde con el texto que dirías al cliente, sin ejecutar ninguna acción.'}],
         messages=[{'role':'user','content':body.pregunta}])
     text='\n'.join(b.text for b in response.content if getattr(b,'type',None)=='text').strip()
     if not text: raise ValueError('La prueba no generó texto. No se envió ningún mensaje.')

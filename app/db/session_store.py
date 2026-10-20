@@ -179,6 +179,14 @@ class EnvioPanelUnico(BaseSesiones):
     resultado = Column(Text, nullable=True)
 
 
+class UbicacionLocal(BaseSesiones):
+    __tablename__ = 'ubicacion_local_panel'
+    id = Column(Integer, primary_key=True)
+    contenido = Column(Text, nullable=False)
+    operador = Column(String, nullable=False)
+    actualizado_en = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
 BaseSesiones.metadata.create_all(engine_sesiones)
 
 

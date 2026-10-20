@@ -11,9 +11,10 @@ const send=d.querySelector('[data-location-send]'),status=d.querySelector('[data
  assert.match(d.querySelector('[data-location-map]').href,/8.98,-79.52/);
  const pending=send.onclick();send.onclick();assert.equal(posts.length,1);assert(send.disabled);assert.match(status.textContent,/Enviando/);
  resolve({ok:true});await pending;assert.deepEqual(accepted,['5071']);assert.match(status.textContent,/aceptó/);
- await ui.open();const retry=send.onclick();assert.equal(posts[0].body.request_id,posts[1].body.request_id);
+ await ui.open();const retry=send.onclick();assert.notEqual(posts[0].body.request_id,posts[1].body.request_id);
  resolve({ok:false,json:async()=>({detail:'Revisa el historial'})});await retry;assert.match(status.textContent,/Revisa el historial/);
- await ui.open();phone='5072';send.onclick();assert.equal(posts.length,2);
+ await ui.open();const uncertainRetry=send.onclick();assert.equal(posts[1].body.request_id,posts[2].body.request_id);resolve({ok:true});await uncertainRetry;
+ await ui.open();phone='5072';send.onclick();assert.equal(posts.length,3);
  point={disponible:false};await ui.open();assert(send.disabled);assert.match(status.textContent,/Falta configurar/);
  d.querySelector('[data-location-close]').click();assert(!d.querySelector('dialog').open);
  dom.window.close();console.log('Location preview, ownership, XSS, duplicate taps, retry, recipient and missing config passed');
