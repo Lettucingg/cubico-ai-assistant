@@ -60,13 +60,13 @@
 
 .reports-heading{display:flex;justify-content:space-between;align-items:center;gap:12px}.reports-history-note{font-size:12px;color:var(--muted);line-height:1.5}#daily-reports-history{margin-top:18px;padding-top:14px;border-top:1px solid var(--line)}#daily-reports-history[hidden]{display:none}#daily-reports-history h4{margin:0 0 6px;font-size:14px}#daily-reports-history-list{max-height:420px;overflow:auto}@media(max-width:760px){.reports-heading h3{font-size:15px}.reports-heading .btn{font-size:12px;padding:9px 11px}}
 </style>
-  <link rel="stylesheet" href="/static/panel-theme.css?v=1.4.3">
-  <link rel="stylesheet" href="/static/chat-minimal.css?v=1.4.3">
-<link rel="stylesheet" href="/static/bot-cost-analytics.css?v=1.4.3">
+  <link rel="stylesheet" href="/static/panel-theme.css?v=1.4.4">
+  <link rel="stylesheet" href="/static/chat-minimal.css?v=1.4.4">
+<link rel="stylesheet" href="/static/bot-cost-analytics.css?v=1.4.4">
 <link rel="stylesheet" href="/static/operational-context.css?v=20261012">
 <style>.release-banner{display:flex;gap:14px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding:15px 18px;margin-bottom:20px;background:#fff5d9;border:1px solid #e8d29c;border-radius:14px;font-size:13px;line-height:1.5}.release-banner[hidden]{display:none}.release-warning{color:#916a14!important}.release-card details summary{cursor:pointer;font-size:13px}.release-card [hidden]{display:none!important}</style>
 </head>
-<body data-panel-version="1.4.3">
+<body data-panel-version="1.4.4">
   <div id="login-overlay" style="position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:50;padding:20px">
     <div class="card" style="width:100%;max-width:380px;padding:32px 28px">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:24px">
@@ -99,7 +99,7 @@
       </nav>
       <div class="nav-label" style="margin-top:22px">Sistema</div>
       <nav class="nav"><button data-view="operations"><span>◉</span><span>Contexto operativo</span></button><button data-view="settings"><span>⚙</span><span>Configuración</span></button></nav>
-      <div class="side-bottom"><div class="health"><div class="health-top"><span><i class="dot"></i>Panel conectado</span><b>API</b></div><p>Los estados mostrados vienen del backend de Bruno.</p><p id="app-version-footer">Panel · v1.4.3</p></div></div>
+      <div class="side-bottom"><div class="health"><div class="health-top"><span><i class="dot"></i>Panel conectado</span><b>API</b></div><p>Los estados mostrados vienen del backend de Bruno.</p><p id="app-version-footer">Panel · v1.4.4</p></div></div>
     </aside>
     <main>
       <header class="topbar"><div class="title"><h1 id="page-title">Buenos días</h1><p id="page-sub">Esto es lo que está pasando en Cúbico hoy.</p></div><div class="top-actions"><input class="search" id="global-search" placeholder="Buscar chat, cliente o paquete…" aria-label="Buscar"/><button class="icon-btn" id="notifications" aria-label="Notificaciones" title="Ver alertas y activar notificaciones">🔔<span class="notification-count" id="notification-count">0</span></button><div class="avatar" id="settings-shortcut" role="button" tabindex="0" aria-label="Abrir configuración" title="Configuración">—</div></div></header>
@@ -148,7 +148,7 @@
       <section class="view" id="opportunities">
         <div class="package-kpis"><button type="button" class="card mini-kpi attn click-card" data-opportunity-filter-link="new"><span>Nuevas</span><b id="lead-new">0</b></button><button type="button" class="card mini-kpi click-card" data-opportunity-filter-link="review"><span>En revisión</span><b id="lead-review">0</b></button><button type="button" class="card mini-kpi click-card" data-opportunity-filter-link="sent"><span>Propuestas enviadas</span><b id="lead-sent">0</b></button><button type="button" class="card mini-kpi click-card" data-opportunity-filter-link="won"><span>Ganadas</span><b id="lead-won">0</b></button></div>
         <div class="opportunity-layout">
-          <article class="card opportunity-list"><div class="opportunity-toolbar"><div><h2>Oportunidades comerciales</h2><p style="margin:4px 0 0;color:var(--muted);font-size:11px">De la consulta a la propuesta. Las tarifas las decide el equipo.</p></div><select class="opportunity-filter" id="opportunity-filter"><option value="active">Activas</option><option value="new">Nuevas</option><option value="review">En revisión</option><option value="sent">Propuestas enviadas</option><option value="won">Ganadas</option><option value="closed">No concretadas</option><option value="all">Todas</option></select></div><div class="opportunity-board" id="opportunity-items"><div style="padding:28px;text-align:center;color:var(--muted);font-size:12px">Cargando oportunidades…</div></div></article>
+          <article class="card opportunity-list"><div class="opportunity-toolbar"><div><h2>Oportunidades comerciales</h2><p style="margin:4px 0 0;color:var(--muted);font-size:11px">De la consulta a la propuesta. Las tarifas las decide el equipo.</p></div><select class="opportunity-filter" id="opportunity-filter"><option value="active">Activas</option><option value="new">Nuevas</option><option value="review">En revisión</option><option value="sent">Propuestas enviadas</option><option value="won">Ganadas</option><option value="closed">No concretadas</option><option value="all">Todas</option></select></div><p class="opportunity-move-hint">Arrastra una tarjeta a otra columna para cambiar su estado. En el celular usa el botón de arrastre. Moverla no envía propuestas.</p><p id="opportunity-move-status" class="opportunity-move-status" role="status" aria-live="polite"></p><div class="opportunity-board" id="opportunity-items"><div style="padding:28px;text-align:center;color:var(--muted);font-size:12px">Cargando oportunidades…</div></div></article>
           <aside class="card opportunity-detail" id="opportunity-detail"><h3>Selecciona una oportunidad</h3><p style="color:var(--muted);font-size:12px;line-height:1.5">Aquí verás el resumen de la necesidad, los datos confirmados y la información que todavía falta.</p></aside>
         </div>
       </section>
@@ -226,20 +226,21 @@
   <div class="modal-overlay" id="modal-verificar-manual" role="dialog" aria-label="Verificar cliente manualmente"><div class="card modal-box"><h3>Verificar manualmente</h3><p style="font-size:12px;color:var(--muted);line-height:1.5">Escribe el código real del cliente o agencia. Se comprobará en la base de datos antes de asociarlo al chat.</p><label for="manual-code">Código de cliente o agencia</label><input type="text" id="manual-code" placeholder="CBC-0001 o código de agencia"/><div class="modal-actions"><button class="btn" type="button" id="manual-verify-cancel">Cancelar</button><button class="btn dark" type="button" id="manual-verify-save">Verificar y asociar</button></div></div></div>
   <div class="modal-overlay" id="modal-operacion-manual" role="dialog" aria-label="Crear operación manual"><div class="card modal-box"><h3 id="manual-operation-title">Crear solicitud</h3><p id="manual-operation-help" style="font-size:12px;color:var(--muted);line-height:1.5"></p><div id="manual-address-field"><label for="manual-address">Dirección exacta</label><textarea id="manual-address" rows="3" placeholder="Dirección completa de entrega"></textarea></div><div id="manual-payment-fields"><label for="manual-amount">Monto reportado (opcional)</label><input type="number" id="manual-amount" min="0.01" step="0.01" placeholder="0.00"/><label for="manual-method">Método (opcional)</label><input type="text" id="manual-method" placeholder="Yappy, transferencia, efectivo…"/><label for="manual-reference">Referencia (opcional)</label><input type="text" id="manual-reference" placeholder="Número de referencia"/></div><div class="modal-actions"><button class="btn" type="button" id="manual-operation-cancel">Cancelar</button><button class="btn dark" type="button" id="manual-operation-save">Crear caso</button></div></div></div>
   <script src="/static/panel-personalization.js"></script>
-  <script src="/static/panel-mobile-layout.js?v=1.4.3"></script>
+  <script src="/static/panel-mobile-layout.js?v=1.4.4"></script>
   <script src="/static/chat-text-editor.js?v=20261007-send"></script>
-  <script src="/static/app-release.js?v=1.4.3"></script>
+  <script src="/static/app-release.js?v=1.4.4"></script>
   <script src="/static/operational-context.js?v=20261012"></script>
-  <script src="/static/bot-cost-analytics.js?v=1.4.3"></script>
+  <script src="/static/bot-cost-analytics.js?v=1.4.4"></script>
   <script src="/static/daily-report.js"></script>
-  <script src="/static/chat-rewrite.js?v=1.4.3"></script>
-  <script src="/static/location-settings.js?v=1.4.3"></script>
-  <script src="/static/chat-location.js?v=1.4.3"></script>
-  <script src="/static/internal-assistant.js?v=1.4.3"></script>
-  <script src="/static/alert-management.js?v=1.4.3?v=20261007-send"></script>
+  <script src="/static/chat-rewrite.js?v=1.4.4"></script>
+  <script src="/static/location-settings.js?v=1.4.4"></script>
+  <script src="/static/chat-location.js?v=1.4.4"></script>
+  <script src="/static/opportunity-drag.js?v=1.4.4"></script>
+  <script src="/static/internal-assistant.js?v=1.4.4"></script>
+  <script src="/static/alert-management.js?v=1.4.4?v=20261007-send"></script>
   <script>
     const titles={overview:['Buenos días, Alexander','Esto es lo que está pasando en Cúbico hoy.'],chats:['Conversaciones','Lee y responde los mensajes de tus clientes.'],packages:['Retiros y domicilios','Organiza las solicitudes que llegan directamente desde WhatsApp.'],opportunities:['Oportunidades comerciales','Bruno organiza la información; el equipo decide qué propuesta preparar.'],costs:['Costos y actividad','Consumo estimado, gastos confirmados y actividad de Bruno.'],alerts:['Alertas','Lo que necesita tu atención, en un solo lugar.'],operations:['Situación actual y avisos','Mantén a Bruno al tanto de los cambios de la operación.'],settings:['Configuración','Integraciones y estado técnico de Bruno.']};
-    function showView(id){document.body.dataset.view=id;document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id===id));document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.view===id));document.getElementById('page-title').textContent=titles[id][0];document.getElementById('page-sub').textContent=titles[id][1];if(id!=='chats'&&typeof cerrarPanelCliente==='function')cerrarPanelCliente();if(id==='packages')cargarSolicitudes();if(id==='opportunities')cargarOportunidades();if(id==='costs'){cargarUso(30);BotCosts.load()};if(id==='alerts')cargarPapelera();if(id==='operations')OperationalContext.load();if(id==='settings'){CubicoRelease.load();window.CubicoLocationSettings?.load()};window.scrollTo({top:0,behavior:'smooth'})}
+    function showView(id){window.opportunityBoardDrag?.cancel();document.body.dataset.view=id;document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id===id));document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.view===id));document.getElementById('page-title').textContent=titles[id][0];document.getElementById('page-sub').textContent=titles[id][1];if(id!=='chats'&&typeof cerrarPanelCliente==='function')cerrarPanelCliente();if(id==='packages')cargarSolicitudes();if(id==='opportunities')cargarOportunidades();if(id==='costs'){cargarUso(30);BotCosts.load()};if(id==='alerts')cargarPapelera();if(id==='operations')OperationalContext.load();if(id==='settings'){CubicoRelease.load();window.CubicoLocationSettings?.load()};window.scrollTo({top:0,behavior:'smooth'})}
     document.querySelectorAll('[data-view]:not(.nav button)').forEach(b=>b.addEventListener('click',()=>showView(b.dataset.view)));document.querySelectorAll('.open-chats').forEach(b=>b.addEventListener('click',()=>showView('chats')));
     function abrirAccesoDirecto(elemento){
       const vista=elemento.dataset.summaryView;
@@ -293,6 +294,7 @@
       const input=document.getElementById('message-input');if(phone!==telActivo||input.disabled||input.readOnly||input.value.trim())return false;
       input.value=text;borradoresChat.set(phone,text);editorTexto.resize();return true;
     });
+    window.opportunityBoardDrag=window.CubicoOpportunityDrag?.init(document.getElementById('opportunity-items'),moverOportunidad,say);
     async function apiPost(path,body){return await apiRequest(path,{method:'POST',headers:{'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined})}
     async function apiAudio(path,blob){return await apiRequest(path,{method:'POST',headers:{'Content-Type':blob.type||'application/octet-stream'},body:blob})}
     function esc(s){return(s||'').toString().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
@@ -1384,10 +1386,11 @@
     function etiquetaEstadoOportunidad(estado){return ESTADOS_OPORTUNIDAD[estado]||estado}
     function listaOportunidadesFiltrada(){return oportunidades.filter(o=>filtroOportunidad==='all'||(filtroOportunidad==='active'&&!['ganada','no_concretada'].includes(o.estado))||(filtroOportunidad==='new'&&o.estado==='nueva')||(filtroOportunidad==='review'&&['en_revision','preparando_propuesta'].includes(o.estado))||(filtroOportunidad==='sent'&&['propuesta_enviada','seguimiento'].includes(o.estado))||(filtroOportunidad==='won'&&o.estado==='ganada')||(filtroOportunidad==='closed'&&o.estado==='no_concretada'))}
     async function cargarOportunidades(){
-      if(!creds)return;
+      if(!creds||window.opportunityBoardDrag?.isBusy()||window.opportunityBoardDrag?.isDragging())return;
       try{
         const r=await apiGet('/panel/oportunidades');if(!r.ok)return;
-        oportunidades=await r.json();
+        const loaded=await r.json();if(window.opportunityBoardDrag?.isBusy()||window.opportunityBoardDrag?.isDragging())return;
+        oportunidades=loaded;
         const activaId=oportunidadActiva?.id;oportunidadActiva=oportunidades.find(o=>o.id===activaId)||null;
         renderOportunidades();renderAlertas();
       }catch(e){document.getElementById('opportunity-items').innerHTML='<div style="padding:28px;text-align:center;color:var(--red);font-size:12px">No se pudieron cargar las oportunidades</div>'}
@@ -1398,6 +1401,7 @@
       return limpio||original;
     }
     function renderOportunidades(){
+      window.opportunityBoardDrag?.cancel();
       document.getElementById('lead-new').textContent=oportunidades.filter(o=>o.estado==='nueva').length;
       document.getElementById('lead-review').textContent=oportunidades.filter(o=>['en_revision','preparando_propuesta'].includes(o.estado)).length;
       document.getElementById('lead-sent').textContent=oportunidades.filter(o=>['propuesta_enviada','seguimiento'].includes(o.estado)).length;
@@ -1407,11 +1411,26 @@
       const lista=listaOportunidadesFiltrada(),contenedor=document.getElementById('opportunity-items');
       if(!lista.length){contenedor.classList.remove('single-stage');contenedor.style.setProperty('--opportunity-columns','1');contenedor.innerHTML='<div style="padding:28px;text-align:center;color:var(--muted);font-size:12px">No hay oportunidades en este estado</div>';renderDetalleOportunidad();return}
       const etapas=[['new','Nuevas',['nueva']],['review','En revisión',['en_revision','preparando_propuesta']],['sent','Propuestas y seguimiento',['propuesta_enviada','seguimiento']],['won','Ganadas',['ganada']],['closed','No concretadas',['no_concretada']]];
-      const visibles=etapas.filter(([, ,estados])=>filtroOportunidad==='active'? !estados.includes('ganada')&&!estados.includes('no_concretada'):lista.some(o=>estados.includes(o.estado)));
+      const visibles=etapas.filter(([, ,estados])=>filtroOportunidad==='active'? !estados.includes('ganada')&&!estados.includes('no_concretada'):filtroOportunidad==='all'||lista.some(o=>estados.includes(o.estado)));
       contenedor.classList.toggle('single-stage',visibles.length===1);contenedor.style.setProperty('--opportunity-columns',String(Math.min(visibles.length,3)));
-      contenedor.innerHTML=visibles.map(([,titulo,estados])=>{const grupo=lista.filter(o=>estados.includes(o.estado));return `<section class="opportunity-column"><h3>${titulo} <span>${grupo.length}</span></h3>${grupo.length?grupo.map(o=>`<button class="opportunity-item${oportunidadActiva?.id===o.id?' active':''}" data-id="${o.id}"><span class="opportunity-copy"><b>${esc(tituloOportunidad(o))}</b><p>${esc(o.resumen||'Información comercial pendiente')}</p></span><span class="opportunity-meta"><span class="status-pill${o.estado==='ganada'?' ready':o.estado==='no_concretada'?' issue':''}">${esc(etiquetaEstadoOportunidad(o.estado))}</span><small>${tiempoTranscurrido(o.actualizada_en)}</small></span></button>`).join(''):'<p class="board-empty">Sin oportunidades en esta etapa.</p>'}</section>`}).join('');
-      document.querySelectorAll('.opportunity-item').forEach(b=>b.addEventListener('click',()=>seleccionarOportunidad(Number(b.dataset.id))));
+      contenedor.innerHTML=visibles.map(([,titulo,estados])=>{const grupo=lista.filter(o=>estados.includes(o.estado));return `<section class="opportunity-column" data-drop-state="${estados[0]}" data-accept-states="${estados.join(',')}" data-drop-label="${esc(titulo)}"><h3>${titulo} <span>${grupo.length}</span></h3>${grupo.length?grupo.map(o=>{const locked=!!o.asignado_a&&o.asignado_a!==usuarioActual;return `<article class="opportunity-item${oportunidadActiva?.id===o.id?' active':''}" data-id="${o.id}" data-state="${esc(o.estado)}" data-move-locked="${locked}"><button type="button" class="opportunity-open"><span class="opportunity-copy"><b>${esc(tituloOportunidad(o))}</b><p>${esc(o.resumen||'Información comercial pendiente')}</p></span><span class="opportunity-meta"><span class="status-pill${o.estado==='ganada'?' ready':o.estado==='no_concretada'?' issue':''}">${esc(etiquetaEstadoOportunidad(o.estado))}</span><small>${tiempoTranscurrido(o.actualizada_en)}</small></span></button><button type="button" class="opportunity-drag-handle" aria-label="Mover ${esc(tituloOportunidad(o))}. Arrastra o usa las flechas del teclado." title="${locked?'Asignada a '+esc(o.asignado_a):'Arrastrar a otra columna'}"${locked?' disabled':''}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h14M5 12h14M5 16h14"/></svg></button></article>`}).join(''):'<p class="board-empty">Sin oportunidades en esta etapa.</p>'}</section>`}).join('');
+      document.querySelectorAll('.opportunity-item').forEach(b=>b.addEventListener('click',e=>{if(!e.target.closest('.opportunity-drag-handle'))seleccionarOportunidad(Number(b.dataset.id))}));
       renderDetalleOportunidad();
+    }
+    async function moverOportunidad(id,estado){
+      const auth=creds,o=oportunidades.find(item=>item.id===id);
+      if(!auth||!o)throw Error('La oportunidad ya no está disponible. Actualiza el tablero.');
+      if(o.asignado_a&&o.asignado_a!==usuarioActual)throw Error('Esta oportunidad está siendo revisada por '+o.asignado_a+'.');
+      const note=document.getElementById('lead-note'),select=document.getElementById('lead-state');
+      if(note?.value.trim()||(oportunidadActiva&&select&&select.value!==oportunidadActiva.estado))throw Error('Guarda el avance que tienes abierto antes de mover una tarjeta.');
+      let r;try{r=await apiPost(`/panel/oportunidad/${id}`,{estado})}catch(error){throw Error('No se pudo confirmar el movimiento. Actualiza el tablero antes de reintentar.')}
+      if(creds!==auth)return false;
+      let updated;try{updated=await r.json()}catch(error){throw Error('No se pudo confirmar el movimiento. Actualiza el tablero.')}
+      if(!r.ok)throw Error(updated.detail||'No se pudo guardar el movimiento.');
+      if(updated.id!==id||updated.estado!==estado)throw Error('La respuesta no confirmó el nuevo estado. Actualiza el tablero.');
+      oportunidades=oportunidades.map(item=>item.id===id?updated:item);
+      if(oportunidadActiva?.id===id)oportunidadActiva=updated;
+      renderOportunidades();renderAlertas();void cargarResumen();return true;
     }
     function seleccionarOportunidad(id){oportunidadActiva=oportunidades.find(o=>o.id===id)||null;renderOportunidades();if(window.innerWidth<=760&&oportunidadActiva)requestAnimationFrame(()=>document.getElementById('opportunity-detail').scrollIntoView({behavior:'smooth',block:'start'}))}
     function renderDetalleOportunidad(){
