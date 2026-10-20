@@ -51,6 +51,7 @@ from app.ai.orchestrator import (
 from app.api.whatsapp import (
     enviar_audio_whatsapp,
     enviar_ubicacion_whatsapp,
+    enviar_mensaje_whatsapp,
     enviar_documento_whatsapp,
     enviar_imagen_whatsapp,
     enviar_plantilla_whatsapp,
@@ -1234,6 +1235,51 @@ async def consultar_bruno_panel(telefono: str, payload: ConsultaBrunoPayload,
     return result
 
 
+class BorradorAsistidoPayload(BaseModel):
+    mensaje: str = Field(min_length=1, max_length=4000)
+
+
+@router.post('/mejorar-borrador/{telefono}')
+async def mejorar_borrador(telefono: str, body: BorradorAsistidoPayload,
+                           usuario: str = Depends(verificar_credenciales_panel)):
+    session = _validar_operador_conversacion(telefono, usuario)
+    message = body.mensaje.strip()
+    if not message:
+        raise HTTPException(status_code=422, detail='Escribe primero el texto que quieres mejorar.')
+    history = session.obtener_historial()
+    original = next((str(m.get('content', '')) for m in reversed(history)
+                     if m.get('role') == 'user'), '')
+    try:
+        draft = await asyncio.to_thread(redactar_respuesta_de_asesor, original, message, telefono)
+    except Exception:
+        logger.exception('No se pudo preparar el borrador')
+        raise HTTPException(status_code=502, detail='No se pudo mejorar el texto. Se conserva tu mensaje y no se envió nada.') from None
+    actual = _validar_operador_conversacion(telefono, usuario)
+    if actual.obtener_historial() != history:
+        raise HTTPException(status_code=409, detail='Llegó un mensaje nuevo. Revisa el chat y vuelve a preparar el borrador.')
+    return {'telefono': telefono, 'borrador': draft, 'enviado': False}
+
+
+@router.post('/enviar-texto/{telefono}')
+@envio_unico
+async def enviar_texto_revisado(telefono: str, body: dict,
+                                usuario: str = Depends(verificar_credenciales_panel)):
+    message = body.get('mensaje')
+    if not isinstance(message, str) or not message.strip() or len(message) > 4000:
+        raise HTTPException(status_code=422, detail='El mensaje debe tener entre 1 y 4000 caracteres.')
+    _validar_operador_conversacion(telefono, usuario)
+    response = await enviar_respuesta_natural(telefono, message.strip(), message_id='',
+                                             simular_escritura=False, dividir=False)
+    if hasattr(response, 'is_success') and not response.is_success:
+        raise HTTPException(status_code=502, detail='Meta no pudo enviar el mensaje.')
+    agregar_al_historial(telefono, 'humano', message.strip(),
+        whatsapp_message_id=extraer_id_mensaje_meta(response), estado_entrega='accepted',
+        autor_tipo='humano', operador=usuario,
+        modo_envio='revisado_bruno' if body.get('asistido') is True else 'directo')
+    # Sending is not proof that an escalated case has been resolved.
+    return {'status': 'enviado'}
+
+
 @router.post('/responder-revisado/{telefono}')
 @envio_unico
 async def enviar_respuesta_revisada(telefono: str, body: dict,
@@ -1440,10 +1486,33 @@ async def enviar_audio_desde_panel(
     return {"status": "enviado"}
 
 
+class UbicacionLocalPayload(BaseModel):
+    direccion: str = Field(min_length=1, max_length=1000)
+    enlace: str = Field(min_length=1, max_length=1500)
+    latitud: float | None = Field(default=None, ge=-90, le=90, allow_inf_nan=False)
+    longitud: float | None = Field(default=None, ge=-180, le=180, allow_inf_nan=False)
+    confirmada: bool
+
+
+@router.get('/configuracion/ubicacion')
+def configuracion_ubicacion(usuario: str = Depends(verificar_credenciales_panel)):
+    from app.services.business_location import location_config
+    return location_config()
+
+
+@router.put('/configuracion/ubicacion')
+def guardar_ubicacion(payload: UbicacionLocalPayload, usuario: str = Depends(verificar_credenciales_panel)):
+    from app.services.business_location import save_location
+    try:
+        return save_location(payload.model_dump(), usuario)
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+
 @router.get('/ubicacion-local')
 def ubicacion_local(usuario: str = Depends(verificar_credenciales_panel)):
-    from app.services.business_location import native_location
-    point = native_location()
+    from app.services.business_location import location_preview
+    point = location_preview()
     return {'disponible': bool(point), **(point or {})}
 
 
@@ -1451,15 +1520,16 @@ def ubicacion_local(usuario: str = Depends(verificar_credenciales_panel)):
 @envio_unico
 async def enviar_ubicacion_desde_panel(telefono: str, body: dict,
                                       usuario: str = Depends(verificar_credenciales_panel)):
-    from app.services.business_location import native_location
-    _validar_operador_conversacion(telefono, usuario, requiere_control=True)
-    point = native_location()
+    from app.services.business_location import location_preview
+    _validar_operador_conversacion(telefono, usuario)
+    point = location_preview()
     if not point:
         raise HTTPException(status_code=409, detail='La ubicación del local aún no está confirmada y configurada.')
     if not body.get('request_id') or body.get('mensaje') != point['revision']:
         raise HTTPException(status_code=409, detail='La ubicación cambió. Abre de nuevo la vista previa antes de enviar.')
     try:
-        response = await enviar_ubicacion_whatsapp(telefono, point['ubicacion'])
+        response = (await enviar_ubicacion_whatsapp(telefono, point['ubicacion']) if point['tipo'] == 'location' else
+                    await enviar_mensaje_whatsapp(telefono, f"Ubicación de Cúbico: {point['ubicacion']['address']}\n{point['enlace']}"))
     except httpx.HTTPError as error:
         raise HTTPException(status_code=502, detail='No pudimos confirmar el envío. Revisa el historial antes de reenviar.') from error
     message_id = extraer_id_mensaje_meta(response)
@@ -1467,7 +1537,8 @@ async def enviar_ubicacion_desde_panel(telefono: str, body: dict,
         raise HTTPException(status_code=502, detail='Meta no confirmó la ubicación. Revisa el historial; si la ventana de atención cerró, usa primero una plantilla y espera la respuesta del cliente.')
     agregar_al_historial(telefono, 'humano',
         f"Ubicación de Cúbico: {point['ubicacion']['address']}\n{point['enlace']}",
-        tipo='location', ubicacion=point['ubicacion'],
+        tipo='location' if point['tipo'] == 'location' else 'text',
+        ubicacion=point['ubicacion'] if point['tipo'] == 'location' else None,
         whatsapp_message_id=message_id, estado_entrega='accepted',
         autor_tipo='humano', operador=usuario, modo_envio='directo')
     return {'status': 'enviado', 'whatsapp_message_id': message_id}

@@ -1,11 +1,11 @@
 {
-  "version": "1.3.1",
+  "version": "1.4.0",
   "fecha": "2026-10-20",
-  "titulo": "Situación actual y accesos móviles",
+  "titulo": "Ubicación y borradores antes de enviar",
   "novedades": [
-    "El apartado Situación actual del local se identifica mejor en Resumen y también tiene acceso desde Configuración.",
-    "Alertas vuelve a tener un botón en la barra inferior del teléfono, con contador de pendientes.",
-    "Formularios móviles con campos de 16 px y cierre del foco al salir de una ventana.",
-    "Reactivar chat explica que hay que esperar la respuesta del cliente antes de continuar con mensajes normales."
+    "Configura la dirección y el mapa vigente del local desde Configuración.",
+    "Sin coordenadas puedes enviar el enlace confirmado; con el pin completo se comparte un mapa nativo en WhatsApp.",
+    "Enviar manda exactamente el texto del editor, sin otra reescritura automática.",
+    "Mejorar mi texto crea un borrador privado con el historial reciente para revisarlo antes de enviarlo."
   ]
 }
