@@ -1,0 +1,22 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),{JSDOM}=require('jsdom');
+const dom=new JSDOM(`<p id="opportunity-move-status"></p><div id="board"><section data-drop-state="nueva" data-accept-states="nueva" data-drop-label="Nuevas"><article class="opportunity-item" data-id="1" data-state="nueva"><button class="opportunity-open">Empresa</button><button class="opportunity-drag-handle">Mover</button></article></section><section data-drop-state="en_revision" data-accept-states="en_revision,preparando_propuesta" data-drop-label="En revisión"></section><section data-drop-state="propuesta_enviada" data-accept-states="propuesta_enviada,seguimiento" data-drop-label="Propuestas"></section></div>`,{runScripts:'outside-only',pretendToBeVisual:true});
+const w=dom.window,d=w.document,board=d.getElementById('board'),card=d.querySelector('article'),handle=card.querySelector('.opportunity-drag-handle'),columns=[...d.querySelectorAll('section')];
+w.requestAnimationFrame=()=>1;w.cancelAnimationFrame=()=>{};w.scrollBy=()=>{};let hit=columns[1],calls=[],notices=[],resolve,fail=false,opens=0;d.elementFromPoint=()=>hit;
+w.eval(fs.readFileSync('app/static/opportunity-drag.js','utf8'));
+const moduleApi=w.CubicoOpportunityDrag.init(board,(id,state)=>{calls.push({id,state});if(fail)return Promise.reject(Error('Otro operador la está revisando'));return new Promise(r=>resolve=r)},text=>notices.push(text));
+card.addEventListener('click',()=>opens++);
+const event=(type,node,extra={})=>{const e=new w.Event(type,{bubbles:true,cancelable:true});Object.assign(e,{pointerId:1,pointerType:'mouse',button:0,isPrimary:true,clientX:100,clientY:150,...extra});node.dispatchEvent(e);return e};
+const tick=()=>new Promise(setImmediate);
+(async()=>{
+ event('pointerdown',card);event('pointermove',d,{clientX:110});assert.ok(board.classList.contains('is-dragging'));assert.ok(columns[1].classList.contains('drop-target'));assert.ok(d.querySelector('.opportunity-drag-ghost'));event('pointerup',d,{clientX:110});card.click();assert.equal(opens,0);assert.deepEqual(calls,[{id:1,state:'en_revision'}]);assert.ok(moduleApi.isBusy());
+ event('pointerdown',card);event('pointermove',d,{clientX:130});event('pointerup',d);assert.equal(calls.length,1);resolve(true);await tick();assert.equal(moduleApi.isBusy(),false);assert.match(notices.at(-1),/En revisión/);assert.equal(d.querySelector('.opportunity-drag-ghost'),null);
+ hit=columns[0];event('pointerdown',card);event('pointermove',d,{clientX:120});event('pointerup',d);assert.equal(calls.length,1);event('pointerdown',card);event('pointerup',d);card.click();assert.equal(opens,1);
+ hit=columns[1];event('pointerdown',card,{pointerType:'touch'});event('pointermove',d,{pointerType:'touch',clientX:140});assert.equal(moduleApi.isDragging(),false);event('pointerup',d,{pointerType:'touch'});
+ event('pointerdown',handle,{pointerType:'touch'});event('pointermove',d,{pointerType:'touch',clientX:140});assert.ok(moduleApi.isDragging());event('pointercancel',d);assert.equal(moduleApi.isDragging(),false);assert.equal(calls.length,1);
+ event('pointerdown',handle,{pointerType:'touch'});event('pointermove',d,{pointerType:'touch',clientX:140});event('pointerup',d,{pointerType:'touch'});assert.equal(calls.length,2);resolve(true);await tick();
+ fail=true;handle.dispatchEvent(new w.KeyboardEvent('keydown',{key:'ArrowRight',bubbles:true,cancelable:true}));await tick();assert.match(notices.at(-1),/Otro operador/);assert.equal(card.dataset.state,'nueva');assert.equal(card.parentElement,columns[0]);
+ hit=null;event('pointerdown',card);event('pointermove',d,{clientX:140});event('pointerup',d);assert.equal(calls.length,3);
+ hit=columns[1];event('pointerdown',card);event('pointermove',d,{clientX:140});d.dispatchEvent(new w.KeyboardEvent('keydown',{key:'Escape',bubbles:true}));event('pointerup',d);assert.equal(calls.length,3);
+ card.dataset.moveLocked='true';event('pointerdown',card);event('pointermove',d,{clientX:140});event('pointerup',d);assert.equal(calls.length,3);assert.equal(d.querySelector('.opportunity-drag-ghost'),null);
+ console.log('Opportunity movement: mouse, touch handle, keyboard, busy lock, unchanged state on rejection, same stage, outside drop, cancellation and ownership passed');dom.window.close();
+})().catch(e=>{console.error(e);dom.window.close();process.exitCode=1});

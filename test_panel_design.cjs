@@ -20,7 +20,8 @@ w.fetch=async(url,options={})=>{const path=new URL(url).pathname;let data;
  if(path==='/panel/perfil'&&options.method==='PUT')fixtures.perfil=JSON.parse(options.body);
  if(path==='/panel/perfil/contrasena')data={status:'ok'};
  else
- if(path.startsWith('/panel/asistente/')&&publicTracking)data={telefono:path.split('/').at(-1),privado:true,codigo_cliente:null,alcance:'tracking_publico',consultado_en:new Date().toISOString(),respuesta:'Tracking recibido en Miami',borrador:'El último registro indica Miami.',datos:{trackings:[{tracking:'9261290416110741315371',estado_publico:'Recibido en Miami'}]}};
+ if(path.startsWith('/panel/oportunidad/')&&options.method==='POST'){const item=fixtures.oportunidades.find(o=>o.id===Number(path.split('/').at(-1)));Object.assign(item,JSON.parse(options.body));data=item;}
+ else if(path.startsWith('/panel/asistente/')&&publicTracking)data={telefono:path.split('/').at(-1),privado:true,codigo_cliente:null,alcance:'tracking_publico',consultado_en:new Date().toISOString(),respuesta:'Tracking recibido en Miami',borrador:'El último registro indica Miami.',datos:{trackings:[{tracking:'9261290416110741315371',estado_publico:'Recibido en Miami'}]}};
  else if(path.startsWith('/panel/asistente/'))data={telefono:path.split('/').at(-1),privado:true,codigo_cliente:'CBC-1',consultado_en:new Date().toISOString(),respuesta:'Saldo total: $10.00',borrador:'Tu saldo total pendiente es de $10.00.',datos:{}};
  else if(path==='/panel/push/prueba')data={configurado:true,enviadas:1,eliminadas:0};
  else if(path==='/panel/alertas/papelera')data=archived;
@@ -30,7 +31,7 @@ w.fetch=async(url,options={})=>{const path=new URL(url).pathname;let data;
  else data=fixtures[path.split('/').at(-1)]||{};
  return {ok:true,status:200,json:async()=>structuredClone(data)};
 };
-for(const f of ['panel-personalization.js','panel-mobile-layout.js','chat-text-editor.js','app-release.js','operational-context.js','bot-cost-analytics.js','daily-report.js','alert-management.js','internal-assistant.js','chat-location.js','chat-rewrite.js','location-settings.js'])w.eval(fs.readFileSync('app/static/'+f,'utf8'));
+for(const f of ['panel-personalization.js','panel-mobile-layout.js','chat-text-editor.js','app-release.js','operational-context.js','bot-cost-analytics.js','daily-report.js','alert-management.js','internal-assistant.js','opportunity-drag.js','chat-location.js','chat-rewrite.js','location-settings.js'])w.eval(fs.readFileSync('app/static/'+f,'utf8'));
 const inline=html.match(/<script>\s*([\s\S]*?)<\/script>/)[1];new Function(inline);
 w.eval(inline+`\nwindow.seedDesign=()=>{creds='test';usuarioActual='alexander';document.querySelector('.app').style.display='grid';document.getElementById('login-overlay').style.display='none';};`);
 const tick=()=>new Promise(setImmediate);
@@ -70,6 +71,8 @@ const tick=()=>new Promise(setImmediate);
  w.aplicarFiltroOportunidad('new');assert.equal(d.querySelectorAll('.opportunity-column').length,1);assert.ok(d.getElementById('opportunity-items').classList.contains('single-stage'));assert.equal(d.getElementById('opportunity-items').style.getPropertyValue('--opportunity-columns'),'1');
  assert.equal(w.tituloOportunidad({empresa:'Proveedorpro (https://proveedorpro.com/app/products)'}),'Proveedorpro');
  w.aplicarFiltroOportunidad('active');assert.equal(d.getElementById('opportunity-items').classList.contains('single-stage'),false);assert.equal(d.getElementById('opportunity-items').style.getPropertyValue('--opportunity-columns'),'3');
+ const movedCard=d.querySelector('.opportunity-item[data-id="1"]');movedCard.querySelector('.opportunity-drag-handle').dispatchEvent(new w.KeyboardEvent('keydown',{key:'ArrowRight',bubbles:true,cancelable:true}));await tick();await tick();assert.equal(fixtures.oportunidades.find(o=>o.id===1).estado,'en_revision');assert.equal(d.querySelector('.opportunity-item[data-id="1"]').closest('.opportunity-column').dataset.dropState,'en_revision');assert.equal(posts.filter(p=>p==='/panel/oportunidad/1').length,1);assert.match(d.getElementById('opportunity-move-status').textContent,/movida/);
+
  w.showView('costs');await tick();assert.ok(d.querySelector('#cost-chart polyline'));
  w.showView('settings');await w.cargarPerfilCuenta();assert.equal(d.getElementById('account-name').value,'Alex');d.getElementById('account-name').value='Alexander Cúbico';d.getElementById('account-profile-form').dispatchEvent(new w.Event('submit',{cancelable:true}));await tick();assert.equal(d.getElementById('account-profile-status').textContent,'Perfil guardado.');assert.match(d.getElementById('settings-shortcut').textContent,/AC/);
  d.getElementById('account-password-current').value='old-password';d.getElementById('account-password-new').value='nueva-segura-123';d.getElementById('account-password-confirm').value='diferente';d.getElementById('account-password-form').dispatchEvent(new w.Event('submit',{cancelable:true}));assert.match(d.getElementById('account-password-status').textContent,/no coinciden/);assert.equal(posts.includes('/panel/perfil/contrasena'),false);d.getElementById('account-password-confirm').value='nueva-segura-123';d.getElementById('account-password-form').dispatchEvent(new w.Event('submit',{cancelable:true}));await tick();assert.match(d.getElementById('account-password-status').textContent,/actualizada/);assert.equal(d.getElementById('account-password-new').value,'');

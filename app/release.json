@@ -1,11 +1,11 @@
 {
-  "version": "1.4.3",
+  "version": "1.4.4",
   "fecha": "2026-10-20",
-  "titulo": "Consulta trackings y prepara respuestas desde el chat",
+  "titulo": "Mueve oportunidades arrastrándolas entre columnas",
   "novedades": [
-    "Pega un tracking o el mensaje que lo contiene en Consultar a Bruno para buscar su estado público, incluso sin cliente vinculado.",
-    "Preparar respuesta genera un borrador con datos consultados; Pasar al editor permite revisarlo y Enviar lo manda tal como quedó.",
-    "La consulta distingue paquete no registrado, servicio no disponible y mal identificado, sin exponer proveedores internos.",
-    "Los reclamos de paquetes no recibidos dejan una atención con pasos concretos, sin inventar salida a reparto ni ofrecer retiro sin confirmar."
+    "Arrastra una tarjeta de Negocios a otra columna para guardar su nuevo estado sin abrir el detalle.",
+    "En el celular usa el botón de arrastre; también puedes moverla con las flechas del teclado desde ese botón.",
+    "La columna de destino se resalta y el movimiento se muestra guardado solo cuando el servidor confirma el cambio.",
+    "Mover una tarjeta no envía propuestas ni mensajes y respeta la asignación a otros operadores."
   ]
 }
