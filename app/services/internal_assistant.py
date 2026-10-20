@@ -13,6 +13,7 @@ from app.core.config import settings
 from app.tools.clientes import normalizar_codigo_cliente
 from app.tools.facturas import consultar_facturas_por_codigo, consultar_ultimo_pago_por_codigo
 from app.tools.paquetes import consultar_paquetes_por_codigo
+from app.services.human_contact import contact_rules
 from app.services.business_location import verified_location
 from app.services.operational_context import active_context
 
@@ -154,7 +155,7 @@ Responde JSON válido, sin markdown, con dos campos: respuesta (explicación int
                    'punto_retiro_verificado': verified_location(), 'avisos_operativos': public_notices}
         response = call_anthropic(cliente_claude.with_options(timeout=35, max_retries=0), phone=session.telefono,
                                   task='asistente_interno', model='claude-sonnet-5', max_tokens=1100,
-                                  system=prompt, messages=[{'role': 'user', 'content': json.dumps(payload, ensure_ascii=False, default=str)}])
+                                  system=prompt + contact_rules(), messages=[{'role': 'user', 'content': json.dumps(payload, ensure_ascii=False, default=str)}])
         raw = '\n'.join(b.text for b in response.content if getattr(b, 'type', None) == 'text').strip()
         try:
             parsed = json.loads(raw)

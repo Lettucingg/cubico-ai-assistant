@@ -78,6 +78,9 @@ class Settings(BaseSettings):
     CUBICO_CHINA_OCEAN_PHONE_SECONDARY: str = ""
     CUBICO_LOCAL_ADDRESS: str = ""
     CUBICO_LOCAL_PHONE: str = ""
+    # A general WhatsApp/contact number is not proof of human voice service.
+    CUBICO_HUMAN_CALL_PHONE: str = ""
+    CUBICO_HUMAN_CALL_VERIFIED: bool = False
     # Only publish pickup directions after the team confirms the current pin.
     CUBICO_LOCATION_URL: str = ""
     CUBICO_LOCATION_VERIFIED: bool = False

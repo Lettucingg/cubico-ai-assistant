@@ -1,11 +1,11 @@
 {
-  "version": "1.4.1",
+  "version": "1.4.2",
   "fecha": "2026-10-20",
-  "titulo": "Conversaciones con continuidad y contexto acotado",
+  "titulo": "Contacto humano por llamadas sin números supuestos",
   "novedades": [
-    "Bruno usa entre 8 y 16 mensajes recientes según la consulta, con un resumen breve de extractos anteriores relevantes.",
-    "El resumen se prepara sin llamadas adicionales a la IA y conserva autor y estado de envío.",
-    "Un saludo en una conversación existente mantiene el contexto; los agradecimientos reciben un cierre breve.",
-    "Los saldos, paquetes y situación del local siguen dependiendo de datos y configuración vigentes."
+    "Bruno solo ofrece un teléfono para llamadas humanas cuando está configurado y confirmado expresamente.",
+    "Si falta un número confirmado, registra la solicitud al equipo y explica que la atención continúa por chat, sin prometer una llamada.",
+    "Las alertas de contacto humano conservan el motivo anterior e indican qué debe revisar el equipo.",
+    "La misma política aplica a los borradores y a Consultar a Bruno."
   ]
 }

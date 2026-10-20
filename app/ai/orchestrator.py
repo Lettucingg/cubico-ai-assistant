@@ -1,3 +1,4 @@
+from app.services.human_contact import call_request, call_reply, contact_rules
 from app.services.conversation_context import CONTEXT_RULES, context_window, memory_digest
 from app.services.business_location import verified_location, location_question, location_rules
 from app.services.operational_context import active_context, system_with_context, service_block
@@ -698,7 +699,7 @@ Domingo:
 cerrado
 
 Local: usa únicamente la ubicación vigente incluida en el contexto de esta respuesta.
-Teléfono: {CUBICO_LOCAL_PHONE}
+Contacto telefónico: usa únicamente el número de llamadas humanas confirmado en el contexto vigente.
 
 
 VERIFICACIÓN DE IDENTIDAD
@@ -1897,6 +1898,17 @@ def generar_respuesta(
     verificar la identidad del cliente.
     """
 
+    if call_request(texto_cliente, historial):
+        sesion_contacto = obtener_sesion_existente(telefono)
+        previo = getattr(sesion_contacto, 'motivo_escalamiento', '') or ''
+        motivo = 'Contacto humano por llamada: confirmar un número habilitado; revisar la solicitud pendiente del cliente en el historial.'
+        if motivo not in previo:
+            motivo = (motivo + (' | Motivo anterior: ' + previo if previo else ''))[:2000]
+        else:
+            motivo = previo
+        actualizar_sesion(telefono, necesita_atencion_humana=True, motivo_escalamiento=motivo)
+        return call_reply()
+
     if location_question(texto_cliente, historial):
         punto = verified_location()
         if punto and not active_context(texto_cliente, historial):
@@ -2419,7 +2431,7 @@ def generar_respuesta(
         respuesta = call_anthropic(cliente_claude, phone=telefono, task='respuesta_automatica',
             model="claude-sonnet-5",
             max_tokens=1200,
-            system=system_with_context(SYSTEM_PROMPT + "\n\n" + CONTEXT_RULES + "\n" + location_rules(), active_context(" ".join([texto_cliente, *trackings_consultados]), historial)),
+            system=system_with_context(SYSTEM_PROMPT + "\n\n" + CONTEXT_RULES + contact_rules() + "\n" + location_rules(), active_context(" ".join([texto_cliente, *trackings_consultados]), historial)),
             tools=HERRAMIENTAS,
             messages=mensajes,
         )
@@ -2567,7 +2579,7 @@ Borrador del operador: {json.dumps(solucion_del_asesor, ensure_ascii=False)}
     respuesta = call_anthropic(cliente_claude, phone=telefono, task='redaccion_asistida',
         model="claude-sonnet-5",
         max_tokens=500,
-        system=system_with_context(CONTEXT_RULES + "\nEres un editor de mensajes del equipo de Cúbico, no estás atendiendo al cliente ni ejecutando gestiones. Conserva el sentido del borrador y la continuidad, sin añadir saludos o preguntas genéricas.\n" + location_rules(), active_context(texto_cliente_original)),
+        system=system_with_context(CONTEXT_RULES + contact_rules() + "\nEres un editor de mensajes del equipo de Cúbico, no estás atendiendo al cliente ni ejecutando gestiones. Conserva el sentido del borrador y la continuidad, sin añadir saludos o preguntas genéricas.\n" + location_rules(), active_context(texto_cliente_original)),
         messages=[
             {
                 "role": "user",
