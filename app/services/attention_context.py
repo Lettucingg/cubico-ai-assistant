@@ -15,7 +15,13 @@ def attention_context(reason, history, active=True):
     steps = ['Leer el historial y confirmar qué solicitud sigue pendiente.',
              'Consultar los datos vigentes antes de confirmar una solución al cliente.']
     draft = 'Voy a revisar tu solicitud para darte una respuesta precisa. ¿Qué necesitas confirmar en este momento?'
-    if 'contacto humano por llamada' in key:
+    if 'reclamo de entrega pendiente' in key:
+        category = 'Entrega pendiente por revisar'
+        steps = ['Confirmar la ubicación física y si hubo un despacho real; una solicitud no prueba salida a reparto.',
+                 'Revisar el pago, el compromiso de entrega y cualquier autorización previa de recogida por terceros.',
+                 'Coordinar con el responsable una solución y comunicar solo la fecha o alternativa confirmada.']
+        draft = 'Estamos revisando qué falta para completar tu entrega. Te confirmaremos una alternativa cuando esté acordada con el responsable.'
+    elif 'contacto humano por llamada' in key:
         category = 'Solicitud de contacto humano'
         steps = ['Revisar qué consulta del cliente sigue pendiente y responderla por este chat.',
                  'Confirmar con el responsable un número que sí reciba llamadas humanas antes de compartirlo.',

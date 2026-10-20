@@ -3,7 +3,7 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),{JSDOM}=require
 const html=fs.readFileSync('app/static/panel-nuevo-diseno.html','utf8');
 const dom=new JSDOM(html,{url:'https://panel.test/admin',runScripts:'outside-only',pretendToBeVisual:true}),w=dom.window,d=w.document;
 const minimalStyle=d.createElement('style');minimalStyle.textContent=fs.readFileSync('app/static/chat-minimal.css','utf8');d.head.append(minimalStyle);
-w.scrollTo=()=>{};w.matchMedia=()=>({matches:false});w.HTMLElement.prototype.scrollIntoView=()=>{};
+w.TextEncoder=TextEncoder;w.TextDecoder=TextDecoder;w.scrollTo=()=>{};w.matchMedia=()=>({matches:false});w.HTMLElement.prototype.scrollIntoView=()=>{};
 w.URL.createObjectURL=()=> 'blob:test';w.URL.revokeObjectURL=()=>{};w.requestAnimationFrame=cb=>cb();
 const fixtures={
  conversaciones:[{telefono:'5071',nombre:'Lissete',tiene_no_leidos:true,necesita_atencion_humana:false,ultimo_mensaje_cliente:{id:1,contenido:'Hola',timestamp:new Date().toISOString()},ultimo_mensaje:{contenido:'Hola'}},{telefono:'5072',nombre:'Cliente',tiene_no_leidos:false,necesita_atencion_humana:true,motivo_escalamiento:'Revisar caso',ultimo_mensaje_cliente:{id:2,contenido:'Consulta',timestamp:new Date().toISOString()}}],
@@ -14,13 +14,14 @@ const fixtures={
  perfil:{usuario:'alexander',nombre:'Alex',foto:null},
  'informes-diarios':[{id:1,tipo:'mañana',creado_en:new Date().toISOString(),contenido:'Informe de prueba'},{id:2,tipo:'tarde',creado_en:'2020-01-01T22:00:00Z',contenido:'Informe anterior'}]
 };
-let archived=[],posts=[];
+let archived=[],posts=[],publicTracking=false;
 w.fetch=async(url,options={})=>{const path=new URL(url).pathname;let data;
  if(options.method==='POST')posts.push(path);
  if(path==='/panel/perfil'&&options.method==='PUT')fixtures.perfil=JSON.parse(options.body);
  if(path==='/panel/perfil/contrasena')data={status:'ok'};
  else
- if(path.startsWith('/panel/asistente/'))data={telefono:path.split('/').at(-1),privado:true,codigo_cliente:'CBC-1',consultado_en:new Date().toISOString(),respuesta:'Saldo total: $10.00',borrador:'Tu saldo total pendiente es de $10.00.',datos:{}};
+ if(path.startsWith('/panel/asistente/')&&publicTracking)data={telefono:path.split('/').at(-1),privado:true,codigo_cliente:null,alcance:'tracking_publico',consultado_en:new Date().toISOString(),respuesta:'Tracking recibido en Miami',borrador:'El último registro indica Miami.',datos:{trackings:[{tracking:'9261290416110741315371',estado_publico:'Recibido en Miami'}]}};
+ else if(path.startsWith('/panel/asistente/'))data={telefono:path.split('/').at(-1),privado:true,codigo_cliente:'CBC-1',consultado_en:new Date().toISOString(),respuesta:'Saldo total: $10.00',borrador:'Tu saldo total pendiente es de $10.00.',datos:{}};
  else if(path==='/panel/push/prueba')data={configurado:true,enviadas:1,eliminadas:0};
  else if(path==='/panel/alertas/papelera')data=archived;
  else if(path==='/panel/alertas/archivar'){data={...JSON.parse(options.body),id:archived.length+1,usuario:'alexander',creado_en:new Date().toISOString()};archived.push(data)}
@@ -102,6 +103,8 @@ const tick=()=>new Promise(setImmediate);
  d.getElementById('message-input').value='Segundo';const newSend=w.enviarMensaje();assert.equal(d.getElementById('send').disabled,true);historyGates[0](snapshot);await oldSend;assert.equal(d.getElementById('send').disabled,true);assert.equal(d.getElementById('send').getAttribute('aria-busy'),'true');
  postGates[1](success);await tick();historyGates[1](snapshot);await newSend;assert.equal(d.getElementById('send').disabled,false);w.fetch=oldFetch;
  await w.abrirChat('5071');d.getElementById('message-input').value='';d.getElementById('bruno-question').value='Saldo';d.getElementById('bruno-prepare').click();await tick();await tick();const sendsBefore=posts.filter(p=>p.includes('/responder')).length;assert.equal(d.getElementById('bruno-draft').value,'Tu saldo total pendiente es de $10.00.');d.getElementById('bruno-use').click();assert.equal(posts.filter(p=>p.includes('/responder')).length,sendsBefore);assert.equal(d.getElementById('message-input').value,'Tu saldo total pendiente es de $10.00.');await w.enviarMensaje();assert.equal(posts.filter(p=>p==='/panel/responder-revisado/5071').length,1);assert.equal(w.CubicoBruno.meta('5071'),undefined);
+ publicTracking=true;d.getElementById('bruno-question').value='9261290416110741315371';d.getElementById('bruno-prepare').click();await tick();await tick();assert.match(d.getElementById('bruno-source').textContent,/Tracking público/);assert.match(d.getElementById('bruno-evidence').textContent,/9261290416110741315371/);const textSendsBefore=posts.filter(p=>p==='/panel/enviar-texto/5071').length;d.getElementById('bruno-use').click();assert.equal(w.CubicoBruno.meta('5071').alcance,'tracking_publico');assert.equal(posts.filter(p=>p==='/panel/enviar-texto/5071').length,textSendsBefore);await w.enviarMensaje();assert.equal(posts.filter(p=>p==='/panel/enviar-texto/5071').length,textSendsBefore+1);assert.equal(posts.filter(p=>p==='/panel/responder-revisado/5071').length,1);assert.equal(w.CubicoBruno.meta('5071'),undefined);
+
  fixtures.preferencias={categoria:'alertas'};await w.cargarPreferenciasAvisos();assert.equal(d.getElementById('notification-category').value,'alertas');
  d.getElementById('notification-category').value='chats';d.getElementById('notification-category').dispatchEvent(new w.Event('change'));await tick();assert.match(d.getElementById('notification-category-status').textContent,/guardada/i);
 

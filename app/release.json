@@ -1,11 +1,11 @@
 {
-  "version": "1.4.2",
+  "version": "1.4.3",
   "fecha": "2026-10-20",
-  "titulo": "Contacto humano por llamadas sin números supuestos",
+  "titulo": "Consulta trackings y prepara respuestas desde el chat",
   "novedades": [
-    "Bruno solo ofrece un teléfono para llamadas humanas cuando está configurado y confirmado expresamente.",
-    "Si falta un número confirmado, registra la solicitud al equipo y explica que la atención continúa por chat, sin prometer una llamada.",
-    "Las alertas de contacto humano conservan el motivo anterior e indican qué debe revisar el equipo.",
-    "La misma política aplica a los borradores y a Consultar a Bruno."
+    "Pega un tracking o el mensaje que lo contiene en Consultar a Bruno para buscar su estado público, incluso sin cliente vinculado.",
+    "Preparar respuesta genera un borrador con datos consultados; Pasar al editor permite revisarlo y Enviar lo manda tal como quedó.",
+    "La consulta distingue paquete no registrado, servicio no disponible y mal identificado, sin exponer proveedores internos.",
+    "Los reclamos de paquetes no recibidos dejan una atención con pasos concretos, sin inventar salida a reparto ni ofrecer retiro sin confirmar."
   ]
 }
