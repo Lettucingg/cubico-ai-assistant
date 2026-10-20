@@ -1,11 +1,11 @@
 {
-  "version": "1.3.0",
-  "fecha": "2026-10-19",
-  "titulo": "Chat más familiar y compacto",
+  "version": "1.3.1",
+  "fecha": "2026-10-20",
+  "titulo": "Situación actual y accesos móviles",
   "novedades": [
-    "Diseño de conversaciones inspirado en WhatsApp, con búsqueda y filtros compactos.",
-    "Más espacio para los mensajes y un editor con botones de adjuntar, audio y envío.",
-    "Consultar a Bruno queda en un acceso discreto; se mantienen sus consultas privadas y la gestión del chat.",
-    "Estados de envío con marcas visuales y errores de entrega visibles."
+    "El apartado Situación actual del local se identifica mejor en Resumen y también tiene acceso desde Configuración.",
+    "Alertas vuelve a tener un botón en la barra inferior del teléfono, con contador de pendientes.",
+    "Formularios móviles con campos de 16 px y cierre del foco al salir de una ventana.",
+    "Reactivar chat explica que hay que esperar la respuesta del cliente antes de continuar con mensajes normales."
   ]
 }

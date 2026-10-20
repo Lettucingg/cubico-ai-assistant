@@ -60,13 +60,13 @@
 
 .reports-heading{display:flex;justify-content:space-between;align-items:center;gap:12px}.reports-history-note{font-size:12px;color:var(--muted);line-height:1.5}#daily-reports-history{margin-top:18px;padding-top:14px;border-top:1px solid var(--line)}#daily-reports-history[hidden]{display:none}#daily-reports-history h4{margin:0 0 6px;font-size:14px}#daily-reports-history-list{max-height:420px;overflow:auto}@media(max-width:760px){.reports-heading h3{font-size:15px}.reports-heading .btn{font-size:12px;padding:9px 11px}}
 </style>
-  <link rel="stylesheet" href="/static/panel-theme.css?v=1.3.0">
-  <link rel="stylesheet" href="/static/chat-minimal.css?v=1.3.0">
-<link rel="stylesheet" href="/static/bot-cost-analytics.css?v=1.3.0">
+  <link rel="stylesheet" href="/static/panel-theme.css?v=1.3.1">
+  <link rel="stylesheet" href="/static/chat-minimal.css?v=1.3.1">
+<link rel="stylesheet" href="/static/bot-cost-analytics.css?v=1.3.1">
 <link rel="stylesheet" href="/static/operational-context.css?v=20261012">
 <style>.release-banner{display:flex;gap:14px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding:15px 18px;margin-bottom:20px;background:#fff5d9;border:1px solid #e8d29c;border-radius:14px;font-size:13px;line-height:1.5}.release-banner[hidden]{display:none}.release-warning{color:#916a14!important}.release-card details summary{cursor:pointer;font-size:13px}.release-card [hidden]{display:none!important}</style>
 </head>
-<body data-panel-version="1.3.0">
+<body data-panel-version="1.3.1">
   <div id="login-overlay" style="position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:50;padding:20px">
     <div class="card" style="width:100%;max-width:380px;padding:32px 28px">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:24px">
@@ -95,16 +95,17 @@
         <button data-view="packages"><span>◇</span><span><span class="desktop-label">Retiros y domicilios</span><span class="mobile-label">Solicitudes</span></span><span class="count" id="nav-count-requests">0</span></button>
         <button data-view="opportunities"><span>◆</span><span>Negocios</span><span class="count" id="nav-count-opportunities">0</span></button>
         <button data-view="costs"><span>⌁</span><span><span class="desktop-label">Costos y actividad</span><span class="mobile-label">Costos</span></span></button>
+        <button data-view="alerts"><span>△</span><span>Alertas</span><span class="count" id="nav-count-alerts" hidden>0</span></button>
       </nav>
       <div class="nav-label" style="margin-top:22px">Sistema</div>
-      <nav class="nav"><button data-view="operations"><span>◉</span><span>Contexto operativo</span></button><button data-view="alerts"><span>△</span><span>Alertas</span><span class="count" id="nav-count-alerts">0</span></button><button data-view="settings"><span>⚙</span><span>Configuración</span></button></nav>
-      <div class="side-bottom"><div class="health"><div class="health-top"><span><i class="dot"></i>Panel conectado</span><b>API</b></div><p>Los estados mostrados vienen del backend de Bruno.</p><p id="app-version-footer">Panel · v1.3.0</p></div></div>
+      <nav class="nav"><button data-view="operations"><span>◉</span><span>Contexto operativo</span></button><button data-view="settings"><span>⚙</span><span>Configuración</span></button></nav>
+      <div class="side-bottom"><div class="health"><div class="health-top"><span><i class="dot"></i>Panel conectado</span><b>API</b></div><p>Los estados mostrados vienen del backend de Bruno.</p><p id="app-version-footer">Panel · v1.3.1</p></div></div>
     </aside>
     <main>
       <header class="topbar"><div class="title"><h1 id="page-title">Buenos días</h1><p id="page-sub">Esto es lo que está pasando en Cúbico hoy.</p></div><div class="top-actions"><input class="search" id="global-search" placeholder="Buscar chat, cliente o paquete…" aria-label="Buscar"/><button class="icon-btn" id="notifications" aria-label="Notificaciones" title="Ver alertas y activar notificaciones">🔔<span class="notification-count" id="notification-count">0</span></button><div class="avatar" id="settings-shortcut" role="button" tabindex="0" aria-label="Abrir configuración" title="Configuración">—</div></div></header>
 
       <div class="release-banner" id="app-release-banner" hidden role="status"><span id="app-release-banner-text"></span><button class="btn" type="button" id="app-release-banner-reload">Recargar panel</button></div>
-      <section class="view active" id="overview"><div class="overview-hero"><div><h2>Tu operación, de un vistazo</h2><p>El movimiento de hoy y lo que necesita tu equipo.</p></div><img class="hero-mark" src="/static/logo.png" alt="" aria-hidden="true"></div><article class="card oc-overview"><div><h3>Contexto operativo</h3><p id="oc-overview-summary">Registra cambios para que Bruno responda con información vigente.</p></div><button class="btn" type="button" data-view="operations">Gestionar avisos →</button></article><article class="card" id="daily-reports-card" style="display:none;padding:16px;margin-bottom:14px"><div class="reports-heading"><h3 style="margin:0">Informes de hoy</h3><button class="btn" id="daily-reports-history-toggle" aria-expanded="false" aria-controls="daily-reports-history">Ver historial</button></div><p style="color:var(--muted);font-size:12px">Estado 8:00 a. m. · Resumen 5:00 p. m. · Hora de Panamá</p><div id="daily-reports-list"></div><div id="daily-reports-history" hidden><h4>Informes anteriores</h4><p class="reports-history-note">Se muestran los anteriores disponibles entre los últimos 30 informes.</p><div id="daily-reports-history-list"></div></div></article>
+      <section class="view active" id="overview"><div class="overview-hero"><div><h2>Tu operación, de un vistazo</h2><p>El movimiento de hoy y lo que necesita tu equipo.</p></div><img class="hero-mark" src="/static/logo.png" alt="" aria-hidden="true"></div><article class="card oc-overview"><div><h3>Situación actual del local</h3><p id="oc-overview-summary">Registra cambios para que Bruno responda con información vigente.</p></div><button class="btn" type="button" data-view="operations">Actualizar situación →</button><p class="oc-access-help">Local cerrado, sin repartidor, vuelos atrasados o cortes de luz: registra aquí lo que Bruno debe comunicar.</p></article><article class="card" id="daily-reports-card" style="display:none;padding:16px;margin-bottom:14px"><div class="reports-heading"><h3 style="margin:0">Informes de hoy</h3><button class="btn" id="daily-reports-history-toggle" aria-expanded="false" aria-controls="daily-reports-history">Ver historial</button></div><p style="color:var(--muted);font-size:12px">Estado 8:00 a. m. · Resumen 5:00 p. m. · Hora de Panamá</p><div id="daily-reports-list"></div><div id="daily-reports-history" hidden><h4>Informes anteriores</h4><p class="reports-history-note">Se muestran los anteriores disponibles entre los últimos 30 informes.</p><div id="daily-reports-history-list"></div></div></article>
         <div class="demo-note">● Mensajes cada 5 segundos · métricas cada 30 segundos</div>
         <div class="kpis">
           <button type="button" class="card kpi click-card" data-summary-view="chats" aria-label="Abrir las conversaciones de hoy"><div class="kpi-top"><span>Conversaciones hoy</span><span class="kpi-icon">◫</span></div><div class="kpi-value" id="kpi-conversations">—</div><div class="delta neutral">Ver conversaciones</div></button>
@@ -178,9 +179,9 @@
         <div id="alerts-list"></div><p class="alert-footnote">Quitar un aviso no cambia pagos ni solicitudes. Puedes recuperarlo en Papelera.</p></article>
       </section>
       <section class="view" id="operations"><div class="oc-panel">
-  <div class="oc-heading"><div><h2>Lo que Bruno debe tener presente</h2><p class="oc-muted">Cambios temporales de la operación, registrados por el equipo.</p></div><button type="button" id="oc-new" class="oc-primary">Nuevo aviso</button></div>
+  <div class="oc-heading"><div><h2>Cuéntale a Bruno qué está pasando</h2><p class="oc-muted">Cambios temporales de la operación, registrados por el equipo.</p></div><button type="button" id="oc-new" class="oc-primary">Registrar situación</button></div>
   <div class="oc-summary"><article class="card"><span>Aplicándose ahora</span><b id="oc-count-active">0</b></article><article class="card"><span>Por revisar</span><b id="oc-count-review">0</b></article><article class="card"><span>Programados</span><b id="oc-count-future">0</b></article></div>
-  <div class="oc-help">Bruno utiliza únicamente avisos activos dentro de su vigencia. Los borradores, pausados, resueltos y vencidos dejan de aplicarse. La fecha de revisión genera un recordatorio; no resuelve el problema ni desactiva el aviso por sí sola. Para que deje de aplicarse automáticamente, indica un fin.</div>
+  <div class="oc-help"><strong>Para que Bruno lo use:</strong> registra la situación, guarda el borrador y pulsa Activar en el aviso. Bruno utiliza únicamente avisos activos dentro de su vigencia. Los borradores, pausados, resueltos y vencidos dejan de aplicarse. La fecha de revisión genera un recordatorio; no resuelve el problema ni desactiva el aviso por sí sola. Para que deje de aplicarse automáticamente, indica un fin.</div>
   <p class="oc-state" id="oc-status" role="status" aria-live="polite"></p>
   <div class="oc-grid"><div><div class="oc-filterbar"><select id="oc-filter" aria-label="Filtrar avisos"><option value="todos">Todos los avisos</option><option value="vigentes">Activos y programados</option><option value="revision">Por revisar</option><option value="borrador">Borradores</option><option value="pausado">Pausados</option><option value="resuelto">Resueltos</option><option value="vencido">Vencidos</option></select><button type="button" id="oc-refresh">Actualizar</button></div><div id="oc-list" class="oc-list"></div></div>
     <article class="card oc-editor" id="oc-editor"><h3 id="oc-form-title">Nuevo aviso</h3><p class="oc-state" id="oc-editor-state"></p><form id="oc-form"><div class="oc-fields">
@@ -204,7 +205,7 @@
   </div>
   <article class="card oc-editor" id="oc-history" hidden><div class="oc-heading"><h3 id="oc-history-title">Historial del aviso</h3><button type="button" id="oc-history-close" aria-label="Cerrar historial">× Cerrar</button></div><div id="oc-history-list"></div></article>
 </div></section>
-<section class="view" id="settings"><div class="settings-layout">
+<section class="view" id="settings"><article class="card oc-overview"><div><h3>Situación actual y avisos</h3><p>Actualiza la información que Bruno usa para responder a los clientes.</p></div><button class="btn" type="button" data-view="operations">Abrir situación actual →</button></article><div class="settings-layout">
         <article class="card settings-section release-card"><h2>Versión de Cúbico</h2><b id="app-installed-version" style="font-size:25px">Sin confirmar</b><p class="personalization-note" id="app-release-date"></p><p id="app-release-status" class="personalization-note" role="status">Comprueba la versión instalada en el servidor.</p><div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn" type="button" id="app-release-check">Comprobar versión</button><button class="btn dark" type="button" id="app-release-reload" hidden>Recargar panel</button></div><details style="margin-top:16px"><summary>Ver novedades</summary><h3 id="app-release-title" style="margin-top:12px;font-size:15px"></h3><ul id="app-release-changes" style="padding-left:20px;font-size:13px;line-height:1.7"></ul></details><p class="personalization-note">Muestra la versión instalada. No consulta automáticamente nuevas versiones en GitHub.</p></article>
 
         <article class="card settings-section"><h2>Mi perfil</h2><form id="account-profile-form" class="profile-form"><div class="profile-photo-row"><div class="account-photo" id="account-photo">—</div><div><label class="btn" for="account-photo-input">Elegir foto</label><input id="account-photo-input" type="file" accept="image/jpeg,image/png,image/webp" hidden><button class="btn" id="account-photo-remove" type="button">Quitar foto</button></div></div><label>Nombre visible<input id="account-name" maxlength="80" required autocomplete="name"></label><p class="personalization-note" id="account-user">Tu usuario de acceso permanece igual.</p><button class="btn dark" type="submit">Guardar perfil</button><p id="account-profile-status" class="profile-message" role="status" aria-live="polite"></p></form></article>
@@ -219,23 +220,23 @@
   <div class="alert-undo" id="alert-undo" role="status" hidden><span aria-hidden="true">✓</span><span id="alert-undo-text"></span><button class="btn" id="alert-undo-button">Deshacer</button><button class="btn" id="alert-undo-close" aria-label="Cerrar aviso">×</button></div>
   <div class="toast" id="toast">Acción completada</div>
   <div class="lightbox" id="image-lightbox" role="dialog" aria-modal="true" aria-label="Imagen ampliada"><div class="lightbox-toolbar"><button type="button" id="close-lightbox" aria-label="Cerrar imagen"><span aria-hidden="true">×</span> Cerrar</button></div><img id="lightbox-image" alt="Comprobante ampliado"></div>
-  <div class="modal-overlay" id="modal-saludo" role="dialog" aria-label="Reactivar chat"><div class="card modal-box"><h3>Reactivar chat</h3><label for="saludo-nombre">Nombre del cliente</label><input type="text" id="saludo-nombre" placeholder="Nombre del cliente"/><div class="modal-actions"><button class="btn" type="button" id="saludo-cancelar">Cancelar</button><button class="btn dark" type="button" id="saludo-enviar">Enviar saludo</button></div></div></div>
+  <div class="modal-overlay" id="modal-saludo" role="dialog" aria-label="Reactivar chat"><div class="card modal-box"><h3>Reactivar chat</h3><p class="reactivation-help">Envía el saludo aprobado y espera que el cliente responda antes de enviar un mensaje normal o la ubicación.</p><label for="saludo-nombre">Nombre del cliente</label><input type="text" id="saludo-nombre" placeholder="Nombre del cliente"/><div class="modal-actions"><button class="btn" type="button" id="saludo-cancelar">Cancelar</button><button class="btn dark" type="button" id="saludo-enviar">Enviar saludo</button></div></div></div>
   <div class="modal-overlay" id="modal-propuesta" role="dialog" aria-label="Enviar propuesta"><div class="card modal-box"><h3>Enviar propuesta</h3><label for="propuesta-contacto">Nombre de la persona de contacto</label><input type="text" id="propuesta-contacto" placeholder="Ej. Alexander"/><label for="propuesta-empresa">Empresa</label><input type="text" id="propuesta-empresa" placeholder="Ej. Arthur English Bookstore"/><label for="propuesta-pdf">Documento PDF</label><input type="file" id="propuesta-pdf" accept="application/pdf,.pdf"/><div class="modal-actions"><button class="btn" type="button" id="propuesta-cancelar">Cancelar</button><button class="btn dark" type="button" id="propuesta-enviar">Enviar propuesta</button></div></div></div>
   <div class="modal-overlay" id="modal-informe-diario" role="dialog" aria-label="Informe del negocio" aria-modal="true"><div class="card report-box"><div class="report-main" id="daily-report-content"></div><div class="report-footer"><button class="btn dark" type="button" data-report-view="alerts">Revisar pendientes</button><button class="btn" type="button" id="daily-report-close">Cerrar</button></div></div></div>
   <div class="modal-overlay" id="modal-verificar-manual" role="dialog" aria-label="Verificar cliente manualmente"><div class="card modal-box"><h3>Verificar manualmente</h3><p style="font-size:12px;color:var(--muted);line-height:1.5">Escribe el código real del cliente o agencia. Se comprobará en la base de datos antes de asociarlo al chat.</p><label for="manual-code">Código de cliente o agencia</label><input type="text" id="manual-code" placeholder="CBC-0001 o código de agencia"/><div class="modal-actions"><button class="btn" type="button" id="manual-verify-cancel">Cancelar</button><button class="btn dark" type="button" id="manual-verify-save">Verificar y asociar</button></div></div></div>
   <div class="modal-overlay" id="modal-operacion-manual" role="dialog" aria-label="Crear operación manual"><div class="card modal-box"><h3 id="manual-operation-title">Crear solicitud</h3><p id="manual-operation-help" style="font-size:12px;color:var(--muted);line-height:1.5"></p><div id="manual-address-field"><label for="manual-address">Dirección exacta</label><textarea id="manual-address" rows="3" placeholder="Dirección completa de entrega"></textarea></div><div id="manual-payment-fields"><label for="manual-amount">Monto reportado (opcional)</label><input type="number" id="manual-amount" min="0.01" step="0.01" placeholder="0.00"/><label for="manual-method">Método (opcional)</label><input type="text" id="manual-method" placeholder="Yappy, transferencia, efectivo…"/><label for="manual-reference">Referencia (opcional)</label><input type="text" id="manual-reference" placeholder="Número de referencia"/></div><div class="modal-actions"><button class="btn" type="button" id="manual-operation-cancel">Cancelar</button><button class="btn dark" type="button" id="manual-operation-save">Crear caso</button></div></div></div>
   <script src="/static/panel-personalization.js"></script>
-  <script src="/static/panel-mobile-layout.js?v=1.3.0"></script>
+  <script src="/static/panel-mobile-layout.js?v=1.3.1"></script>
   <script src="/static/chat-text-editor.js?v=20261007-send"></script>
-  <script src="/static/app-release.js?v=1.3.0"></script>
+  <script src="/static/app-release.js?v=1.3.1"></script>
   <script src="/static/operational-context.js?v=20261012"></script>
-  <script src="/static/bot-cost-analytics.js?v=1.3.0"></script>
+  <script src="/static/bot-cost-analytics.js?v=1.3.1"></script>
   <script src="/static/daily-report.js"></script>
-  <script src="/static/chat-location.js?v=1.3.0"></script>
-  <script src="/static/internal-assistant.js?v=1.3.0"></script>
-  <script src="/static/alert-management.js?v=1.3.0?v=20261007-send"></script>
+  <script src="/static/chat-location.js?v=1.3.1"></script>
+  <script src="/static/internal-assistant.js?v=1.3.1"></script>
+  <script src="/static/alert-management.js?v=1.3.1?v=20261007-send"></script>
   <script>
-    const titles={overview:['Buenos días, Alexander','Esto es lo que está pasando en Cúbico hoy.'],chats:['Conversaciones','Lee y responde los mensajes de tus clientes.'],packages:['Retiros y domicilios','Organiza las solicitudes que llegan directamente desde WhatsApp.'],opportunities:['Oportunidades comerciales','Bruno organiza la información; el equipo decide qué propuesta preparar.'],costs:['Costos y actividad','Consumo estimado, gastos confirmados y actividad de Bruno.'],alerts:['Alertas','Lo que necesita tu atención, en un solo lugar.'],operations:['Contexto operativo','Mantén a Bruno al tanto de los cambios de la operación.'],settings:['Configuración','Integraciones y estado técnico de Bruno.']};
+    const titles={overview:['Buenos días, Alexander','Esto es lo que está pasando en Cúbico hoy.'],chats:['Conversaciones','Lee y responde los mensajes de tus clientes.'],packages:['Retiros y domicilios','Organiza las solicitudes que llegan directamente desde WhatsApp.'],opportunities:['Oportunidades comerciales','Bruno organiza la información; el equipo decide qué propuesta preparar.'],costs:['Costos y actividad','Consumo estimado, gastos confirmados y actividad de Bruno.'],alerts:['Alertas','Lo que necesita tu atención, en un solo lugar.'],operations:['Situación actual y avisos','Mantén a Bruno al tanto de los cambios de la operación.'],settings:['Configuración','Integraciones y estado técnico de Bruno.']};
     function showView(id){document.body.dataset.view=id;document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id===id));document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.view===id));document.getElementById('page-title').textContent=titles[id][0];document.getElementById('page-sub').textContent=titles[id][1];if(id!=='chats'&&typeof cerrarPanelCliente==='function')cerrarPanelCliente();if(id==='packages')cargarSolicitudes();if(id==='opportunities')cargarOportunidades();if(id==='costs'){cargarUso(30);BotCosts.load()};if(id==='alerts')cargarPapelera();if(id==='operations')OperationalContext.load();if(id==='settings')CubicoRelease.load();window.scrollTo({top:0,behavior:'smooth'})}
     document.querySelectorAll('[data-view]:not(.nav button)').forEach(b=>b.addEventListener('click',()=>showView(b.dataset.view)));document.querySelectorAll('.open-chats').forEach(b=>b.addEventListener('click',()=>showView('chats')));
     function abrirAccesoDirecto(elemento){
@@ -774,7 +775,7 @@
     document.getElementById('close-lightbox').addEventListener('click',cerrarImagen);
 
     function abrirModal(id){document.getElementById(id).classList.add('open')}
-    function cerrarModal(id){document.getElementById(id).classList.remove('open')}
+    function cerrarModal(id){const modal=document.getElementById(id);if(modal.contains(document.activeElement))document.activeElement.blur();modal.classList.remove('open')}
     document.querySelectorAll('.modal-overlay').forEach(overlay=>{
       overlay.addEventListener('click',e=>{if(e.target===overlay)cerrarModal(overlay.id)});
     });
@@ -863,7 +864,7 @@
         const r=await apiPost('/panel/plantilla/saludo',{telefono:telActivo,nombre});
         let datos=null;try{datos=await r.json()}catch(e){}
         if(r.ok&&datos&&datos.ok){
-          say('Saludo enviado');
+          say('Saludo enviado. Espera la respuesta del cliente para continuar.');
           cerrarModal('modal-saludo');
           try{const rh=await apiGet(`/panel/conversacion/${telActivo}`);if(rh.ok)renderMensajes((await rh.json()).historial)}catch(e){}
           recargarConversaciones();
@@ -1368,7 +1369,7 @@
       document.querySelectorAll('.alert-menu').forEach(menu=>menu.addEventListener('toggle',()=>{if(menu.open)document.querySelectorAll('.alert-menu[open]').forEach(other=>{if(other!==menu)other.open=false})}));
       document.querySelectorAll('.alert-restore').forEach(b=>b.addEventListener('click',()=>restaurarAlerta(Number(b.dataset.id))));
       document.getElementById('alert-undo-button').disabled=loteAlertas||loteDeshacer.some(id=>alertasEnProceso.has('restore:'+id));
-      const contador=document.getElementById('nav-count-alerts');if(contador)contador.textContent=activas.length;
+      const contador=document.getElementById('nav-count-alerts');if(contador){contador.textContent=activas.length;contador.hidden=!activas.length;contador.closest('button').setAttribute('aria-label','Alertas'+(activas.length?', '+activas.length+' pendientes':''))}
     }
     document.addEventListener('click',e=>{document.querySelectorAll('.alert-menu[open]').forEach(m=>{if(!m.contains(e.target))m.open=false})});
     document.addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelectorAll('.alert-menu[open]').forEach(m=>{m.open=false;m.querySelector('summary').focus()})});
