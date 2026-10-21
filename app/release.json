@@ -1,11 +1,11 @@
 {
-  "version": "1.4.4",
-  "fecha": "2026-10-20",
-  "titulo": "Mueve oportunidades arrastrándolas entre columnas",
+  "version": "1.4.5",
+  "fecha": "2026-10-21",
+  "titulo": "Alertas con más espacio para leer en celular",
   "novedades": [
-    "Arrastra una tarjeta de Negocios a otra columna para guardar su nuevo estado sin abrir el detalle.",
-    "En el celular usa el botón de arrastre; también puedes moverla con las flechas del teclado desde ese botón.",
-    "La columna de destino se resalta y el movimiento se muestra guardado solo cuando el servidor confirma el cambio.",
-    "Mover una tarjeta no envía propuestas ni mensajes y respeta la asignación a otros operadores."
+    "El contexto de cada alerta ocupa todo el ancho en celular, con las acciones debajo del texto.",
+    "Los filtros de búsqueda, tipo y selección tienen filas propias para evitar controles recortados.",
+    "Los detalles largos usan el desplazamiento de la página, sin un cuadro interno que corte el contenido.",
+    "Las fechas se muestran en hora de Panamá y los estados de entrega aparecen en español."
   ]
 }
