@@ -1,11 +1,11 @@
 {
-  "version": "1.5.0",
+  "version": "1.5.1",
   "fecha": "2026-10-21",
-  "titulo": "Centro de incidencias y conexión personal con Claude",
+  "titulo": "Reportar errores desde un panel lateral",
   "novedades": [
-    "Centro compartido para reportar problemas e ideas con sección, captura, prioridad y responsable.",
-    "Seguimiento con notas e historial; permite resolver, descartar y reabrir incidencias.",
-    "Conexiones personales de Claude con permisos, vencimiento, último uso y revocación independiente.",
-    "Claude puede consultar conversaciones, tracking, cuentas verificadas, incidencias y situación operativa según tus permisos. Las respuestas se revisan y envían desde el panel."
+    "El reporte se abre en un panel lateral sin salir de la pantalla donde ocurrió el problema.",
+    "Permite minimizar y continuar el reporte conservando el texto, la captura y el contexto original.",
+    "Al guardar conserva el chat, el borrador de respuesta y la posición de la pantalla.",
+    "El panel se ajusta al espacio disponible y al teclado del celular, con controles de cierre siempre accesibles."
   ]
 }
