@@ -44,9 +44,14 @@
       pasos:g[1],borrador:g[2],nota:'Guía orientativa: verifica el estado actual y si el equipo ya intervino. Los mensajes mostrados son los últimos del chat. No se envía nada automáticamente.'};
   }
   const escape=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  function displayDate(value){
+    if(!value)return 'Fecha sin registrar';
+    const date=new Date(value);
+    return Number.isNaN(date.getTime())?'Fecha no disponible':new Intl.DateTimeFormat('es-PA',{day:'numeric',month:'short',year:'numeric',hour:'numeric',minute:'2-digit',timeZone:'America/Panama'}).format(date);
+  }
   function detail(ctx){
     if(!ctx)return '';
-    const quote=(label,m)=>m?'<div class="attention-quote"><b>'+label+'</b><p>'+escape(m.texto||'Mensaje sin texto; revisar el adjunto en el chat.')+'</p><small>'+escape(m.fecha||'Fecha sin registrar')+(m.estado_entrega?' · '+escape(m.estado_entrega):'')+'</small></div>':'';
+    const quote=(label,m)=>m?'<div class="attention-quote"><b>'+label+'</b><p>'+escape(m.texto||'Mensaje sin texto; revisar el adjunto en el chat.')+'</p><small>'+escape(displayDate(m.fecha))+(m.estado_entrega?' · '+escape(({accepted:'Aceptado',sent:'Enviado',delivered:'Entregado',read:'Leído',failed:'No entregado'})[m.estado_entrega]||m.estado_entrega):'')+'</small></div>':'';
     return '<details class="attention-detail"><summary>Contexto y respuesta orientativa</summary><div class="attention-body"><b>Por qué requiere atención</b><p>'+escape(ctx.motivo)+'</p>'+quote('Último mensaje del cliente',ctx.ultimo_cliente)+quote('Última respuesta registrada',ctx.ultima_respuesta)+'<b>Qué hacer</b><ol>'+(ctx.pasos||[]).map(p=>'<li>'+escape(p)+'</li>').join('')+'</ol><b>Borrador para revisar y adaptar</b><p class="attention-draft">'+escape(ctx.borrador)+'</p><small>'+escape(ctx.nota)+'</small></div></details>';
   }
   root.CubicoAlerts={collect,filter,groups,labels,context,detail};
