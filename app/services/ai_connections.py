@@ -53,9 +53,11 @@ def authenticate(token, users):
         return None
     with SessionSesiones() as db:
         row = db.scalar(select(ConexionIAPanel).where(ConexionIAPanel.token_hash == hashlib.sha256(token.encode()).hexdigest()))
-        if not row or row.revocado or row.vence_en <= datetime.utcnow() or row.usuario not in users:
-            return None
-        return {'id': row.id, 'usuario': row.usuario, 'permisos': json.loads(row.permisos)}
+        if row and not row.revocado and row.vence_en > datetime.utcnow() and row.usuario in users:
+            return {'id': row.id, 'usuario': row.usuario, 'permisos': json.loads(row.permisos)}
+    from app.services.staff_oauth import actor_for_token
+    actor = actor_for_token(token)
+    return actor if actor and actor['usuario'] in users else None
 
 
 def touch(identity, tool=None):

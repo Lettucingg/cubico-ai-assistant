@@ -211,6 +211,15 @@ class ConexionIAPanel(BaseSesiones):
     peticiones = Column(Integer, default=0, nullable=False)
 
 
+class OAuthRegistroPanel(BaseSesiones):
+    __tablename__ = 'oauth_registros_panel'
+    clave = Column(String(90), primary_key=True)
+    tipo = Column(String(20), nullable=False, index=True)
+    contenido = Column(Text, nullable=False)
+    vence_en = Column(DateTime, nullable=False, index=True)
+    intentos = Column(Integer, default=0, nullable=False)
+
+
 BaseSesiones.metadata.create_all(engine_sesiones)
 
 

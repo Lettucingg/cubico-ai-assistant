@@ -1,4 +1,4 @@
-# Centro de incidencias y Claude personal · v1.5.0
+# Centro de incidencias y Claude personal · v1.5.3
 
 ## Publicación
 
@@ -10,7 +10,7 @@ venv/bin/pip install -r requirements.txt
 pm2 restart cubico-bot
 ```
 
-Esta versión agrega dos tablas en la base de sesiones con `create_all`; conserva sesiones, perfiles y datos anteriores. Comprueba en Configuración que el servidor muestre v1.5.0 y recarga el panel. No es necesario cambiar variables de proveedores ni reiniciar la web Node de tracking.
+Desde v1.5.0 se agregaron dos tablas para incidencias y conexiones. v1.5.3 agrega una tercera para autorizaciones OAuth mediante `create_all`; conserva sesiones, perfiles y datos anteriores. Comprueba en Configuración que el servidor muestre v1.5.3 y recarga el panel. No es necesario cambiar variables de proveedores ni reiniciar la web Node de tracking.
 
 ## Incidencias y mejoras
 
@@ -25,13 +25,21 @@ La lista muestra hasta 200 resultados por filtro. Los reportes no se envían aut
 Cada persona entra con su propio usuario del panel y abre Configuración → Mi conexión con Claude. Crea una credencial, elige los permisos y copia su valor (solo se muestra una vez). En Claude agrega un conector personalizado:
 
 - URL: `https://bot.cubico.com.pa/mcp/` (con barra final).
-- Autenticación: sin inicio de sesión / No sign in.
-- Encabezado de solicitud: `Authorization`.
-- Valor: `Bearer cubico_…` (el valor completo mostrado en el panel).
+- Autenticación: **Sign in now** (Iniciar sesión).
+- Registro del cliente: **Register automatically** (Registro automático). No usar Published client identity ni completar Client ID/Secret manualmente.
+- Transporte: **Streamable HTTP**.
+- Al agregar, Claude abre una página de Cúbico en `https://bot.cubico.com.pa/panel/ia/oauth/consentir`. Pega la clave personal `Bearer cubico_…`, pulsa Revisar permisos, comprueba el usuario y permisos y confirma Autorizar a Claude.
+- Activa el conector en la conversación de Claude. Tu hermano hace lo mismo con su usuario y su propia conexión.
+
+No se pide la contraseña de Claude ni una clave API de Anthropic. Si perdiste la clave personal anterior, revoca esa conexión en Cúbico y crea otra. Las credenciales personales anteriores siguen funcionando; el encabezado Bearer directo también se conserva para clientes que admitan configurarlo.
 
 Guía oficial: https://support.claude.com/en/articles/11175166-get-started-with-custom-connectors-using-remote-mcp
 
-La URL debe ser accesible por los servidores de Anthropic; configura el proxy para reenviar `/mcp/` a la misma aplicación FastAPI, sin eliminar el encabezado Authorization. Si el proxy solo reenvía `/panel/`, `/static/` y `/admin`, será necesario añadir esta ruta. No se instala un servidor adicional. El transporte Streamable HTTP usa el SDK oficial MCP 1.30.0, con negociación de versiones compatibles hasta 2025-11-25, respuestas JSON y sin sesiones. El SDK se encarga del protocolo; no se implementa OAuth. Es una credencial fija personal, configurada en los encabezados del conector.
+El proxy debe reenviar `/mcp/`, `/panel/ia/oauth/` y `/.well-known/` a la misma aplicación FastAPI, sin eliminar Authorization. Si solo reenvía algunas rutas, hay que incluirlas. La respuesta 401 de `/mcp/` anuncia la URL de descubrimiento del recurso. El transporte Streamable HTTP y los controladores OAuth usan el SDK oficial MCP 1.30.0, con negociación de versiones compatibles hasta 2025-11-25, respuestas JSON y sin sesiones MCP. No se instala otro servicio.
+
+La autorización usa registro dinámico, código de un solo uso, PKCE S256, protección CSRF, confirmación explícita de permisos y callbacks HTTPS exactos de Claude (`claude.ai` y `claude.com`). Los tokens de acceso duran hasta una hora; su renovación rota y vence con la conexión personal. Revocar la conexión en el panel bloquea tanto la credencial original como sus tokens OAuth. Los códigos y tokens se guardan como hashes. El secreto del cliente OAuth generado por el SDK se cifra con una clave derivada de `CUBICO_NOTIFY_KEY`, que ya existe en el servidor; si se rota esta variable, vuelve a agregar los conectores. Los permisos no se amplían al renovar. Hay límites de solicitudes y tamaño para los endpoints públicos.
+
+Diagnóstico sin credenciales: `curl -i https://bot.cubico.com.pa/mcp/` debe responder 401 y anunciar `resource_metadata`; `curl https://bot.cubico.com.pa/panel/ia/oauth/recurso` y `curl https://bot.cubico.com.pa/.well-known/oauth-authorization-server/panel/ia/oauth` deben devolver metadatos JSON. Una redirección al login del proxy o un 404 indica que faltan rutas. No compartas claves personales en capturas ni chats.
 
 Permisos independientes: conversaciones/tracking público, cuentas verificadas, incidencias/capturas y situación operativa. El permiso de cuentas requiere conversaciones. Hay siete herramientas de consulta; ninguna permite enviar WhatsApp, verificar identidades, cambiar avisos, aprobar pagos, modificar incidencias o ejecutar código. Claude puede redactar con lo consultado y el operador copia el resultado al panel para revisarlo y enviarlo. La conexión no permite usar una suscripción de Claude como clave API dentro de Cúbico.
 
