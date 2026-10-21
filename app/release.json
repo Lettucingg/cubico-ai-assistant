@@ -1,9 +1,9 @@
 {
-  "version": "1.5.4",
+  "version": "1.5.5",
   "fecha": "2026-10-21",
-  "titulo": "Corrección de autorización en el navegador",
+  "titulo": "Retorno a Claude después de autorizar",
   "novedades": [
-    "Corrige «Origen no permitido» al pegar la clave personal para conectar Claude.",
-    "El formulario conserva la validación de origen, la protección CSRF y la confirmación de permisos. No es necesario volver a crear la clave personal."
+    "Corrige el bloqueo del navegador al volver a Claude después de autorizar los permisos en Cúbico.",
+    "La política del formulario permite únicamente Cúbico y los callbacks HTTPS oficiales de Claude. Se conservan la validación de claves y las protecciones CSRF."
   ]
 }

@@ -35,7 +35,7 @@ def page(nonce, csrf, data, message='', status=200):
     if message:
         body += '<p class="error" role="alert">'+escape(message)+'</p>'
     body += '<form method="post" action="'+service.ISSUER+'/consentir"><input type="hidden" name="solicitud" value="'+escape(nonce, quote=True)+'"><input type="hidden" name="csrf" value="'+escape(csrf, quote=True)+'">'+fields+'<button type="submit" class="cancel" name="accion" value="cancelar" formnovalidate>Cancelar conexión</button></form><p class="small">Puedes revocar el acceso desde Cúbico. La autorización vence cuando vence la conexión personal.</p></main></html>'
-    return HTMLResponse(body, status_code=status, headers={'Cache-Control':'no-store', 'Referrer-Policy':'same-origin', 'X-Frame-Options':'DENY', 'Content-Security-Policy':"default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'"})
+    return HTMLResponse(body, status_code=status, headers={'Cache-Control':'no-store', 'Referrer-Policy':'same-origin', 'X-Frame-Options':'DENY', 'Content-Security-Policy':"default-src 'none'; style-src 'unsafe-inline'; form-action 'self' https://claude.ai/api/mcp/auth_callback https://claude.com/api/mcp/auth_callback; frame-ancestors 'none'; base-uri 'none'"})
 
 
 async def metadata(request):
