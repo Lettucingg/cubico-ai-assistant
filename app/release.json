@@ -1,11 +1,9 @@
 {
-  "version": "1.5.1",
+  "version": "1.5.2",
   "fecha": "2026-10-21",
-  "titulo": "Reportar errores desde un panel lateral",
+  "titulo": "Acceso discreto al reporte pendiente",
   "novedades": [
-    "El reporte se abre en un panel lateral sin salir de la pantalla donde ocurrió el problema.",
-    "Permite minimizar y continuar el reporte conservando el texto, la captura y el contexto original.",
-    "Al guardar conserva el chat, el borrador de respuesta y la posición de la pantalla.",
-    "El panel se ajusta al espacio disponible y al teclado del celular, con controles de cierre siempre accesibles."
+    "El botón flotante grande se reemplaza por una pestaña lateral pequeña con icono y texto «Reporte».",
+    "Permite retomar el borrador sin cubrir la parte inferior de las tarjetas ni la navegación."
   ]
 }
