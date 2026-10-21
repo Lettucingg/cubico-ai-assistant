@@ -92,6 +92,8 @@ def test_full_oauth_pkce_refresh_and_revocation(setup,auth_method):
     personal=ai_connections.issue('alexander','Mi Claude',['incidencias'])
     verifier,fields,login=begin(c,client)
     assert 'Clave personal' in login.text and 'frame-ancestors' in login.headers['content-security-policy']
+    assert login.headers['referrer-policy']=='same-origin'
+    assert '<meta name="referrer" content="same-origin">' in login.text
     assert c.cookies.get(web.COOKIE)
     assert c.post('/panel/ia/oauth/consentir',data={**fields,'accion':'revisar','clave':personal['token']}).status_code==403
     fields,review_page=review(c,fields,personal)
