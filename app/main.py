@@ -22,6 +22,16 @@ async def lifespan(app):
 
 
 app = FastAPI(title="Cúbico AI Assistant", lifespan=lifespan)
+from app.api.staff_oauth import oauth_app, metadata as oauth_metadata, resource_metadata
+from starlette.routing import Route
+app.mount('/panel/ia/oauth', oauth_app)
+# RFC 8414/9728 discovery aliases, including path-specific authorization-server metadata.
+app.router.routes.extend([
+    Route('/.well-known/oauth-authorization-server/panel/ia/oauth', oauth_metadata),
+    Route('/.well-known/oauth-authorization-server', oauth_metadata),
+    Route('/.well-known/oauth-protected-resource/mcp', resource_metadata),
+    Route('/.well-known/oauth-protected-resource/mcp/', resource_metadata),
+])
 app.mount('/mcp', mcp_app)
 
 STATIC_DIR = Path(__file__).parent / "static"

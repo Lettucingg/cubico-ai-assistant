@@ -1,9 +1,10 @@
 {
-  "version": "1.5.2",
+  "version": "1.5.3",
   "fecha": "2026-10-21",
-  "titulo": "Acceso discreto al reporte pendiente",
+  "titulo": "Autorización personal de Claude",
   "novedades": [
-    "El botón flotante grande se reemplaza por una pestaña lateral pequeña con icono y texto «Reporte».",
-    "Permite retomar el borrador sin cubrir la parte inferior de las tarjetas ni la navegación."
+    "Claude se conecta mediante Sign in now y una página de autorización de Cúbico; ya no depende de un campo de encabezados que no aparece en algunas cuentas.",
+    "Cada persona autoriza su propia conexión, revisa los permisos y puede revocar el acceso desde el panel.",
+    "Se conservan las consultas y los borradores en Claude con los permisos elegidos; los mensajes se revisan y envían desde Cúbico."
   ]
 }
