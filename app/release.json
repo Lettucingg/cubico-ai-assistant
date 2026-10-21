@@ -1,10 +1,9 @@
 {
-  "version": "1.5.3",
+  "version": "1.5.4",
   "fecha": "2026-10-21",
-  "titulo": "Autorización personal de Claude",
+  "titulo": "Corrección de autorización en el navegador",
   "novedades": [
-    "Claude se conecta mediante Sign in now y una página de autorización de Cúbico; ya no depende de un campo de encabezados que no aparece en algunas cuentas.",
-    "Cada persona autoriza su propia conexión, revisa los permisos y puede revocar el acceso desde el panel.",
-    "Se conservan las consultas y los borradores en Claude con los permisos elegidos; los mensajes se revisan y envían desde Cúbico."
+    "Corrige «Origen no permitido» al pegar la clave personal para conectar Claude.",
+    "El formulario conserva la validación de origen, la protección CSRF y la confirmación de permisos. No es necesario volver a crear la clave personal."
   ]
 }
