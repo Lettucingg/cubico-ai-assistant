@@ -10,7 +10,7 @@ venv/bin/pip install -r requirements.txt
 pm2 restart cubico-bot
 ```
 
-Esta versión agrega tres tablas en la base de sesiones con `create_all`; conserva sesiones, perfiles y datos anteriores. Comprueba en Configuración que el servidor muestre v1.5.0 y recarga el panel. No es necesario cambiar variables de proveedores ni reiniciar la web Node de tracking.
+Esta versión agrega dos tablas en la base de sesiones con `create_all`; conserva sesiones, perfiles y datos anteriores. Comprueba en Configuración que el servidor muestre v1.5.0 y recarga el panel. No es necesario cambiar variables de proveedores ni reiniciar la web Node de tracking.
 
 ## Incidencias y mejoras
 
