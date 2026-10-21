@@ -7,7 +7,22 @@ from app.api.panel import router as panel_router
 from app.api.notificaciones import router as notificaciones_router
 from app.scheduler import iniciar_scheduler, scheduler
 
-app = FastAPI(title="Cúbico AI Assistant")
+from contextlib import asynccontextmanager
+from app.api.staff_mcp import mcp, mcp_app
+
+
+@asynccontextmanager
+async def lifespan(app):
+    async with mcp.session_manager.run():
+        iniciar_scheduler()
+        try:
+            yield
+        finally:
+            scheduler.shutdown(wait=False)
+
+
+app = FastAPI(title="Cúbico AI Assistant", lifespan=lifespan)
+app.mount('/mcp', mcp_app)
 
 STATIC_DIR = Path(__file__).parent / "static"
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
@@ -39,14 +54,6 @@ def service_worker_panel():
         media_type="application/javascript",
         headers={"Cache-Control": "no-cache"},
     )
-
-@app.on_event("startup")
-def iniciar_tareas_programadas():
-    iniciar_scheduler()
-
-@app.on_event("shutdown")
-def detener_tareas_programadas():
-    scheduler.shutdown(wait=False)
 
 @app.get("/")
 def read_root():

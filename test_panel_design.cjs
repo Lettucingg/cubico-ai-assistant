@@ -28,10 +28,12 @@ w.fetch=async(url,options={})=>{const path=new URL(url).pathname;let data;
  else if(path==='/panel/alertas/archivar'){data={...JSON.parse(options.body),id:archived.length+1,usuario:'alexander',creado_en:new Date().toISOString()};archived.push(data)}
  else if(path.match(/alertas\/\d+\/restaurar/)){archived=archived.filter(a=>a.id!==Number(path.split('/').at(-2)));data={restaurada:true}}
  else if(path.startsWith('/panel/conversacion/'))data={contexto_atencion:path.endsWith('5072')?{categoria:'Tracking pendiente',motivo:'Consulta fallida',pasos:['Verificar el tracking real'],borrador:'Necesito verificar el estado.',nota:'Solo guía interna'}:null,historial:[{role:'user',content:'Hola',timestamp:new Date().toISOString()}]};
+ else if(path==='/panel/incidencias')data={incidencias:[],usuarios:['alexander','luis']};
+ else if(path==='/panel/conexiones-ia')data={conexiones:[]};
  else data=fixtures[path.split('/').at(-1)]||{};
  return {ok:true,status:200,json:async()=>structuredClone(data)};
 };
-for(const f of ['panel-personalization.js','panel-mobile-layout.js','chat-text-editor.js','app-release.js','operational-context.js','bot-cost-analytics.js','daily-report.js','alert-management.js','internal-assistant.js','opportunity-drag.js','chat-location.js','chat-rewrite.js','location-settings.js'])w.eval(fs.readFileSync('app/static/'+f,'utf8'));
+for(const f of ['panel-personalization.js','panel-mobile-layout.js','chat-text-editor.js','app-release.js','operational-context.js','bot-cost-analytics.js','daily-report.js','alert-management.js','internal-assistant.js','opportunity-drag.js','chat-location.js','chat-rewrite.js','location-settings.js','team-tools.js'])w.eval(fs.readFileSync('app/static/'+f,'utf8'));
 const inline=html.match(/<script>\s*([\s\S]*?)<\/script>/)[1];new Function(inline);
 w.eval(inline+`\nwindow.seedDesign=()=>{creds='test';usuarioActual='alexander';document.querySelector('.app').style.display='grid';document.getElementById('login-overlay').style.display='none';};`);
 const tick=()=>new Promise(setImmediate);

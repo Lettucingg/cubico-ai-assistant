@@ -1,11 +1,11 @@
 {
-  "version": "1.4.5",
+  "version": "1.5.0",
   "fecha": "2026-10-21",
-  "titulo": "Alertas con más espacio para leer en celular",
+  "titulo": "Centro de incidencias y conexión personal con Claude",
   "novedades": [
-    "El contexto de cada alerta ocupa todo el ancho en celular, con las acciones debajo del texto.",
-    "Los filtros de búsqueda, tipo y selección tienen filas propias para evitar controles recortados.",
-    "Los detalles largos usan el desplazamiento de la página, sin un cuadro interno que corte el contenido.",
-    "Las fechas se muestran en hora de Panamá y los estados de entrega aparecen en español."
+    "Centro compartido para reportar problemas e ideas con sección, captura, prioridad y responsable.",
+    "Seguimiento con notas e historial; permite resolver, descartar y reabrir incidencias.",
+    "Conexiones personales de Claude con permisos, vencimiento, último uso y revocación independiente.",
+    "Claude puede consultar conversaciones, tracking, cuentas verificadas, incidencias y situación operativa según tus permisos. Las respuestas se revisan y envían desde el panel."
   ]
 }
