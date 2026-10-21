@@ -187,6 +187,30 @@ class UbicacionLocal(BaseSesiones):
     actualizado_en = Column(DateTime, default=datetime.utcnow, nullable=False)
 
 
+class IncidenciaPanel(BaseSesiones):
+    __tablename__ = 'incidencias_panel'
+    id = Column(Integer, primary_key=True)
+    contenido = Column(Text, nullable=False)
+    creado_en = Column(DateTime, default=datetime.utcnow, nullable=False)
+    actualizado_en = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class ConexionIAPanel(BaseSesiones):
+    __tablename__ = 'conexiones_ia_panel'
+    id = Column(String(32), primary_key=True)
+    usuario = Column(String, nullable=False, index=True)
+    nombre = Column(String(80), nullable=False)
+    token_hash = Column(String(64), unique=True, nullable=False)
+    permisos = Column(Text, nullable=False)
+    creado_en = Column(DateTime, nullable=False)
+    vence_en = Column(DateTime, nullable=False)
+    revocado = Column(Boolean, default=False, nullable=False)
+    ultimo_uso = Column(DateTime, nullable=True)
+    ultima_herramienta = Column(String(80), nullable=True)
+    minuto = Column(Integer, default=0, nullable=False)
+    peticiones = Column(Integer, default=0, nullable=False)
+
+
 BaseSesiones.metadata.create_all(engine_sesiones)
 
 

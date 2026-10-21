@@ -1934,3 +1934,92 @@ def version_instalada_panel(response: Response, usuario: str = Depends(verificar
     from pathlib import Path
     response.headers['Cache-Control'] = 'no-store'
     return json.loads((Path(__file__).resolve().parents[1] / 'release.json').read_text(encoding='utf-8'))
+
+# Incidencias de la plataforma y credenciales personales de IA.
+class IncidenciaNuevaPayload(BaseModel):
+    titulo: str = Field(min_length=1, max_length=160)
+    descripcion: str = Field(min_length=1, max_length=6000)
+    esperado: str = Field(default='', max_length=3000)
+    seccion: str = Field(max_length=30)
+    tipo: Literal['problema', 'mejora'] = 'problema'
+    prioridad: Literal['baja', 'normal', 'alta'] = 'normal'
+    captura: str | None = Field(default=None, max_length=540_000)
+    contexto: str = Field(default='', max_length=1500)
+
+
+class IncidenciaCambioPayload(BaseModel):
+    revision: int = Field(ge=1)
+    estado: Literal['pendiente', 'en_revision', 'resuelta', 'descartada']
+    prioridad: Literal['baja', 'normal', 'alta']
+    responsable: str | None = Field(default=None, max_length=80)
+    nota: str = Field(default='', max_length=4000)
+
+
+@router.get('/incidencias')
+def listar_incidencias_panel(estado: str | None = None, seccion: str | None = None, usuario: str = Depends(verificar_credenciales_panel)):
+    from app.services import incidents
+    if estado and estado not in incidents.STATES or seccion and seccion not in incidents.SECTIONS:
+        raise HTTPException(400, 'Filtro no válido')
+    return {'incidencias': incidents.listing(estado, seccion), 'usuarios': sorted(USUARIOS_PANEL), 'limite': 200}
+
+
+@router.post('/incidencias', status_code=201)
+def crear_incidencia_panel(payload: IncidenciaNuevaPayload, usuario: str = Depends(verificar_credenciales_panel)):
+    from app.services import incidents
+    try:
+        return incidents.create(payload.model_dump(), usuario)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@router.get('/incidencias/{incident_id}')
+def obtener_incidencia_panel(incident_id: int, usuario: str = Depends(verificar_credenciales_panel)):
+    from app.services import incidents
+    try:
+        return incidents.get(incident_id)
+    except LookupError as exc:
+        raise HTTPException(404, str(exc)) from exc
+
+
+@router.patch('/incidencias/{incident_id}')
+def cambiar_incidencia_panel(incident_id: int, payload: IncidenciaCambioPayload, usuario: str = Depends(verificar_credenciales_panel)):
+    from app.services import incidents
+    try:
+        return incidents.update(incident_id, payload.model_dump(), usuario, USUARIOS_PANEL)
+    except LookupError as exc:
+        raise HTTPException(404, str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(409, str(exc)) from exc
+
+
+class ConexionIANuevaPayload(BaseModel):
+    nombre: str = Field(min_length=1, max_length=80)
+    permisos: list[Literal['conversaciones', 'cuentas', 'incidencias', 'operacion']] = Field(min_length=1, max_length=4)
+
+
+@router.get('/conexiones-ia')
+def listar_conexiones_ia(usuario: str = Depends(verificar_credenciales_panel)):
+    from app.services import ai_connections
+    return {'conexiones': ai_connections.listing(usuario)}
+
+
+@router.post('/conexiones-ia', status_code=201)
+def crear_conexion_ia(payload: ConexionIANuevaPayload, response: Response, usuario: str = Depends(verificar_credenciales_panel)):
+    from app.services import ai_connections
+    response.headers['Cache-Control'] = 'no-store'
+    try:
+        return ai_connections.issue(usuario, payload.nombre, payload.permisos)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@router.delete('/conexiones-ia/{connection_id}')
+def revocar_conexion_ia(connection_id: str, usuario: str = Depends(verificar_credenciales_panel)):
+    from app.services import ai_connections
+    try:
+        ai_connections.revoke(usuario, connection_id)
+        return {'ok': True}
+    except LookupError as exc:
+        raise HTTPException(404, str(exc)) from exc
