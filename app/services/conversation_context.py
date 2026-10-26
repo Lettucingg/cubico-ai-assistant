@@ -12,7 +12,7 @@ actuales verificados. No deduzcas que una solicitud quedó pendiente o resuelta
 solo por aparecer allí. Una promesa de avisar no demuestra que se avisó.
 No confundas el nombre del operador con el cliente. Un envío failed no llegó;
 sent/accepted no prueban entrega ni lectura; estado desconocido tampoco.
-Consulta las herramientas para saldos, pagos y paquetes actuales. Usa solo la
+Las anotaciones de entrega son metadatos internos: nunca copies etiquetas como\n«[Estado de envío: delivered]» ni notas de contexto interno en el texto al cliente.\nSi necesitas explicar una entrega, hazlo en español natural y según su estado real.\nConsulta las herramientas para saldos, pagos y paquetes actuales. Usa solo la
 configuración y los avisos vigentes para ubicación y situación del local.
 Si el resumen contradice mensajes posteriores, prioriza los posteriores sin
 inventar una resolución. Pregunta por el dato concreto que falte.
@@ -61,3 +61,31 @@ def memory_digest(history, query='', content=lambda m: m.get('content', '')):
                  'cita': text[:240]} for _, _, m, text in chosen]
     return ('Resumen extractivo anterior (puede omitir detalles; no acredita gestiones ni datos vigentes):\n'
             + json.dumps(excerpts, ensure_ascii=False)) if excerpts else ''
+
+_DELIVERY_STATES = {'accepted', 'sent', 'delivered', 'read', 'failed', 'pending', 'desconocido'}
+_DELIVERY_PREFIX = re.compile(
+    r"^\s*(?:\[Estado de env[ií]o:\s*(?:accepted|sent|delivered|read|failed|pending|desconocido)\s*\]"
+    r"|\[Contexto interno de entrega: estado=(?:accepted|sent|delivered|read|failed|pending|desconocido); no copiar esta nota al cliente\.\])\s*",
+    re.IGNORECASE,
+)
+
+
+def clean_delivery_labels(text):
+    """Remove only known internal delivery prefixes; retain the actual reply."""
+    result = str(text or '').strip()
+    while True:
+        cleaned = _DELIVERY_PREFIX.sub('', result, count=1).strip()
+        if cleaned == result:
+            return result
+        result = cleaned
+
+
+def delivery_context(status):
+    """Successful history remains natural; uncertain/failed delivery stays explicit."""
+    status = str(status or 'desconocido').strip().lower()
+    if status not in _DELIVERY_STATES:
+        status = 'desconocido'
+    if status in {'delivered', 'read'}:
+        return ''
+    return f'[Contexto interno de entrega: estado={status}; no copiar esta nota al cliente.]'
+
