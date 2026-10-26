@@ -108,7 +108,7 @@ def test_real_mcp_initialize_tools_and_permission_denial(db, monkeypatch):
         assert c.post('/mcp/',json={}).status_code==401
         assert rpc(c,'initialize',{'protocolVersion':'2025-11-25','capabilities':{},'clientInfo':{'name':'qa','version':'1'}}).status_code == 200
         result=rpc(c,'tools/list').json()['result']
-        assert {t['name'] for t in result['tools']} == {'buscar_chats','leer_conversacion','consultar_cuenta','consultar_tracking','revisar_incidencias','ver_captura_incidencia','consultar_operacion'}
+        assert {t['name'] for t in result['tools']} == {'resumen_operativo','listar_pendientes','listar_chats','buscar_chats','leer_conversacion','consultar_cuenta','consultar_tracking','revisar_incidencias','ver_captura_incidencia','consultar_operacion'}
         assert all(t['annotations']['readOnlyHint'] for t in result['tools'])
         out=rpc(c,'tools/call',{'name':'revisar_incidencias','arguments':{}})
         assert out.status_code == 200 and 'INC-0001' in out.text and out.headers['cache-control']=='no-store'

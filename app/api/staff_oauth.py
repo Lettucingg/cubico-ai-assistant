@@ -21,7 +21,7 @@ COOKIE = '__Secure-cubico-ia-csrf'
 OPTIONS = ClientRegistrationOptions(enabled=True, valid_scopes=[service.SCOPE], default_scopes=[service.SCOPE])
 META = build_metadata(AnyHttpUrl(service.ISSUER), None, OPTIONS, RevocationOptions()).model_dump(mode='json', exclude_none=True)
 META['token_endpoint_auth_methods_supported'] = ['none', 'client_secret_post', 'client_secret_basic']
-LABELS = {'conversaciones':'Conversaciones y tracking público', 'cuentas':'Saldos, facturas y paquetes del cliente verificado', 'incidencias':'Incidencias, seguimiento y capturas', 'operacion':'Ubicación confirmada y situación operativa'}
+LABELS = {'conversaciones':'Conversaciones, tracking y pendientes de clientes', 'cuentas':'Saldos, facturas y paquetes del cliente verificado', 'incidencias':'Incidencias, seguimiento y capturas', 'operacion':'Ubicación confirmada y situación operativa'}
 
 
 def page(nonce, csrf, data, message='', status=200):

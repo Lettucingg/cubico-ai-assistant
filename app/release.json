@@ -1,10 +1,10 @@
 {
-  "version": "1.5.6",
+  "version": "1.6.0",
   "fecha": "2026-10-26",
-  "titulo": "Respuestas sin etiquetas internas de entrega",
+  "titulo": "Claude con visión de pendientes del panel",
   "novedades": [
-    "Corrige respuestas que copiaban «[Estado de envío: delivered]» al cliente.",
-    "Los estados fallidos o inciertos siguen disponibles como contexto interno; los mensajes generados y los borradores eliminan los prefijos técnicos conocidos."
+    "Resumen operativo y listas de atención, propuestas, retiros, domicilios y comprobantes sin buscar teléfono por teléfono.",
+    "Recorrido paginado de chats con contexto y señal de posible falta de respuesta; las incidencias técnicas se distinguen de las solicitudes de clientes.",
+    "Las consultas conservan los permisos y no envían mensajes ni confirman pagos. Una fuente no disponible se informa como error, nunca como cero pendientes."
   ]
 }
-

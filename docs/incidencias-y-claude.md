@@ -41,7 +41,7 @@ La autorización usa registro dinámico, código de un solo uso, PKCE S256, prot
 
 Diagnóstico sin credenciales: `curl -i https://bot.cubico.com.pa/mcp/` debe responder 401 y anunciar `resource_metadata`; `curl https://bot.cubico.com.pa/panel/ia/oauth/recurso` y `curl https://bot.cubico.com.pa/.well-known/oauth-authorization-server/panel/ia/oauth` deben devolver metadatos JSON. Una redirección al login del proxy o un 404 indica que faltan rutas. No compartas claves personales en capturas ni chats.
 
-Permisos independientes: conversaciones/tracking público, cuentas verificadas, incidencias/capturas y situación operativa. El permiso de cuentas requiere conversaciones. Hay siete herramientas de consulta; ninguna permite enviar WhatsApp, verificar identidades, cambiar avisos, aprobar pagos, modificar incidencias o ejecutar código. Claude puede redactar con lo consultado y el operador copia el resultado al panel para revisarlo y enviarlo. La conexión no permite usar una suscripción de Claude como clave API dentro de Cúbico.
+Permisos independientes: conversaciones/tracking público, cuentas verificadas, incidencias/capturas y situación operativa. El permiso de cuentas requiere conversaciones. Hay diez herramientas de consulta; ninguna permite enviar WhatsApp, verificar identidades, cambiar avisos, aprobar pagos, modificar incidencias o ejecutar código. Claude puede redactar con lo consultado y el operador copia el resultado al panel para revisarlo y enviarlo. La conexión no permite usar una suscripción de Claude como clave API dentro de Cúbico.
 
 Ejemplos:
 
@@ -53,3 +53,14 @@ Ejemplos:
 Las consultas solicitadas comparten esos datos con la cuenta de Claude que usa la credencial. No se comparten contraseñas del panel ni claves API del bot. Se almacenan hashes SHA-256 de credenciales aleatorias, permisos, fechas, último uso y última herramienta; no las claves en claro ni argumentos de consultas. Vencen a los 90 días; pueden revocarse desde el usuario que las creó. Máximo 10 conexiones activas por usuario, 60 solicitudes por minuto por credencial. Si un usuario desaparece de PANEL_USUARIOS_JSON, su acceso deja de funcionar. Un cambio de contraseña no revoca estas conexiones independientes: revócalas también si deseas cerrar el acceso de Claude.
 
 No hay llamadas adicionales a OpenAI/Anthropic para estas herramientas: las fuentes se consultan directamente. Las respuestas de Claude consumen los límites que correspondan a su cuenta. La disponibilidad real depende de su plan y del acceso del proxy. Las pruebas locales verifican autenticación, permisos, revocación y transporte; la vinculación con sus cuentas de Claude requiere configurar cada cuenta después del despliegue.
+
+
+## Visión operativa de Claude · v1.6.0
+
+Empieza con `resumen_operativo`: consulta los estados actuales de las bandejas del panel. `listar_pendientes` admite `atencion`, `propuestas`, `retiros`, `domicilios` y `comprobantes`; `listar_chats` recorre conversaciones generales. Todas requieren permiso de conversaciones. Los importes reportados solo se muestran con permiso de cuentas y un código ya verificado; no equivalen a cobros confirmados. Usa `consultar_cuenta` para el saldo vigente.
+
+Las listas tienen un máximo de 50 casos por página; sigue `siguiente_desplazamiento` hasta terminar antes de afirmar que revisaste todo. Los chats registrados no equivalen a pendientes; un cliente puede aparecer en varias categorías. La señal de falta de respuesta se basa en el orden del historial, ignora notificaciones automáticas y envíos fallidos y necesita interpretar si el mensaje realmente requiere contestación. Un historial ilegible se marca como no disponible. Una falla de base de datos devuelve un error sin exponer la conexión; no se convierte en cero casos.
+
+Cada caso incluye motivo, último mensaje del cliente, última respuesta y siguiente paso. Las consultas no modifican cuentas, pagos ni entregas y no usan llamadas adicionales de OpenAI/Anthropic. Claude utiliza los límites de su cuenta para interpretar los resultados.
+
+Instala con `git pull --ff-only && pm2 restart cubico-bot && pm2 save`. Refresca las herramientas de tu conector o vuelve a vincularlo si conserva la lista antigua; una clave activa con permiso de conversaciones sigue siendo válida. La configuración del panel muestra ejemplos. La autorización OAuth anterior y el acceso a incidencias/capturas se conservan.
