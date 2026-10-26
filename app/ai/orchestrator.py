@@ -1,6 +1,6 @@
 from app.services.delivery_continuity import DELIVERY_RULES, delivery_complaint
 from app.services.human_contact import call_request, call_reply, contact_rules
-from app.services.conversation_context import CONTEXT_RULES, context_window, memory_digest
+from app.services.conversation_context import CONTEXT_RULES, context_window, memory_digest, clean_delivery_labels, delivery_context
 from app.services.business_location import verified_location, location_question, location_rules
 from app.services.operational_context import active_context, system_with_context, service_block
 from app.services.cost_analytics import call_anthropic
@@ -1837,11 +1837,15 @@ def normalizar_historial_para_claude(historial: list | None, consulta: str = '')
     mensajes = []
     for item in context_window(historial, consulta):
         contenido = _contenido_historial_para_ia(item)
+        if item.get("role") != "user":
+            contenido = clean_delivery_labels(contenido)
         if not contenido:
             continue
         contenido = contenido[:1600]
         if item.get("role") != "user":
-            contenido = f"[Estado de envío: {item.get('estado_entrega') or 'desconocido'}] {contenido}"
+            nota_entrega = delivery_context(item.get('estado_entrega'))
+            if nota_entrega:
+                contenido = f"{nota_entrega} {contenido}"
         autor_tipo = str(item.get("autor_tipo") or "").strip().lower()
         rol_historial = item.get("role")
         if rol_historial == "humano" or autor_tipo in {"humano", "plantilla"}:
@@ -2455,7 +2459,7 @@ def generar_respuesta(
             for bloque in respuesta.content
             if bloque.type == "text"
         ]
-        return "\n".join(textos).strip() if textos else None
+        return clean_delivery_labels("\n".join(textos)) or None if textos else None
 
     for _ in range(max_iteraciones_herramientas):
         respuesta = _llamar_claude()
@@ -2602,6 +2606,9 @@ Borrador del operador: {json.dumps(solucion_del_asesor, ensure_ascii=False)}
 
     for bloque in respuesta.content:
         if bloque.type == "text":
-            return bloque.text.strip()
+            texto = clean_delivery_labels(bloque.text)
+            if texto:
+                return texto
 
-    return solucion_del_asesor
+    return clean_delivery_labels(solucion_del_asesor)
+
