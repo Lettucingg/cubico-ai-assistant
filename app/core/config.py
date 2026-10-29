@@ -67,6 +67,8 @@ class Settings(BaseSettings):
     CUBICO_TEAM_REPORT_USERS_JSON: str = '["alexander", "luis", "teresa"]'
     CUBICO_PAYMENT_ACCOUNT: str = ""
     CUBICO_PAYMENT_YAPPY: str = ""
+    # Activar solo después de confirmar la asociación del sistema.
+    CUBICO_YAPPY_ENABLED: bool = False
     CUBICO_MIAMI_STREET: str = ""
     CUBICO_MIAMI_CITY_ZIP: str = ""
     CUBICO_MIAMI_PHONE: str = ""

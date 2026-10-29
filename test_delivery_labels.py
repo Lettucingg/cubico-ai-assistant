@@ -55,7 +55,7 @@ class DeliveryLabelsTests(unittest.TestCase):
         draft=load_function('redactar_respuesta_de_asesor',obtener_sesion_existente=lambda _:None,
             memory_digest=lambda *a:'',_contenido_historial_para_ia=lambda item:item['content'],
             json=__import__('json'),cliente_claude=None,CONTEXT_RULES='',DELIVERY_RULES='',
-            contact_rules=lambda:'',location_rules=lambda:'',active_context=lambda *a:[],system_with_context=lambda *a:'',
+            contact_rules=lambda:'',payment_rules=lambda:'',campaign_rules=lambda:'',location_rules=lambda:'',active_context=lambda *a:[],system_with_context=lambda *a:'',
             call_anthropic=lambda *a,**k:SimpleNamespace(content=[SimpleNamespace(type='text',text='[Estado de envío: delivered] Ya reviso tu pedido.')]))
         self.assertEqual(draft('Pedido','Ya reviso tu pedido.','507test'),'Ya reviso tu pedido.')
 

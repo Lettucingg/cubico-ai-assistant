@@ -1,4 +1,4 @@
-"""Regresión: compartir un número no implica inscripción en el directorio."""
+"""Regresión: un número antiguo no habilita pagos ni prueba directorio."""
 import pytest
 from app.ai import orchestrator
 
@@ -12,12 +12,14 @@ from app.ai import orchestrator
     '¿Cómo los busco en el directorio de Yappy?',
 ])
 def test_directory_answer_does_not_require_identity_or_model(question, monkeypatch):
-    monkeypatch.setattr(orchestrator, 'CUBICO_PAYMENT_YAPPY', '6000-0000')
+    monkeypatch.setattr(orchestrator.settings, 'CUBICO_PAYMENT_YAPPY', '6000-0000')
+    monkeypatch.setattr(orchestrator.settings, 'CUBICO_YAPPY_ENABLED', False)
     def unexpected_model(**kwargs):
         raise AssertionError('A confirmed public fact should not require AI')
     monkeypatch.setattr(orchestrator.cliente_claude.messages, 'create', unexpected_model)
     answer = orchestrator.generar_respuesta(question, '5070000')
-    assert answer == 'Todavía no estamos en el directorio de Yappy. Por ahora el pago por Yappy se hace al número 6000-0000.'
+    assert 'Cúbico no acepta Yappy' in answer
+    assert '6000-0000' not in answer
 
 
 def test_previous_wrong_answer_does_not_override_confirmed_fact(monkeypatch):
@@ -26,7 +28,8 @@ def test_previous_wrong_answer_does_not_override_confirmed_fact(monkeypatch):
     answer = orchestrator.generar_respuesta('¿Están en el directorio de Yappy?', '5070000', 'CBC-0018', [
         {'role': 'assistant', 'content': 'Sí, puedes buscarnos en Yappy como Cúbico.'},
     ])
-    assert answer.startswith('Todavía no estamos en el directorio de Yappy.')
+    assert 'Cúbico no acepta Yappy' in answer
+    assert 'buscarnos' not in answer
 
 
 @pytest.mark.parametrize('text', [
