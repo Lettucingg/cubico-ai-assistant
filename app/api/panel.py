@@ -1213,6 +1213,17 @@ class ConsultaBrunoPayload(BaseModel):
     modo: Literal['consulta', 'borrador'] = 'consulta'
 
 
+@router.post('/asistente')
+async def consultar_bruno_general(payload: ConsultaBrunoPayload,
+                                  usuario: str = Depends(verificar_credenciales_panel)):
+    from app.services.internal_assistant import query_general
+    try:
+        return await asyncio.to_thread(query_general, payload.pregunta.strip(), payload.modo)
+    except Exception:
+        logging.getLogger(__name__).exception('No se pudo completar una consulta general a Bruno')
+        raise HTTPException(status_code=502, detail='No se pudo completar la consulta. No se envió nada; puedes reintentar.') from None
+
+
 @router.post('/asistente/{telefono}')
 async def consultar_bruno_panel(telefono: str, payload: ConsultaBrunoPayload,
                                 usuario: str = Depends(verificar_credenciales_panel)):

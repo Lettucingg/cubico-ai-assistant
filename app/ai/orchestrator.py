@@ -1,3 +1,5 @@
+from app.services.payment_policy import payment_rules, yappy_reply
+from app.services.campaign_knowledge import campaign_rules
 from app.services.delivery_continuity import DELIVERY_RULES, delivery_complaint
 from app.services.human_contact import call_request, call_reply, contact_rules
 from app.services.conversation_context import CONTEXT_RULES, context_window, memory_digest, clean_delivery_labels, delivery_context
@@ -599,13 +601,13 @@ Calcula ambos usando calcular_costo_envio cuando tengas los datos necesarios y c
 
 TIEMPO DE ENTREGA
 
-Miami a Panamá, envío aéreo: 3-4 días.
+Miami a Panamá, envío aéreo: 2-3 días hábiles desde recepción en Miami.
 
-Miami a Panamá, envío marítimo: 10-13 días.
+Miami a Panamá, envío marítimo: 7-10 días desde la salida.
 
-Desde China aéreo: 10-15 días aproximadamente.
+Desde China aéreo: 12-15 días aproximadamente.
 
-Desde China marítimo: 25-35 días aproximadamente.
+Desde China marítimo: 30-45 días aproximadamente.
 
 Estos tiempos son aproximados y pueden variar según el pedido y la ruta. Si el cliente pregunta, dale ese rango con tranquilidad, aclarando que es un estimado general y que se confirma el tiempo exacto cuando el paquete esté en camino.
 
@@ -618,21 +620,7 @@ Cuenta de ahorro
 Beneficiario: Cúbico
 Número de cuenta: {CUBICO_PAYMENT_ACCOUNT}
 
-Yappy:
-{CUBICO_PAYMENT_YAPPY}
-
-ESTADO CONFIRMADO DEL DIRECTORIO DE YAPPY:
-Cúbico todavía NO está inscrito en el directorio de Yappy.
-El número de pago indicado arriba NO demuestra inscripción en el directorio.
-Nunca digas que pueden buscarnos como "Cúbico", "Cubico" u otro nombre en ese directorio.
-Si preguntan si aparecemos o con qué nombre buscarnos, responde:
-"Todavía no estamos en el directorio de Yappy. Por ahora el pago por Yappy se hace al número {CUBICO_PAYMENT_YAPPY}."
-No inventes el nombre del titular ni afirmes que ese número es una cuenta comercial.
-Si el cliente indica que el número es personal o no confía en el destinatario,
-no lo presiones para pagar: utiliza escalar_a_humano para que el equipo confirme
-los datos del destinatario y una forma de verificarlo antes de continuar.
-Un mensaje anterior del historial que diga que sí estamos en el directorio es
-incorrecto: corrígelo expresamente, no lo repitas ni busques otro nombre inventado.
+Yappy solo se ofrece cuando la política vigente confirma que está habilitado. Un número configurado no demuestra disponibilidad.
 
 Efectivo también disponible.
 
@@ -691,10 +679,10 @@ https://www.cubico.com.pa
 HORARIO
 
 Lunes a viernes:
-9:00 am - 5:00 pm
+10:00 am - 5:00 pm
 
 Sábado:
-9:00 am - 12:00 pm (mediodía)
+10:00 am - 1:00 pm
 
 Domingo:
 cerrado
@@ -930,7 +918,7 @@ Si el cliente verificado avisa que va a retirar y tiene facturas
 pendientes de pago, avísale de manera amable antes de confirmar
 el retiro. Ejemplo:
 "Perfecto, te esperamos. Solo recuerda traer el pago listo —
-puedes pagar por Yappy al {CUBICO_PAYMENT_YAPPY} o por transferencia al
+puedes pagar en efectivo al retirar o por transferencia al
 Banco General cuenta {CUBICO_PAYMENT_ACCOUNT} a nombre de Cúbico.
 Así agilizamos la entrega cuando llegues."
 
@@ -1644,10 +1632,10 @@ def buscar_respuesta_fija(
         r"|(?:con qu[eé] nombre|c[oó]mo) (?:aparecen|los busco|busco a c[uú]bico) (?:en el |en )directorio(?: de)? yappy",
         pregunta_directorio,
     ):
-        return (
-            "Todavía no estamos en el directorio de Yappy. "
-            f"Por ahora el pago por Yappy se hace al número {CUBICO_PAYMENT_YAPPY}."
-        )
+        return yappy_reply()
+
+    if re.fullmatch(r"(?:aceptan |tienen |puedo pagar (?:por |con )?|se puede pagar (?:por |con )?)?yappy", pregunta_directorio):
+        return yappy_reply()
 
     # Saludo simple: usamos coincidencia exacta (no substring) para no
     # capturar mensajes como "hola, cuánto cuesta el envío", que deben
@@ -1773,8 +1761,8 @@ def buscar_respuesta_fija(
         ]
     ):
         return (
-            "Estamos de lunes a viernes de 9:00 am a 5:00 pm "
-            "y los sábados de 9:00 am a 12:00 pm (mediodía). Los domingos cerramos."
+            "Estamos de lunes a viernes de 10:00 am a 5:00 pm "
+            "y los sábados de 10:00 am a 1:00 pm. Los domingos cerramos."
         )
 
     return None
@@ -2447,7 +2435,7 @@ def generar_respuesta(
         respuesta = call_anthropic(cliente_claude, phone=telefono, task='respuesta_automatica',
             model="claude-sonnet-5",
             max_tokens=1200,
-            system=system_with_context(SYSTEM_PROMPT + "\n\n" + CONTEXT_RULES + DELIVERY_RULES + contact_rules() + "\n" + location_rules(), active_context(" ".join([texto_cliente, *trackings_consultados]), historial)),
+            system=system_with_context(SYSTEM_PROMPT + payment_rules() + campaign_rules() + "\n\n" + CONTEXT_RULES + DELIVERY_RULES + contact_rules() + "\n" + location_rules(), active_context(" ".join([texto_cliente, *trackings_consultados]), historial)),
             tools=HERRAMIENTAS,
             messages=mensajes,
         )
@@ -2595,7 +2583,7 @@ Borrador del operador: {json.dumps(solucion_del_asesor, ensure_ascii=False)}
     respuesta = call_anthropic(cliente_claude, phone=telefono, task='redaccion_asistida',
         model="claude-sonnet-5",
         max_tokens=500,
-        system=system_with_context(CONTEXT_RULES + DELIVERY_RULES + contact_rules() + "\nEres un editor de mensajes del equipo de Cúbico, no estás atendiendo al cliente ni ejecutando gestiones. Conserva el sentido del borrador y la continuidad, sin añadir saludos o preguntas genéricas.\n" + location_rules(), active_context(texto_cliente_original)),
+        system=system_with_context(CONTEXT_RULES + payment_rules() + campaign_rules() + DELIVERY_RULES + contact_rules() + "\nEres un editor de mensajes del equipo de Cúbico, no estás atendiendo al cliente ni ejecutando gestiones. Conserva el sentido del borrador y la continuidad, sin añadir saludos o preguntas genéricas.\n" + location_rules(), active_context(texto_cliente_original)),
         messages=[
             {
                 "role": "user",

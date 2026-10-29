@@ -1,10 +1,10 @@
 {
-  "version": "1.6.0",
-  "fecha": "2026-10-26",
-  "titulo": "Claude con visión de pendientes del panel",
+  "version": "1.6.1",
+  "fecha": "2026-10-29",
+  "titulo": "Consultas generales y reglas de atención actualizadas",
   "novedades": [
-    "Resumen operativo y listas de atención, propuestas, retiros, domicilios y comprobantes sin buscar teléfono por teléfono.",
-    "Recorrido paginado de chats con contexto y señal de posible falta de respuesta; las incidencias técnicas se distinguen de las solicitudes de clientes.",
-    "Las consultas conservan los permisos y no envían mensajes ni confirman pagos. Una fuente no disponible se informa como error, nunca como cero pendientes."
+    "Consultar a Bruno desde cualquier sección en un lateral privado, sin seleccionar cliente; permite copiar borradores y consultar tracking público.",
+    "Yappy desactivado hasta confirmar la asociación; las respuestas automáticas y asistidas usan la política vigente.",
+    "Guía SOMOSCUBICO preparada y tiempos/horarios actualizados. La promoción no se activa sin confirmar vigencia y elegibilidad; no se inicia ningún envío masivo."
   ]
 }
