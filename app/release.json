@@ -1,10 +1,10 @@
 {
-  "version": "1.6.1",
+  "version": "1.6.2",
   "fecha": "2026-10-29",
-  "titulo": "Consultas generales y reglas de atención actualizadas",
+  "titulo": "Bruno busca clientes desde las consultas internas",
   "novedades": [
-    "Consultar a Bruno desde cualquier sección en un lateral privado, sin seleccionar cliente; permite copiar borradores y consultar tracking público.",
-    "Yappy desactivado hasta confirmar la asociación; las respuestas automáticas y asistidas usan la política vigente.",
-    "Guía SOMOSCUBICO preparada y tiempos/horarios actualizados. La promoción no se activa sin confirmar vigencia y elegibilidad; no se inicia ningún envío masivo."
+    "Búsqueda privada de clientes activos por nombre, código o teléfono sin abrir una conversación ni cambiar su verificación.",
+    "Casilleros personalizados con datos configurados y código real; aéreo y marítimo separados. Las coincidencias ambiguas se seleccionan explícitamente.",
+    "Consultas de saldo y paquetes del cliente seleccionado desde el mismo lateral; resultados y errores con fuente, sin enviar mensajes."
   ]
 }

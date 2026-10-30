@@ -11,7 +11,7 @@ from typing import Literal
 
 import httpx
 from sqlalchemy.exc import SQLAlchemyError
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, Response, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, Response, UploadFile
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from pydantic import BaseModel, Field
 
@@ -1211,6 +1211,21 @@ async def obtener_audio_panel(
 class ConsultaBrunoPayload(BaseModel):
     pregunta: str = Field(min_length=1, max_length=2000, pattern=r'.*\S.*')
     modo: Literal['consulta', 'borrador'] = 'consulta'
+    cliente_codigo: str | None = Field(default=None, min_length=1, max_length=80)
+    cliente_tipo: Literal['cbc', 'agencia'] | None = None
+
+
+@router.get('/asistente/clientes')
+async def buscar_clientes_asistente(q: str = Query(min_length=3, max_length=120),
+                                    usuario: str = Depends(verificar_credenciales_panel)):
+    from app.services.staff_customers import search
+    try:
+        return await asyncio.to_thread(search, q)
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    except Exception:
+        logging.getLogger(__name__).exception('No se pudo buscar clientes en el asistente')
+        raise HTTPException(status_code=502, detail='No se pudo consultar el registro de clientes. No significa que el cliente no exista.') from None
 
 
 @router.post('/asistente')
@@ -1218,6 +1233,9 @@ async def consultar_bruno_general(payload: ConsultaBrunoPayload,
                                   usuario: str = Depends(verificar_credenciales_panel)):
     from app.services.internal_assistant import query_general
     try:
+        if payload.cliente_codigo:
+            return await asyncio.to_thread(query_general, payload.pregunta.strip(), payload.modo,
+                                           payload.cliente_codigo, payload.cliente_tipo)
         return await asyncio.to_thread(query_general, payload.pregunta.strip(), payload.modo)
     except Exception:
         logging.getLogger(__name__).exception('No se pudo completar una consulta general a Bruno')

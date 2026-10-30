@@ -42,7 +42,7 @@ def test_general_questions_are_private_bounded_and_do_not_query_customer(questio
     assert args['task']=='asistente_interno' and 'tools' not in args
     assert args['max_tokens']==1400
     assert 'NO acepta Yappy' in args['system']
-    assert 'No hay cliente vinculado' in args['system']
+    assert 'no obligues a abrir un chat' in args['system']
     assert result['datos']['campana']['estado']=='preparada_pendiente_de_activacion'
 
 
