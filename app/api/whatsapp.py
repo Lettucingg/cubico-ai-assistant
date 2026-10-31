@@ -1,3 +1,4 @@
+from app.services.payment_policy import receipt_acknowledgement
 from app.services.cost_analytics import record_whatsapp_response, record_whatsapp_receipts
 import asyncio
 import json
@@ -905,6 +906,9 @@ async def _procesar_mensaje_en_segundo_plano_sin_candado(mensaje: dict):
                     )
 
             if resultado["es_comprobante"]:
+                # Payment validation belongs to the team's ledger review, never
+                # to model prose based on the visible beneficiary/brand.
+                texto_respuesta_imagen = receipt_acknowledgement()
                 campos = extraer_campos_comprobante(resultado["detalle_completo"])
                 monto = parsear_monto_comprobante(campos.get("monto"))
                 obtener_o_crear_sesion(mensaje["telefono"])

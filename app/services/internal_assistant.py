@@ -122,12 +122,7 @@ def query_chat(session, question, mode='consulta'):
             if 0 < len(pending) <= 5:
                 draft += ' Corresponde a ' + ', '.join(f"{f['codigo']} ({_money(f['saldo_pendiente'])})" for f in pending) + '.'
             if re.search(r'como.*pag|forma de pag|yappy|donde pag', key):
-                options = []
-                if settings.CUBICO_YAPPY_ENABLED and settings.CUBICO_PAYMENT_YAPPY.strip():
-                    options.append('Yappy: ' + settings.CUBICO_PAYMENT_YAPPY.strip())
-                if settings.CUBICO_PAYMENT_ACCOUNT.strip():
-                    options.append('Transferencia: ' + settings.CUBICO_PAYMENT_ACCOUNT.strip())
-                draft += (' ' + ' · '.join(options) + '.') if options else ' El equipo te confirmará los datos de pago.'
+                draft += ' ' + ' · '.join(payment_options()) + '.'
     elif any(w in key for w in ['paquete', 'carga', 'tracking', 'retiro']):
         if not packages['disponible']:
             answer = 'No pude consultar los paquetes actuales de este cliente.'
