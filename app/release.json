@@ -1,10 +1,10 @@
 {
-  "version": "1.6.2",
-  "fecha": "2026-10-29",
-  "titulo": "Bruno busca clientes desde las consultas internas",
+  "version": "1.6.3",
+  "fecha": "2026-10-31",
+  "titulo": "Comprobantes sin rechazos por destinatario ni cuentas supuestas",
   "novedades": [
-    "Búsqueda privada de clientes activos por nombre, código o teléfono sin abrir una conversación ni cambiar su verificación.",
-    "Casilleros personalizados con datos configurados y código real; aéreo y marítimo separados. Las coincidencias ambiguas se seleccionan explícitamente.",
-    "Consultas de saldo y paquetes del cliente seleccionado desde el mismo lateral; resultados y errores con fuente, sin enviar mensajes."
+    "Los comprobantes reciben un acuse neutral y permanecen pendientes de revisión del equipo; no se rechazan por el nombre o marca del destinatario.",
+    "Los datos bancarios antiguos no se publican sin habilitación explícita y titular confirmado. Yappy sigue desactivado.",
+    "La política vigente también se aplica al lector de imágenes y a las ayudas de redacción; el bot no pide repetir un pago basándose solo en una captura."
   ]
 }

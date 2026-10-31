@@ -66,6 +66,9 @@ class Settings(BaseSettings):
     # Los informes diarios se envían por Web Push a estos usuarios del panel.
     CUBICO_TEAM_REPORT_USERS_JSON: str = '["alexander", "luis", "teresa"]'
     CUBICO_PAYMENT_ACCOUNT: str = ""
+    # Un número antiguo no habilita una cuenta ni acredita su titular.
+    CUBICO_BANK_TRANSFER_ENABLED: bool = False
+    CUBICO_PAYMENT_ACCOUNT_HOLDER: str = ""
     CUBICO_PAYMENT_YAPPY: str = ""
     # Activar solo después de confirmar la asociación del sistema.
     CUBICO_YAPPY_ENABLED: bool = False

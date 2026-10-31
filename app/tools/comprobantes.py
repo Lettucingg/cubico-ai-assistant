@@ -1,3 +1,4 @@
+from app.services.payment_policy import payment_rules, receipt_acknowledgement
 from app.services.cost_analytics import call_anthropic
 import base64
 import re
@@ -33,7 +34,7 @@ def interpretar_analisis_imagen(texto_completo: str) -> dict:
     encabezado = partes[0]
     separador = len(partes) == 2
     texto_para_cliente = partes[1] if separador else ""
-    es_comprobante = "es_comprobante: si" in encabezado.lower()
+    es_comprobante = bool(re.search(r"(?im)^\s*ES_COMPROBANTE:\s*s[ií]\b", encabezado))
     contexto_visual = None
     if not es_comprobante:
         marcador = "CONTEXTO_VISUAL:"
@@ -45,9 +46,10 @@ def interpretar_analisis_imagen(texto_completo: str) -> dict:
         "detalle_completo": encabezado.strip() if es_comprobante else None,
         "contexto_visual": contexto_visual,
         "texto_respuesta": (
-            texto_para_cliente.strip()
-            if separador
-            else "Recibí la imagen, pero necesito revisarla con más detalle."
+            receipt_acknowledgement() if es_comprobante else (
+                texto_para_cliente.strip() if separador
+                else "Recibí la imagen, pero necesito revisarla con más detalle."
+            )
         ),
         "formato_valido": separador,
     }
@@ -101,6 +103,11 @@ def analizar_imagen_cliente(
 Un cliente de Cúbico te mandó esta imagen por WhatsApp, {contexto_texto}.
 
 Primero decide si es un comprobante de pago (transferencia, Yappy, o similar).
+Un comprobante dirigido a otra marca, empresa o persona sigue siendo comprobante.
+Clasifica el documento por lo que contiene, no por si crees que el destino es correcto.
+Solo extrae sus datos visibles; no validas titular, cuenta autorizada ni dinero recibido.
+No rechaces el pago por el nombre del destinatario ni pidas una segunda transferencia.
+La respuesta al cliente para comprobantes será un acuse neutral de revisión por el equipo.
 
 Si SÍ es un comprobante de pago, responde EXACTAMENTE en este formato:
 
@@ -131,7 +138,7 @@ No escribas nada antes de "ES_COMPROBANTE:" ni nada después del texto de la sec
             system=[
                 {
                     "type": "text",
-                    "text": SYSTEM_PROMPT,
+                    "text": SYSTEM_PROMPT + payment_rules(),
                     "cache_control": {"type": "ephemeral"},
                 }
             ],

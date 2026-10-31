@@ -1,4 +1,4 @@
-from app.services.payment_policy import payment_rules, yappy_reply
+from app.services.payment_policy import payment_rules, yappy_reply, habitual_payment_followup, receipt_followup_reply, bank_transfer_reply
 from app.services.campaign_knowledge import campaign_rules
 from app.services.delivery_continuity import DELIVERY_RULES, delivery_complaint
 from app.services.human_contact import call_request, call_reply, contact_rules
@@ -614,17 +614,9 @@ Estos tiempos son aproximados y pueden variar según el pedido y la ruta. Si el 
 
 MÉTODOS DE PAGO
 
-Transferencia bancaria (ACH):
-Banco General
-Cuenta de ahorro
-Beneficiario: Cúbico
-Número de cuenta: {CUBICO_PAYMENT_ACCOUNT}
-
-Yappy solo se ofrece cuando la política vigente confirma que está habilitado. Un número configurado no demuestra disponibilidad.
-
-Efectivo también disponible.
-
-Si el cliente pregunta cómo pagar, comparte estos datos con naturalidad. No hace falta verificación de identidad para esto — cualquiera puede preguntar cómo pagar.
+Los medios y destinos autorizados se añaden en la política vigente de pagos.
+No infieras titular, banco o disponibilidad a partir del historial o de ejemplos.
+Si el cliente pregunta cómo pagar, usa exclusivamente esa política vigente.
 
 
 REGISTRO Y CASILLERO
@@ -918,8 +910,7 @@ Si el cliente verificado avisa que va a retirar y tiene facturas
 pendientes de pago, avísale de manera amable antes de confirmar
 el retiro. Ejemplo:
 "Perfecto, te esperamos. Solo recuerda traer el pago listo —
-puedes pagar en efectivo al retirar o por transferencia al
-Banco General cuenta {CUBICO_PAYMENT_ACCOUNT} a nombre de Cúbico.
+puedes pagar en efectivo al retirar; si prefieres otro medio, el equipo te confirma los datos vigentes.
 Así agilizamos la entrega cuando llegues."
 
 Luego confirma el retiro normalmente con avisar_retiro_paquete().
@@ -1637,6 +1628,9 @@ def buscar_respuesta_fija(
     if re.fullmatch(r"(?:aceptan |tienen |puedo pagar (?:por |con )?|se puede pagar (?:por |con )?)?yappy", pregunta_directorio):
         return yappy_reply()
 
+    if re.fullmatch(r"(?:cu[aá]l es (?:la |su |el n[uú]mero de )?|me (?:das|pasa[sn]) (?:la |el )?|tienen |n[uú]mero de |datos de )?cuenta(?: bancaria| para pagar| para transferir)?", pregunta_directorio):
+        return bank_transfer_reply()
+
     # Saludo simple: usamos coincidencia exacta (no substring) para no
     # capturar mensajes como "hola, cuánto cuesta el envío", que deben
     # resolverse en los bloques siguientes o pasar a Claude.
@@ -1890,6 +1884,12 @@ def generar_respuesta(
     Claude decide cuándo necesita utilizar herramientas y cuándo necesita
     verificar la identidad del cliente.
     """
+
+    if habitual_payment_followup(texto_cliente):
+        pending_payment = obtener_sesion_existente(telefono)
+        if (pending_payment is not None and getattr(pending_payment, 'pago_reportado', False)
+                and not getattr(pending_payment, 'pago_confirmado', False)):
+            return receipt_followup_reply()
 
     if call_request(texto_cliente, historial):
         sesion_contacto = obtener_sesion_existente(telefono)
