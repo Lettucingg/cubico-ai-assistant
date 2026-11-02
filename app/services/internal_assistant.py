@@ -1,3 +1,4 @@
+from app.services.conversation_language import reply_language, explicit_preference
 """Read-only staff assistant for verified accounts and explicit public trackings.
 
 This module never sends WhatsApp messages or changes business/session data.
@@ -100,6 +101,8 @@ def query_chat(session, question, mode='consulta'):
     facts = snapshot['facturas']
     packages = snapshot['paquetes']
     history = _history(session)
+    customer_text=next((m['texto'] for m in reversed(history) if m['autor']=='cliente'), '')
+    draft_language=explicit_preference(question) or reply_language(customer_text,session.obtener_historial())
     key = _key(question)
     # Generic requests to reply inherit the customer's question, not an operator name.
     if not any(w in key for w in ['saldo', 'cuanto', 'total', 'factura', 'paquete', 'carga', 'tracking', 'retiro', 'pago']) and any(w in key for w in ['ultimo mensaje', 'que le contesto', 'que responder', 'respondele', 'prepara una respuesta', 'preparame una respuesta']):
@@ -159,6 +162,7 @@ No inventes datos, nombres, montos, ubicaciones, referencias, horarios, fechas d
 La ubicación de retiro solo puede salir de punto_retiro_verificado; si es null, el equipo debe confirmarla. Nunca reproduzcas una dirección vieja del historial. No menciones proveedores internos como PTY Freight en borradores.
 Los avisos operativos solo aplican dentro de su alcance. No atribuyas una ruta a un paquete si no está verificada. Un estado crudo de bodega no demuestra que se pueda entregar. Si faltan datos, explica concretamente qué revisar.
 Responde JSON válido, sin markdown, con dos campos: respuesta (explicación interna breve con limitaciones) y borrador (texto natural para el cliente, sin notas internas, solo cuando modo=borrador; de lo contrario cadena vacía). Máximo 1800 caracteres por campo.'''
+        prompt += '\nEl borrador para el cliente debe estar en '+('English' if draft_language=='en' else 'español')+'. La explicación interna puede mantenerse en español; las notas del equipo no cambian el idioma del cliente.'
         payload = {'codigo_cliente': code, 'modo': mode, 'consulta': question,
                    'DATOS_ACTUALES': _bounded(snapshot), 'historial': history,
                    'punto_retiro_verificado': verified_location(), 'avisos_operativos': public_notices}
@@ -173,6 +177,24 @@ Responde JSON válido, sin markdown, con dos campos: respuesta (explicación int
                 raise ValueError()
         except (ValueError, TypeError, KeyError):
             raise ValueError('Bruno no generó una respuesta válida. No se envió ningún mensaje.') from None
+    if draft_language=='en':
+        if any(w in key for w in ['saldo', 'cuanto debe', 'cuanto es', 'el total', 'total pendiente', 'factura', 'cuanto pagar']):
+            if not facts['disponible']:
+                draft='I need to check your invoices and payments before confirming the correct outstanding balance.'
+            else:
+                draft=('Your total outstanding balance is '+_money(facts['saldo_pendiente_total'])+'.' if float(facts['saldo_pendiente_total'])>0 else 'There are currently no invoices with an outstanding balance in the system.')
+                if 0<len(pending)<=5:draft+=' This covers '+', '.join(f["codigo"]+' ('+_money(f['saldo_pendiente'])+')' for f in pending)+'.'
+                if re.search(r'como.*pag|forma de pag|yappy|donde pag',key):draft+=' '+' · '.join(payment_options('en'))+'.'
+        elif any(w in key for w in ['paquete', 'carga', 'tracking', 'retiro']):
+            draft=('I need to verify the current status of your packages before confirming the next step.' if not packages['disponible'] else
+                   'I will need the team to confirm which packages are authorized for pickup or delivery.' if packages['paquetes'] else
+                   'No packages currently appear under your customer code in the system. This does not confirm whether any are still on the way.')
+        elif any(w in key for w in ['ultimo pago', 'cuando pago', 'cuando fue su pago']):
+            payment=snapshot['ultimo_pago'];last=payment.get('ultimo_pago')
+            draft=('I could not check your payment history.' if not payment['disponible'] else
+                   'There is no payment date recorded; a paid invoice alone does not establish the payment date.' if not last else
+                   'The latest payment with a recorded date is '+str(last['fecha_pago'])+', '+_money(last['monto'])+'.')
+            if last and payment.get('historial_fechas_incompleto'):draft+=' Some other payments have no recorded date, so I cannot confirm this is the latest overall.'
     # Surface a bounded, verifiable evidence sheet regardless of model wording.
     evidence = _bounded(snapshot)
     return {'telefono': session.telefono, 'codigo_cliente': code, 'consultado_en': now,

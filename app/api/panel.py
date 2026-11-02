@@ -1228,6 +1228,12 @@ async def buscar_clientes_asistente(q: str = Query(min_length=3, max_length=120)
         raise HTTPException(status_code=502, detail='No se pudo consultar el registro de clientes. No significa que el cliente no exista.') from None
 
 
+@router.get('/politica-pagos')
+async def politica_pagos_panel(usuario: str = Depends(verificar_credenciales_panel)):
+    from app.services.payment_policy import payment_status
+    return payment_status()
+
+
 @router.post('/asistente')
 async def consultar_bruno_general(payload: ConsultaBrunoPayload,
                                   usuario: str = Depends(verificar_credenciales_panel)):

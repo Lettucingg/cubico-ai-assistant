@@ -207,6 +207,12 @@ def act_notice(notice_id,body,user):
         data=json.loads(row.data_json);now=now_utc()
         state={'activar':'activo','pausar':'pausado','resolver':'resuelto','revisado':row.state}[body.accion]
         if body.accion=='activar':
+            if body.revisar_en is not None:
+                if body.revisar_en.tzinfo is None:raise ValueError('Indica la revisión con zona horaria')
+                review=body.revisar_en.astimezone(timezone.utc)
+                if review<=now or review<=_parse(data['inicio']) or (data.get('fin') and review>_parse(data['fin'])):
+                    raise ValueError('La revisión debe ser futura, posterior al inicio y anterior al fin')
+                data['revisar_en']=review.isoformat()
             if data.get('fin') and _parse(data['fin'])<=now: raise ValueError('El aviso ya venció; edita su vigencia antes de activarlo')
             if _parse(data['revisar_en'])<=now: raise ValueError('Programa una revisión futura antes de activar el aviso')
             conflicts=conflicts_for(data,db,row.id)
@@ -293,6 +299,8 @@ def preview_response(body):
     """Same response rules, but no tools, no session, and no outbound transport."""
     from app.ai.orchestrator import SYSTEM_PROMPT, cliente_claude
     from app.services.business_location import location_rules
+    from app.services.conversation_language import reply_language, language_rules
+    from app.services.payment_policy import payment_rules
     from app.services.cost_analytics import call_anthropic
     notices=active_context(body.pregunta)
     if body.aviso_id is not None: notices=[r for r in notices if r['id']!=body.aviso_id]
@@ -301,7 +309,7 @@ def preview_response(body):
     included=not proposed['trackings'] or any(re.search(r'(?<![A-Z0-9_-])'+re.escape(t)+r'(?![A-Z0-9_-])',body.pregunta.upper()) for t in proposed['trackings'])
     if included: notices.append(proposed)
     response=call_anthropic(cliente_claude,task='prueba_contexto_operativo',model='claude-sonnet-5',max_tokens=600,
-        system=system_with_context(SYSTEM_PROMPT + "\n\n" + location_rules(),notices)+[{'type':'text','text':'SIMULACIÓN: No tienes herramientas ni datos de un cliente verificado. No afirmes consultar paquetes, pagos, enviar mensajes o crear solicitudes. El aviso propuesto se simula vigente solo para la prueba. Responde con el texto que dirías al cliente, sin ejecutar ninguna acción.'}],
+        system=system_with_context(SYSTEM_PROMPT + payment_rules() + language_rules(reply_language(body.pregunta)) + "\n\n" + location_rules(),notices)+[{'type':'text','text':'SIMULACIÓN: No tienes herramientas ni datos de un cliente verificado. No afirmes consultar paquetes, pagos, enviar mensajes o crear solicitudes. El aviso propuesto se simula vigente solo para la prueba. Responde con el texto que dirías al cliente, sin ejecutar ninguna acción.'}],
         messages=[{'role':'user','content':body.pregunta}])
     text='\n'.join(b.text for b in response.content if getattr(b,'type',None)=='text').strip()
     if not text: raise ValueError('La prueba no generó texto. No se envió ningún mensaje.')

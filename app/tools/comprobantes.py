@@ -1,3 +1,4 @@
+from app.services.conversation_language import reply_language, language_rules
 from app.services.payment_policy import payment_rules, receipt_acknowledgement
 from app.services.cost_analytics import call_anthropic
 import base64
@@ -23,7 +24,7 @@ def detectar_mime_imagen(imagen_bytes: bytes) -> str:
     return "image/jpeg"
 
 
-def interpretar_analisis_imagen(texto_completo: str) -> dict:
+def interpretar_analisis_imagen(texto_completo: str, language: str = 'es') -> dict:
     """Convierte la salida estructurada del análisis en datos seguros para el flujo."""
     partes = re.split(
         r"={2,}\s*RESPUESTA\s*={2,}",
@@ -46,7 +47,7 @@ def interpretar_analisis_imagen(texto_completo: str) -> dict:
         "detalle_completo": encabezado.strip() if es_comprobante else None,
         "contexto_visual": contexto_visual,
         "texto_respuesta": (
-            receipt_acknowledgement() if es_comprobante else (
+            receipt_acknowledgement(language) if es_comprobante else (
                 texto_para_cliente.strip() if separador
                 else "Recibí la imagen, pero necesito revisarla con más detalle."
             )
@@ -92,6 +93,7 @@ def analizar_imagen_cliente(
     Normalmente usa una sola llamada. Solo repite el análisis cuando la
     respuesta no cumple el formato necesario para conservar sus datos.
     """
+    language=reply_language(texto_cliente or '')
     imagen_base64 = base64.b64encode(imagen_bytes).decode("utf-8")
 
     if texto_cliente:
@@ -138,7 +140,7 @@ No escribas nada antes de "ES_COMPROBANTE:" ni nada después del texto de la sec
             system=[
                 {
                     "type": "text",
-                    "text": SYSTEM_PROMPT + payment_rules(),
+                    "text": SYSTEM_PROMPT + payment_rules() + language_rules(language),
                     "cache_control": {"type": "ephemeral"},
                 }
             ],
@@ -171,7 +173,7 @@ No escribas nada antes de "ES_COMPROBANTE:" ni nada después del texto de la sec
         ).strip()
 
     texto_completo = extraer_texto(respuesta)
-    analisis = interpretar_analisis_imagen(texto_completo)
+    analisis = interpretar_analisis_imagen(texto_completo, language)
 
     if not analisis["formato_valido"]:
         # Algunos modelos describen correctamente la foto pero omiten el
@@ -186,7 +188,7 @@ CBM aunque el texto sea pequeño. Debes incluir literalmente ===RESPUESTA===.
 """
         respuesta = consultar_vision(instrucciones_reintento)
         texto_completo = extraer_texto(respuesta)
-        analisis = interpretar_analisis_imagen(texto_completo)
+        analisis = interpretar_analisis_imagen(texto_completo, language)
 
     return analisis
 
