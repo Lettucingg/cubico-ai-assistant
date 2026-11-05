@@ -55,6 +55,9 @@ class Settings(BaseSettings):
     # Clave compartida esperada en el header X-Cubico-Key.
     CUBICO_NOTIFY_KEY: str
 
+    # API del sistema Cúbico. La clave se instala solo en el .env del servidor.
+    CUBICO_BOT_KEY: str = ""
+
     # --- Datos privados del negocio (no publicar en GitHub) ---
     CUBICO_TEAM_COMMAND_NUMBERS_JSON: str = "[]"
     CUBICO_NOTIFICATION_NUMBERS_JSON: str = "[]"
