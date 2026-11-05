@@ -220,6 +220,20 @@ class OAuthRegistroPanel(BaseSesiones):
     intentos = Column(Integer, default=0, nullable=False)
 
 
+class PruebaPlantillaProgramada(BaseSesiones):
+    __tablename__ = 'pruebas_plantilla_programadas'
+    id = Column(String(64), primary_key=True)
+    telefono = Column(String(20), nullable=False)
+    nombre = Column(String(100), nullable=False)
+    idioma = Column(String(20), nullable=False)
+    valores_json = Column(Text, nullable=False)
+    huella = Column(String(64), nullable=False)
+    programada_en = Column(DateTime, nullable=False, index=True)
+    estado = Column(String(30), nullable=False, default='programada', index=True)
+    detalle = Column(String(300), nullable=True)
+    wamid = Column(String(255), nullable=True)
+
+
 BaseSesiones.metadata.create_all(engine_sesiones)
 
 
