@@ -1,10 +1,10 @@
 {
-  "version": "1.6.6",
+  "version": "1.6.7",
   "fecha": "2026-11-04",
-  "titulo": "Diagnóstico de entregas de WhatsApp",
+  "titulo": "Nuevo chat por número y contexto de plantillas",
   "novedades": [
-    "Guarda el código, título y detalle de los errores que Meta comunica en sus recibos de entrega, aunque el mensaje no figure en el chat.",
-    "Permite consultar por teléfono los estados y errores registrados sin enviar ni reintentar mensajes.",
-    "Conserva el historial de recibos y evita duplicados; los fallos antiguos sin detalle no se presentan con una causa inventada."
+    "Nuevo chat permite iniciar contacto por número, sin código ni cuenta de cliente, usando una plantilla aprobada.",
+    "Vista previa, variables y logo de Cúbico antes de enviar; se conserva el identificador para evitar duplicados.",
+    "El historial conserva el mensaje y su enlace para que Bruno entienda las respuestas a invitaciones y promociones, sin asumir una identidad verificada."
   ]
 }

@@ -1699,6 +1699,83 @@ async def enviar_plantilla_saludo(
     return {"ok": True}
 
 
+class InicioChatPayload(BaseModel):
+    request_id: str = Field(min_length=8,max_length=128)
+    plantilla: str = Field(min_length=1,max_length=100,pattern=r'^[a-z0-9_]+$')
+    idioma: str = Field(min_length=2,max_length=20,pattern=r'^[a-zA-Z_]+$')
+    huella: str = Field(pattern=r'^[a-f0-9]{64}$')
+    valores: list[str] = Field(default_factory=list,max_length=5)
+    permiso_contacto: Literal[True]
+
+
+@router.get('/iniciar-chat/plantillas')
+async def plantillas_inicio_chat(usuario: str = Depends(verificar_credenciales_panel)):
+    from app.services.outbound_templates import list_templates
+    try:return await list_templates()
+    except (ValueError,httpx.HTTPError):
+        raise HTTPException(status_code=503,detail='No se pudieron cargar las plantillas aprobadas; revisa la cuenta y los permisos de Meta.') from None
+
+
+@envio_unico
+async def _enviar_inicio_chat(telefono,body,usuario):
+    from pathlib import Path
+    from app.services.outbound_templates import ai_context
+    row=body['plantilla'];text=body['texto'];media=None
+    if obtener_sesion_existente(telefono):_validar_operador_conversacion(telefono,usuario)
+    components=[]
+    if row['imagen']:
+        logo=Path(__file__).resolve().parents[1]/'static'/'logo.png'
+        if not logo.is_file():raise HTTPException(status_code=503,detail='No está disponible el logo para esta plantilla')
+        media=await subir_media_whatsapp(logo.read_bytes(),'image/png','logo.png')
+        components.append({'type':'header','parameters':[{'type':'image','image':{'id':media}}]})
+    if body['valores']:
+        components.append({'type':'body','parameters':[{'type':'text','text':v.strip()} for v in body['valores']]})
+    obtener_o_crear_sesion(telefono)
+    try:
+        result=await enviar_plantilla_whatsapp(telefono,row['nombre'],components,idioma=row['idioma'])
+    except (httpx.HTTPError,RuntimeError):
+        raise HTTPException(status_code=502,detail='No se confirmó el envío. Revisa el historial y el diagnóstico antes de repetirlo.') from None
+    message_id=extraer_id_mensaje_meta(result)
+    if not message_id:raise HTTPException(status_code=502,detail='Meta no devolvió identificador. No repitas el envío sin revisarlo.')
+    agregar_al_historial(telefono,'humano',text,tipo='image' if media else 'text',media_id=media,
+        mime_type='image/png' if media else None,whatsapp_message_id=message_id,estado_entrega='accepted',
+        contexto_ia=ai_context(row,text),autor_tipo='plantilla',operador=usuario,modo_envio='plantilla')
+    # A delivery webhook may beat the HTTP response and local history insertion.
+    from app.services.cost_analytics import CostEvent,SessionSesiones
+    from app.db.session_store import actualizar_estado_mensaje_whatsapp
+    with SessionSesiones() as db:
+        event=db.query(CostEvent).filter_by(external_key='meta:'+message_id).first()
+        status=event.status if event else 'accepted'
+    if status!='accepted':
+        from app.services.delivery_diagnostics import MetaDeliveryReceipt
+        with SessionSesiones() as db:
+            receipt=db.query(MetaDeliveryReceipt).filter_by(message_id=message_id,status='failed').order_by(MetaDeliveryReceipt.id.desc()).first()
+            errors=json.loads(receipt.errors_json) if receipt else []
+        error=next((item.get('details') or item.get('message') or item.get('title') for item in errors if item),None)
+        actualizar_estado_mensaje_whatsapp(message_id,status,error)
+    return {'ok':True,'telefono':telefono,'message_id':message_id,'estado':status,
+            'mensaje':('Meta notificó un fallo de entrega. Revisa el historial.' if status=='failed' else
+                       'Meta aceptó la solicitud. El historial mostrará entrega, lectura o fallo cuando llegue el recibo.')}
+
+
+@router.post('/iniciar-chat/{telefono}')
+async def iniciar_chat_panel(telefono: str,payload: InicioChatPayload,usuario: str = Depends(verificar_credenciales_panel)):
+    from app.services.outbound_templates import normalize_phone,list_templates,render
+    try:
+        telefono=normalize_phone(telefono)
+        if obtener_sesion_existente(telefono):_validar_operador_conversacion(telefono,usuario)
+        templates=await list_templates()
+        row=next((r for r in templates if r['nombre']==payload.plantilla and r['idioma']==payload.idioma),None)
+        if not row or row['huella']!=payload.huella:
+            raise HTTPException(status_code=409,detail='La plantilla cambió o ya no está aprobada. Vuelve a cargar y revisar la vista previa.')
+        text=render(row,payload.valores)
+    except ValueError as error:raise HTTPException(status_code=422,detail=str(error)) from None
+    except httpx.HTTPError:raise HTTPException(status_code=503,detail='No se pudo comprobar la plantilla en Meta; no se envió nada.') from None
+    canonical=json.dumps({'plantilla':row,'telefono':telefono,'valores':payload.valores},sort_keys=True,ensure_ascii=False)
+    return await _enviar_inicio_chat(telefono,{'request_id':payload.request_id,'mensaje':canonical,
+        'plantilla':row,'texto':text,'valores':payload.valores},usuario)
+
+
 @router.post("/plantilla/propuesta")
 async def enviar_plantilla_propuesta(
     telefono: str = Form(...),
