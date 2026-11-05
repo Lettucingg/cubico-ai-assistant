@@ -1216,6 +1216,22 @@ async def recibir_mensaje(request: Request, background_tasks: BackgroundTasks):
         print("Se recibió una petición sin un JSON válido.")
         return {"status": "ignorado", "razon": "cuerpo vacío o inválido"}
 
+    return await _procesar_payload_whatsapp(payload, background_tasks)
+
+
+async def _procesar_payload_whatsapp(payload: dict, background_tasks: BackgroundTasks):
+    # Meta may place several album photos/texts in one callback. Preserve each
+    # message's ID, timestamp and order instead of reading only messages[0].
+    incoming = [message for entry in payload.get('entry', []) for change in entry.get('changes', [])
+                for message in change.get('value', {}).get('messages', [])]
+    if len(incoming) > 1:
+        record_whatsapp_receipts(payload)
+        states = []
+        for message in incoming:
+            single = {'entry': [{'changes': [{'value': {'messages': [message]}}]}]}
+            states.append(await _procesar_payload_whatsapp(single, background_tasks))
+        return {'status': 'lote_procesado', 'mensajes': states}
+
     record_whatsapp_receipts(payload)
     recibo = extraer_estado_entrega(payload)
     if recibo and recibo.get("id") and recibo.get("estado"):
@@ -1226,9 +1242,11 @@ async def recibir_mensaje(request: Request, background_tasks: BackgroundTasks):
             f"Estado de entrega Meta: {recibo['estado']} "
             f"({'registrado' if encontrado else 'sin mensaje local'})"
         )
-        return {"status": "recibo_procesado"}
+        if not incoming:
+            return {"status": "recibo_procesado"}
 
-    mensaje = extraer_mensaje_entrante(payload)
+    single = {'entry': [{'changes': [{'value': {'messages': incoming}}]}]} if incoming else payload
+    mensaje = extraer_mensaje_entrante(single)
 
     if mensaje is None:
         print("Evento recibido, pero no es un mensaje de texto entrante (ignorado).")
@@ -1243,6 +1261,16 @@ async def recibir_mensaje(request: Request, background_tasks: BackgroundTasks):
     if ahora - timestamp_mensaje > 600:  # 10 minutos
         print(f"Mensaje ignorado: demasiado antiguo ({ahora - timestamp_mensaje}s)")
         return {"status": "ignored_old_message"}
+
+    from app.services.china_air_workflow import should_handle as china_air_handles, enqueue as china_air_enqueue
+    if china_air_handles(mensaje):
+        try:
+            china_air_enqueue(mensaje)
+        except Exception:
+            # A failed durable insert must remain retryable when Meta redelivers.
+            mensajes_entrantes_recientes.pop(mensaje.get('message_id'), None)
+            raise
+        return {"status": "china_aereo_en_cola"}
 
     if mensaje["telefono"] in NUMEROS_EQUIPO:
         if mensaje["tipo"] == "text":
