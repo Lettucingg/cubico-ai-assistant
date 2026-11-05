@@ -71,6 +71,8 @@ class Settings(BaseSettings):
     # El equipo confirmó que los destinos anteriores configurados siguen autorizados.
     # No representan una cuenta propia/directorio comercial de Cúbico.
     CUBICO_LEGACY_PAYMENTS_ENABLED: bool = True
+    WHATSAPP_BUSINESS_ACCOUNT_ID: str = ""
+    CUBICO_TEST_RECIPIENTS_JSON: str = "[]"
     CUBICO_PAYMENT_ACCOUNT_HOLDER: str = ""
     CUBICO_PAYMENT_YAPPY: str = ""
     # Activar solo después de confirmar la asociación del sistema.

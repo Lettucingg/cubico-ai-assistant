@@ -209,6 +209,9 @@ def iniciar_scheduler():
     scheduler.add_job(revisar_contexto_operativo, IntervalTrigger(minutes=5),
                       id="revisar_contexto_operativo", replace_existing=True,
                       misfire_grace_time=300, max_instances=1)
+    from app.services.scheduled_template_test import run_due
+    scheduler.add_job(run_due, IntervalTrigger(minutes=1), id='prueba_plantilla_programada',
+                      replace_existing=True, misfire_grace_time=60, max_instances=1)
     scheduler.start()
     log.info(
         f"Scheduler iniciado: informe 8:00 AM + revisión de pagos "

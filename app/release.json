@@ -1,10 +1,10 @@
 {
-  "version": "1.6.4",
-  "fecha": "2026-11-02",
-  "titulo": "Avisos claros, pagos autorizados e idioma del cliente",
+  "version": "1.6.5",
+  "fecha": "2026-11-04",
+  "titulo": "Prueba única de plantilla programada",
   "novedades": [
-    "Cada aviso indica si Bruno lo está usando; activar un borrador con revisión pasada permite renovar la revisión en el mismo paso.",
-    "Los medios anteriores configurados vuelven a ofrecerse como autorizados, sin presentarlos como cuenta propia de Cúbico ni nombrar al titular espontáneamente.",
-    "El idioma se conserva desde los mensajes del cliente, incluidos comprobantes, respuestas rápidas y redacción; las notas internas en español no lo cambian."
+    "Permite programar una prueba de WhatsApp solo para números autorizados del equipo; no activa campañas masivas.",
+    "Comprueba la aprobación y el contenido de la plantilla antes de programar y de enviar.",
+    "Guarda la programación y su resultado; evita reenvíos automáticos ante una respuesta incierta de Meta."
   ]
 }
