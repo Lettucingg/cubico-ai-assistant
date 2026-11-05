@@ -71,7 +71,8 @@ def diagnostics(phone,limit=10):
             receipts=db.query(MetaDeliveryReceipt).filter_by(message_id=key).order_by(MetaDeliveryReceipt.id.desc()).limit(20).all()
             result.append({'message_id':key,'estado_actual':event.status,'fecha_envio_utc':event.created_at.isoformat(),
                            'recibos':[_serialize(r) for r in receipts],
-                           'nota':None if receipts else 'No se conservó el detalle de este envío. Un fallo anterior a la actualización no se puede reconstruir con estos registros.'})
+                           'nota':None if receipts else ('No se conservó el detalle del fallo de este envío; no se puede reconstruir con estos registros.' if event.status=='failed' else
+                               'Sin recibos de Meta guardados para este envío; accepted no confirma entrega ni lectura.')})
         # Preserve evidence even if the independent cost ledger could not be written.
         extra=db.query(MetaDeliveryReceipt).filter_by(phone=number)
         if keys:extra=extra.filter(~MetaDeliveryReceipt.message_id.in_(keys))

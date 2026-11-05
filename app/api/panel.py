@@ -1721,6 +1721,10 @@ async def _enviar_inicio_chat(telefono,body,usuario):
     from pathlib import Path
     from app.services.outbound_templates import ai_context
     row=body['plantilla'];text=body['texto'];media=None
+    if row['categoria']=='MARKETING':
+        from app.services.marketing_preferences import is_suppressed
+        if is_suppressed(telefono):
+            raise HTTPException(status_code=409,detail='Este número pidió no recibir publicidad. No se envió la promoción.')
     if obtener_sesion_existente(telefono):_validar_operador_conversacion(telefono,usuario)
     components=[]
     if row['imagen']:
