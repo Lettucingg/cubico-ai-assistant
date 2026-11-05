@@ -176,6 +176,13 @@ def record_whatsapp_receipts(payload):
                         db.commit()
                 except Exception:
                     LOG.exception('No se pudo registrar el recibo de WhatsApp')
+                # Terminal sends may have no conversation history. Keep provider
+                # error evidence independently, even if the cost update failed.
+                try:
+                    from app.services.delivery_diagnostics import record_receipt
+                    record_receipt(receipt)
+                except Exception:
+                    LOG.exception('No se pudo guardar el diagnóstico de entrega de Meta')
 
 
 def save_expense(body, user):
