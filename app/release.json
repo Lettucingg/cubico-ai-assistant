@@ -1,10 +1,10 @@
 {
-  "version": "1.6.7",
-  "fecha": "2026-11-04",
-  "titulo": "Nuevo chat por número y contexto de plantillas",
+  "version": "1.6.8",
+  "fecha": "2026-11-05",
+  "titulo": "Piloto de WhatsApp preparado y bajas persistentes",
   "novedades": [
-    "Nuevo chat permite iniciar contacto por número, sin código ni cuenta de cliente, usando una plantilla aprobada.",
-    "Vista previa, variables y logo de Cúbico antes de enviar; se conserva el identificador para evitar duplicados.",
-    "El historial conserva el mensaje y su enlace para que Bruno entienda las respuestas a invitaciones y promociones, sin asumir una identidad verificada."
+    "Preparación pausada de hasta diez destinatarios de la promoción aprobada, con exclusión de duplicados, bajas y redirecciones.",
+    "Activación inmediata o programada, un intento por minuto y pausa ante resultados inciertos; no se reintenta automáticamente.",
+    "Historial con contexto para Bruno, bajas de publicidad compartidas con el panel y resumen que distingue aceptación, entrega, lectura y fallos de Meta."
   ]
 }

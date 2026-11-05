@@ -9,7 +9,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from app.api import panel
 from app.services import outbound_templates as service,panel_send_once,cost_analytics
-from app.services import delivery_diagnostics
+from app.services import delivery_diagnostics,marketing_preferences
 from app.db import session_store as store
 from app.ai.orchestrator import normalizar_historial_para_claude
 
@@ -22,7 +22,7 @@ TEMPLATE={'name':'cubico_tarifa_preferencial_210','language':'es_PA','status':'A
 def setup(tmp_path,monkeypatch):
     engine=create_engine('sqlite:///'+str(tmp_path/'newchat.db'),connect_args={'check_same_thread':False})
     store.BaseSesiones.metadata.create_all(engine);factory=sessionmaker(bind=engine)
-    for module in (store,panel_send_once,cost_analytics,delivery_diagnostics):monkeypatch.setattr(module,'SessionSesiones',factory)
+    for module in (store,panel_send_once,cost_analytics,delivery_diagnostics,marketing_preferences):monkeypatch.setattr(module,'SessionSesiones',factory)
     row=service.describe(TEMPLATE)
     lookup=AsyncMock(return_value=[row]);monkeypatch.setattr(service,'list_templates',lookup)
     upload=AsyncMock(return_value='test-media');send=AsyncMock(return_value=httpx.Response(200,json={'messages':[{'id':'wamid-new'}]}))
@@ -134,3 +134,20 @@ def test_meta_pagination_only_approved_and_fixed_host(monkeypatch):
     import asyncio
     assert asyncio.run(service.list_templates())[0]['nombre']==TEMPLATE['name']
     assert len(calls)==2
+
+
+def test_marketing_optout_blocks_panel_without_upload_or_send(setup):
+    marketing_preferences.suppress('60000000')
+    response=setup.client.post('/panel/iniciar-chat/60000000',json=body(setup.row))
+    assert response.status_code==409
+    setup.upload.assert_not_awaited();setup.send.assert_not_awaited()
+
+
+def test_pilot_sender_retains_actual_context_through_same_history_path(setup):
+    import asyncio
+    from app.services.campaign_pilot import send_recipient
+    result=asyncio.run(send_recipient('50760000000',setup.row,'Prueba','alexander','pilot-history-1'))
+    assert result['estado']=='accepted'
+    message=store.obtener_sesion_existente('50760000000').obtener_historial()[0]
+    assert 'promo=SOMOSCUBICO' in message['contexto_ia']
+    assert message['modo_envio']=='plantilla'

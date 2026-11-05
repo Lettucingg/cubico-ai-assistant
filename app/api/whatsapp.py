@@ -870,6 +870,24 @@ async def _procesar_mensaje_en_segundo_plano_sin_candado(mensaje: dict):
     print(f"Mensaje de {mensaje['telefono']}: {mensaje['texto']}")
 
     try:
+        from app.services.marketing_preferences import requests_optout, suppress
+        if mensaje.get('tipo') == 'text' and requests_optout(mensaje.get('texto') or ''):
+            sesion = obtener_o_crear_sesion(mensaje['telefono'])
+            nueva = await asyncio.to_thread(suppress, mensaje['telefono'])
+            agregar_al_historial(mensaje['telefono'], 'user', mensaje['texto'],
+                                whatsapp_message_id=mensaje.get('message_id'))
+            if nueva:
+                await notificar_equipo_escalamiento(mensaje['telefono'], mensaje['texto'],
+                    'Baja de publicidad guardada: bloquea promociones del panel y del piloto. Revisar otros sistemas de correo.')
+                if not sesion.atencion_humana_directa:
+                    idioma = reply_language(mensaje['texto'], sesion.obtener_historial())
+                    texto = ('You will no longer receive promotional WhatsApp messages from this system. You can still contact us for support.'
+                             if idioma == 'en' else 'Ya bloqueamos los mensajes promocionales de WhatsApp de este sistema para tu número. Puedes seguir escribiéndonos para atención.')
+                    resultado = await enviar_mensaje_whatsapp(mensaje['telefono'], texto)
+                    if resultado.is_success:
+                        agregar_al_historial(mensaje['telefono'], 'assistant', texto,
+                            whatsapp_message_id=extraer_id_mensaje_meta(resultado), estado_entrega='accepted')
+            return
         if mensaje["tipo"] == "image":
             sesion = obtener_o_crear_sesion(mensaje["telefono"])
             modo_humano = bool(sesion.atencion_humana_directa)
