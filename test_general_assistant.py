@@ -41,7 +41,7 @@ def test_general_questions_are_private_bounded_and_do_not_query_customer(questio
     args=call.call_args.kwargs
     assert args['task']=='asistente_interno' and 'tools' not in args
     assert args['max_tokens']==1400
-    assert 'NO acepta Yappy' in args['system']
+    assert 'no tiene cuenta propia ni directorio comercial' in args['system']
     assert 'no obligues a abrir un chat' in args['system']
     assert result['datos']['campana']['estado']=='preparada_pendiente_de_activacion'
 
@@ -65,13 +65,14 @@ def test_general_tracking_uses_public_lookup_only(monkeypatch):
 
 def test_yappy_requires_flag_and_configured_number(monkeypatch):
     monkeypatch.setattr(payment_policy.settings,'CUBICO_PAYMENT_YAPPY','old-private-number')
+    monkeypatch.setattr(payment_policy.settings,'CUBICO_LEGACY_PAYMENTS_ENABLED',False)
     monkeypatch.setattr(payment_policy.settings,'CUBICO_YAPPY_ENABLED',False)
     assert 'old-private-number' not in payment_policy.payment_rules()
-    assert 'no acepta' in payment_policy.yappy_reply()
+    assert 'No tengo un número de pago' in payment_policy.yappy_reply()
     monkeypatch.setattr(payment_policy.settings,'CUBICO_YAPPY_ENABLED',True)
     assert 'old-private-number' in payment_policy.yappy_reply()
     monkeypatch.setattr(payment_policy.settings,'CUBICO_PAYMENT_YAPPY','')
-    assert 'no acepta' in payment_policy.yappy_reply()
+    assert 'No tengo un número de pago' in payment_policy.yappy_reply()
 
 
 def test_general_endpoint_auth_validation_failure_and_no_session_lookup(monkeypatch):
@@ -92,11 +93,12 @@ def test_general_endpoint_auth_validation_failure_and_no_session_lookup(monkeypa
 
 def test_actual_quick_replies_and_assistant_payment_evidence(monkeypatch):
     from app.ai import orchestrator
+    monkeypatch.setattr(payment_policy.settings,'CUBICO_LEGACY_PAYMENTS_ENABLED',False)
     monkeypatch.setattr(payment_policy.settings,'CUBICO_YAPPY_ENABLED',False)
     monkeypatch.setattr(payment_policy.settings,'CUBICO_PAYMENT_YAPPY','do-not-publish')
     reply=orchestrator.buscar_respuesta_fija('¿Aceptan Yappy?')
-    assert 'no acepta Yappy' in reply and 'do-not-publish' not in reply
-    assert 'no acepta Yappy' in orchestrator.buscar_respuesta_fija('¿Están en el directorio de Yappy?')
+    assert 'No tengo un número de pago' in reply and 'do-not-publish' not in reply
+    assert 'No tengo un número de pago' in orchestrator.buscar_respuesta_fija('¿Están en el directorio de Yappy?')
     hours=orchestrator.buscar_respuesta_fija('¿Qué horario tienen?')
     assert '10:00 am' in hours and '1:00 pm' in hours and '9:00' not in hours
 

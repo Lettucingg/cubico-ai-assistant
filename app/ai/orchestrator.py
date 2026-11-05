@@ -1,3 +1,4 @@
+from app.services.conversation_language import reply_language, language_rules, explicit_preference
 from app.services.payment_policy import payment_rules, yappy_reply, habitual_payment_followup, receipt_followup_reply, bank_transfer_reply
 from app.services.campaign_knowledge import campaign_rules
 from app.services.delivery_continuity import DELIVERY_RULES, delivery_complaint
@@ -142,7 +143,7 @@ di algo breve y natural como "Hasta luego, cuídate." o
 
 FORMA DE HABLAR
 
-Usa español natural de Panamá, pero moderado.
+Cuando el cliente hable español, usa español natural de Panamá, pero moderado. Si habla inglés, responde en inglés.
 
 Puedes usar ocasionalmente expresiones como:
 - listo
@@ -171,7 +172,7 @@ IDIOMA
 
 Responde siempre en el idioma en que el cliente te escribe.
 Si el cliente escribe en inglés, responde en inglés.
-Si mezcla español e inglés, responde en español.
+Si mezcla idiomas, sigue el idioma de su consulta y su preferencia explícita; no cambies a español por notas internas.
 El resto del prompt aplica igual sin importar el idioma.
 
 
@@ -1623,7 +1624,7 @@ def buscar_respuesta_fija(
         r"|(?:con qu[eé] nombre|c[oó]mo) (?:aparecen|los busco|busco a c[uú]bico) (?:en el |en )directorio(?: de)? yappy",
         pregunta_directorio,
     ):
-        return yappy_reply()
+        return yappy_reply(directory=True)
 
     if re.fullmatch(r"(?:aceptan |tienen |puedo pagar (?:por |con )?|se puede pagar (?:por |con )?)?yappy", pregunta_directorio):
         return yappy_reply()
@@ -1851,7 +1852,7 @@ def normalizar_historial_para_claude(historial: list | None, consulta: str = '')
     return mensajes
 
 
-def _escalar_fallo_de_respuesta(telefono: str) -> str:
+def _escalar_fallo_de_respuesta(telefono: str, language: str = 'es') -> str:
     """Escala el fallo una sola vez y evita repetir un mensaje técnico al cliente."""
     motivo = "Bruno no pudo completar la consulta"
     sesion = obtener_sesion_existente(telefono)
@@ -1865,6 +1866,8 @@ def _escalar_fallo_de_respuesta(telefono: str) -> str:
         necesita_atencion_humana=True,
         motivo_escalamiento=motivo,
     )
+    if language=='en':
+        return 'Our team already has this request pending and will respond here after reviewing it.' if ya_pendiente else 'I have flagged this for our team to review.'
     if ya_pendiente:
         return "El equipo ya tiene esto pendiente; apenas lo revisen te responden por aquí."
     return "Voy a pasarle esto al equipo para que lo revisen bien."
@@ -1885,11 +1888,19 @@ def generar_respuesta(
     verificar la identidad del cliente.
     """
 
+    language = reply_language(texto_cliente, historial)
+    if language=='en' and not active_context(texto_cliente, historial):
+        direct=texto_cliente.lower().strip(' .!?')
+        if direct in {'yappy','do you accept yappy','can i pay by yappy','can i pay with yappy'}:
+            return yappy_reply(language)
+        if direct in {'bank account','bank details','what is your bank account','where can i transfer','what are your bank details'}:
+            return bank_transfer_reply(language)
+
     if habitual_payment_followup(texto_cliente):
         pending_payment = obtener_sesion_existente(telefono)
         if (pending_payment is not None and getattr(pending_payment, 'pago_reportado', False)
                 and not getattr(pending_payment, 'pago_confirmado', False)):
-            return receipt_followup_reply()
+            return receipt_followup_reply(language)
 
     if call_request(texto_cliente, historial):
         sesion_contacto = obtener_sesion_existente(telefono)
@@ -1900,6 +1911,10 @@ def generar_respuesta(
         else:
             motivo = previo
         actualizar_sesion(telefono, necesita_atencion_humana=True, motivo_escalamiento=motivo)
+        if language=='en':
+            from app.services.human_contact import verified_call_phone
+            voice=verified_call_phone()
+            return 'The confirmed number for phone calls is '+voice+'.' if voice else 'I can help you by chat. There is no confirmed number for human phone support. I have flagged your request for our team to review here.'
         return call_reply()
 
     if delivery_complaint(texto_cliente):
@@ -1911,15 +1926,18 @@ def generar_respuesta(
         else:
             motivo = previo
         actualizar_sesion(telefono, necesita_atencion_humana=True, motivo_escalamiento=motivo)
+        if language=='en':return 'I understand that you are still waiting for your package. I have flagged the issue for our team to check its location and what is needed to complete delivery. I do not have a confirmed delivery date.'
         return 'Entiendo que sigues esperando tu paquete. Dejé el reclamo al equipo para que compruebe dónde está y qué falta para completar la entrega. No tengo una fecha de entrega confirmada para darte ahora.'
 
     if location_question(texto_cliente, historial):
         punto = verified_location()
         if punto and not active_context(texto_cliente, historial):
+            if language=='en':return f"Here is the confirmed pickup location:\n{punto['enlace']}\n{punto['direccion']}"
             return f"Esta es la ubicación exacta para retirar:\n{punto['enlace']}\n{punto['direccion']}"
         if not punto:
             actualizar_sesion(telefono, necesita_atencion_humana=True,
                               motivo_escalamiento="Ubicación de retiro sin pin vigente verificado; confirmar el punto exacto antes de dirigir al cliente.")
+            if language=='en':return 'I have flagged this for our team to confirm the exact pickup point, so I do not send you to the wrong location.'
             return "Para evitar darte una dirección equivocada, dejé tu consulta al equipo para que te confirmen el punto exacto de retiro."
 
     nombre_cliente = None
@@ -1950,13 +1968,15 @@ def generar_respuesta(
     # stay deterministic and need no model call.
     cierre = texto_cliente.lower().strip(" ¡!¿?.,")
     if historial and cierre in AGRADECIMIENTOS_RECONOCIDOS:
-        return "Con gusto."
+        return "You're welcome." if language=='en' else "Con gusto."
     respuesta_fija = buscar_respuesta_fija(
         texto_cliente=texto_cliente,
         codigo_cliente=codigo_cliente,
         nombre_cliente=nombre_cliente,
     )
 
+    if language!='es':
+        respuesta_fija=None
     if historial and cierre in SALUDOS_RECONOCIDOS:
         respuesta_fija = None
     contexto_operativo = active_context(texto_cliente, historial)
@@ -2435,7 +2455,7 @@ def generar_respuesta(
         respuesta = call_anthropic(cliente_claude, phone=telefono, task='respuesta_automatica',
             model="claude-sonnet-5",
             max_tokens=1200,
-            system=system_with_context(SYSTEM_PROMPT + payment_rules() + campaign_rules() + "\n\n" + CONTEXT_RULES + DELIVERY_RULES + contact_rules() + "\n" + location_rules(), active_context(" ".join([texto_cliente, *trackings_consultados]), historial)),
+            system=system_with_context(SYSTEM_PROMPT + payment_rules() + campaign_rules() + language_rules(language) + "\n\n" + CONTEXT_RULES + DELIVERY_RULES + contact_rules() + "\n" + location_rules(), active_context(" ".join([texto_cliente, *trackings_consultados]), historial)),
             tools=HERRAMIENTAS,
             messages=mensajes,
         )
@@ -2472,7 +2492,7 @@ def generar_respuesta(
             if texto_reintento:
                 return texto_reintento
 
-            return _escalar_fallo_de_respuesta(telefono)
+            return _escalar_fallo_de_respuesta(telefono, language)
 
         # Guardamos la respuesta del assistant que contiene los tool_use.
         mensajes.append(
@@ -2535,7 +2555,7 @@ def generar_respuesta(
         f"para telefono={telefono}"
     )
 
-    return _escalar_fallo_de_respuesta(telefono)
+    return _escalar_fallo_de_respuesta(telefono, language)
 
 
 def redactar_respuesta_de_asesor(
@@ -2583,7 +2603,7 @@ Borrador del operador: {json.dumps(solucion_del_asesor, ensure_ascii=False)}
     respuesta = call_anthropic(cliente_claude, phone=telefono, task='redaccion_asistida',
         model="claude-sonnet-5",
         max_tokens=500,
-        system=system_with_context(CONTEXT_RULES + payment_rules() + campaign_rules() + DELIVERY_RULES + contact_rules() + "\nEres un editor de mensajes del equipo de Cúbico, no estás atendiendo al cliente ni ejecutando gestiones. Conserva el sentido del borrador y la continuidad, sin añadir saludos o preguntas genéricas.\n" + location_rules(), active_context(texto_cliente_original)),
+        system=system_with_context(CONTEXT_RULES + payment_rules() + campaign_rules() + language_rules(explicit_preference(solucion_del_asesor) or reply_language(texto_cliente_original, historial_completo)) + DELIVERY_RULES + contact_rules() + "\nEres un editor de mensajes del equipo de Cúbico, no estás atendiendo al cliente ni ejecutando gestiones. Conserva el sentido del borrador y la continuidad, sin añadir saludos o preguntas genéricas.\n" + location_rules(), active_context(texto_cliente_original)),
         messages=[
             {
                 "role": "user",

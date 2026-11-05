@@ -11,6 +11,7 @@ from app.api import whatsapp
 
 @pytest.fixture(autouse=True)
 def unconfigured_bank(monkeypatch):
+    monkeypatch.setattr(policy.settings,'CUBICO_LEGACY_PAYMENTS_ENABLED',False)
     monkeypatch.setattr(policy.settings,'CUBICO_BANK_TRANSFER_ENABLED',False)
     monkeypatch.setattr(policy.settings,'CUBICO_PAYMENT_ACCOUNT','OLD-ACCOUNT-DO-NOT-PUBLISH')
     monkeypatch.setattr(policy.settings,'CUBICO_PAYMENT_ACCOUNT_HOLDER','OLD-HOLDER-DO-NOT-PUBLISH')
@@ -21,13 +22,15 @@ def test_old_bank_number_not_offered_without_explicit_activation(monkeypatch):
     assert policy.bank_transfer_details() is None
     assert 'OLD-ACCOUNT' not in policy.payment_rules()
     assert 'OLD-HOLDER' not in str(policy.payment_options())
-    assert 'cuenta bancaria propia habilitada' in policy.payment_rules()
+    assert 'no tiene cuenta propia' in policy.payment_rules()
     monkeypatch.setattr(policy.settings,'CUBICO_BANK_TRANSFER_ENABLED',True)
     monkeypatch.setattr(policy.settings,'CUBICO_PAYMENT_ACCOUNT_HOLDER','')
     assert policy.bank_transfer_details() is None
     monkeypatch.setattr(policy.settings,'CUBICO_PAYMENT_ACCOUNT_HOLDER','Titular confirmado')
-    assert 'Titular confirmado' in policy.bank_transfer_details()
-    assert 'No lo presentes como cuenta propia' in policy.payment_rules()
+    assert 'OLD-ACCOUNT' in policy.bank_transfer_details()
+    assert 'Titular confirmado' not in policy.bank_transfer_details()
+    assert 'Titular confirmado' in policy.payment_rules()
+    assert 'nunca como una cuenta propia' in policy.payment_rules()
 
 
 @pytest.mark.parametrize('reply',[
@@ -49,7 +52,7 @@ def test_vision_gets_current_policy_and_classifies_even_other_beneficiary(monkey
     monkeypatch.setattr(receipts,'call_anthropic',call)
     result=receipts.analizar_imagen_cliente(b'\xff\xd8test','Listo, no debo nada','test-phone')
     system=call.call_args.kwargs['system'][0]['text']
-    assert 'cuenta bancaria propia habilitada' in system
+    assert 'no tiene cuenta propia' in system
     assert 'OLD-ACCOUNT' not in system
     assert 'otra marca' in call.call_args.kwargs['messages'][0]['content'][1]['text']
     assert result['texto_respuesta']==policy.receipt_acknowledgement()
@@ -65,9 +68,11 @@ def test_habitual_payment_followup_does_not_argue_or_send_new_account(message,mo
     model.assert_not_called()
 
 
-def test_whatsapp_boundary_queues_receipt_but_only_sends_safe_ack(monkeypatch):
+@pytest.mark.parametrize('language',['es','en'])
+def test_whatsapp_boundary_queues_receipt_but_only_sends_safe_ack(monkeypatch,language):
     session=SimpleNamespace(telefono='test-phone',atencion_humana_directa=False,necesita_atencion_humana=False,
-                            motivo_escalamiento=None,entregado=False)
+                            motivo_escalamiento=None,entregado=False,
+                            obtener_historial=lambda:[{'role':'user','content':'I have paid for my package' if language=='en' else 'Ya pagué mi paquete'}])
     monkeypatch.setattr(whatsapp,'obtener_o_crear_sesion',lambda _:session)
     monkeypatch.setattr(whatsapp,'descargar_imagen_de_whatsapp',AsyncMock(return_value=b'\xff\xd8test'))
     monkeypatch.setattr(whatsapp,'analizar_imagen_cliente',lambda *args:{'es_comprobante':True,'contexto_visual':None,
@@ -79,8 +84,8 @@ def test_whatsapp_boundary_queues_receipt_but_only_sends_safe_ack(monkeypatch):
     monkeypatch.setattr(whatsapp,'notificar_equipo_comprobante',notify)
     monkeypatch.setattr(whatsapp,'enviar_respuesta_natural',send)
     asyncio.run(whatsapp._procesar_mensaje_en_segundo_plano_sin_candado({'telefono':'test-phone','tipo':'image',
-                'media_id':'test-media','texto':'Listo, no debo nada','message_id':'wamid-in'}))
-    assert send.call_args.args[1]==policy.receipt_acknowledgement()
+                'media_id':'test-media','texto':'','message_id':'wamid-in'}))
+    assert send.call_args.args[1]==policy.receipt_acknowledgement(language)
     assert changes.call_args.kwargs['pago_reportado'] is True
     assert changes.call_args.kwargs['pago_confirmado'] is False
     assert changes.call_args.kwargs['monto_pago_reportado']==85.80

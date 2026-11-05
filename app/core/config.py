@@ -68,6 +68,9 @@ class Settings(BaseSettings):
     CUBICO_PAYMENT_ACCOUNT: str = ""
     # Un número antiguo no habilita una cuenta ni acredita su titular.
     CUBICO_BANK_TRANSFER_ENABLED: bool = False
+    # El equipo confirmó que los destinos anteriores configurados siguen autorizados.
+    # No representan una cuenta propia/directorio comercial de Cúbico.
+    CUBICO_LEGACY_PAYMENTS_ENABLED: bool = True
     CUBICO_PAYMENT_ACCOUNT_HOLDER: str = ""
     CUBICO_PAYMENT_YAPPY: str = ""
     # Activar solo después de confirmar la asociación del sistema.

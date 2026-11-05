@@ -13,22 +13,25 @@ from app.ai import orchestrator
 ])
 def test_directory_answer_does_not_require_identity_or_model(question, monkeypatch):
     monkeypatch.setattr(orchestrator.settings, 'CUBICO_PAYMENT_YAPPY', '6000-0000')
+    monkeypatch.setattr(orchestrator.settings, 'CUBICO_LEGACY_PAYMENTS_ENABLED', False)
     monkeypatch.setattr(orchestrator.settings, 'CUBICO_YAPPY_ENABLED', False)
     def unexpected_model(**kwargs):
         raise AssertionError('A confirmed public fact should not require AI')
     monkeypatch.setattr(orchestrator.cliente_claude.messages, 'create', unexpected_model)
     answer = orchestrator.generar_respuesta(question, '5070000')
-    assert 'Cúbico no acepta Yappy' in answer
+    assert 'No tengo un número de pago' in answer
     assert '6000-0000' not in answer
 
 
 def test_previous_wrong_answer_does_not_override_confirmed_fact(monkeypatch):
+    monkeypatch.setattr(orchestrator.settings, 'CUBICO_LEGACY_PAYMENTS_ENABLED', False)
+    monkeypatch.setattr(orchestrator.settings, 'CUBICO_YAPPY_ENABLED', False)
     monkeypatch.setattr(orchestrator, 'obtener_nombre_completo_cliente', lambda code: {'encontrado': True, 'nombre_completo': 'Cliente Prueba'})
     monkeypatch.setattr(orchestrator.cliente_claude.messages, 'create', lambda **kw: pytest.fail('No model call expected'))
     answer = orchestrator.generar_respuesta('¿Están en el directorio de Yappy?', '5070000', 'CBC-0018', [
         {'role': 'assistant', 'content': 'Sí, puedes buscarnos en Yappy como Cúbico.'},
     ])
-    assert 'Cúbico no acepta Yappy' in answer
+    assert 'No tengo un número de pago' in answer
     assert 'buscarnos' not in answer
 
 

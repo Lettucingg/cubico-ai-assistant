@@ -51,6 +51,25 @@ def test_draft_activation_pause_resolution_and_no_internal_leak():
     assert history[0]['usuario']=='teresa' and history[0]['aviso']['notas_internas']=='SECRETO SOLO EQUIPO'
 
 
+def test_activation_can_renew_overdue_review_atomically():
+    row=create(revisar_en=NOW-timedelta(minutes=20))
+    with pytest.raises(ValueError,match='revisión futura'):activate(row)
+    assert oc.active_context()==[]
+    row=activate(row,revisar_en=NOW+timedelta(hours=1))
+    assert row['estado_efectivo']=='activo' and len(oc.active_context())==1
+    audit=oc.history_notice(row['id'])[0]
+    assert audit['accion']=='activar' and audit['aviso']['revisar_en']==row['revisar_en']
+
+
+@pytest.mark.parametrize('review',[NOW-timedelta(minutes=1),NOW+timedelta(days=1)])
+def test_invalid_renewal_does_not_activate_or_change_notice(review):
+    row=create(revisar_en=NOW-timedelta(minutes=20))
+    with pytest.raises(ValueError):activate(row,revisar_en=review)
+    current=oc.list_notices()[0]
+    assert current['estado']=='borrador' and current['version']==row['version']
+    assert current['revisar_en']==row['revisar_en']
+
+
 def test_panama_start_end_boundary_and_review_not_expiry(monkeypatch):
     row=create(inicio='2026-10-12T16:00:00-05:00',fin='2026-10-12T18:00:00-05:00',revisar_en='2026-10-12T17:00:00-05:00')
     row=activate(row);assert row['estado_efectivo']=='programado';assert not oc.active_context()

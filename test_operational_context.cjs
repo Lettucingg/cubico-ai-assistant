@@ -19,5 +19,15 @@ function input(id,value){d.getElementById(id).value=value;d.getElementById(id).d
  stateConflict=true;d.querySelector('[data-action="activar"]').click();await tick();await tick();await tick();assert.equal(writes.at(-1).body.aceptar_conflictos,true);
  rows[0]={...rows[0],titulo:'<img src=x onerror=alert(1)>',mensaje_cliente:'<script>alert(1)</script>'};await w.OperationalContext.load();assert.equal(d.querySelector('#oc-list img'),null);assert.equal(d.querySelector('#oc-list script'),null);assert.match(d.getElementById('oc-list').textContent,/<img/);
  histories=[{accion:'activar',usuario:'luis',fecha:now,aviso:rows[0]}];d.querySelector('[data-history]').click();await tick();assert.equal(d.getElementById('oc-history').hidden,false);assert.match(d.getElementById('oc-history-list').textContent,/luis/);d.getElementById('oc-history-close').click();assert.equal(d.getElementById('oc-history').hidden,true);
- assert.equal(d.querySelectorAll('.sidebar>.nav:first-of-type>button').length,5);
+ // The alerts tab was restored in an earlier release; preserve all six destinations.
+ assert.equal(d.querySelectorAll('.sidebar>.nav:first-of-type>button').length,6);
+ rows[0]={...rows[0],estado:'borrador',estado_efectivo:'borrador',revisar_en:new Date(Date.now()-3600000).toISOString(),fin:null};await w.OperationalContext.load();
+ assert.match(d.getElementById('oc-list').textContent,/Bruno NO lo usa · borrador/);
+ assert.match(d.getElementById('oc-list').textContent,/Impacto: servicio suspendido/);
+ assert.match(d.getElementById('oc-current-use').textContent,/no está usando ningún aviso/);
+ let before=writes.length;d.querySelector('[data-action="activar"]').click();await tick();assert.equal(writes.length,before);
+ w.prompt=(_message,value)=>value;d.querySelector('[data-action="activar"]').click();await tick();await tick();
+ assert.ok(new Date(writes.at(-1).body.revisar_en)>new Date());
+ assert.match(d.getElementById('oc-list').textContent,/Bruno lo usa ahora/);
+ assert.match(d.getElementById('oc-current-use').textContent,/Bruno está usando/);
  console.log('Operational context UI: presets, isolated preview, duplicate guards, draft/edit lifecycle, conflicts, escaping, history and unchanged primary navigation passed');dom.window.close();})().catch(e=>{console.error(e);dom.window.close();process.exitCode=1});
