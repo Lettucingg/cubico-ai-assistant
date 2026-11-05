@@ -51,7 +51,7 @@ def test_prepare_paused_maximum_ten_no_send_and_idempotent(setup):
     send.assert_not_awaited()
     with factory() as db:
         assert db.query(pilot.PilotRecipient).count() == 10
-    with pytest.raises(ValueError): prepare(count=11)
+    with pytest.raises(ValueError): prepare(count=31)
     with pytest.raises(ValueError): asyncio.run(pilot.prepare('otra', source(), 'alexander'))
 
 
@@ -197,3 +197,18 @@ def test_incoming_optout_is_saved_without_ai_and_acknowledged_once(setup,monkeyp
     assert preferences.is_suppressed(message['telefono'])
     assert send.await_count==1 and notify.await_count==1
     generate.assert_not_called()
+
+
+def test_thirty_new_recipients_exclude_the_previous_ten_and_stay_paused(setup):
+    factory,send=setup
+    rows=source(45)
+    prepare(rows)
+    result=asyncio.run(pilot.prepare('piloto-30',rows,'alexander',count=30,permission=True))
+    assert result['estado']=='pausada' and result['resumen']=={'pendiente':30}
+    assert result['exclusiones']['duplicado_o_reservado']==10
+    with factory() as db:
+        first={r.telefono for r in db.query(pilot.PilotRecipient).filter_by(lote='piloto')}
+        next_batch={r.telefono for r in db.query(pilot.PilotRecipient).filter_by(lote='piloto-30')}
+        assert len(first)==10 and len(next_batch)==30 and not first.intersection(next_batch)
+    asyncio.run(pilot.run_due())
+    send.assert_not_awaited()

@@ -1,6 +1,6 @@
 # Piloto de promoción por WhatsApp
 
-Preparar no envía mensajes. El lote se guarda **pausado**, con un máximo de diez destinatarios. La promoción es `cubico_tarifa_preferencial_210`, idioma `es_PA`, encabezado con logo y botón de registro heredado de la plantilla aprobada. No se usa la plantilla de migración pendiente.
+Preparar no envía mensajes. El lote se guarda **pausado**, con un máximo de treinta destinatarios. La promoción es `cubico_tarifa_preferencial_210`, idioma `es_PA`, encabezado con logo y botón de registro heredado de la plantilla aprobada. No se usa la plantilla de migración pendiente.
 
 ## Dejar preparado hoy
 
@@ -52,3 +52,15 @@ Las solicitudes explícitas BAJA/STOP o dejar de recibir mensajes guardan una su
 ## Verificación de desarrollo
 
 Pruebas sin envíos reales: preparación pausada, límite, exclusiones, idempotencia, tiempo futuro y vencimiento, bloqueo por minuto, cambios de plantilla, pausa concurrente, bajas, caídas/timeout sin reintentos, tres fallos, recibos de Meta y conservación de contexto por el emisor del panel. El archivo privado no forma parte del cambio publicado. La preparación y activación en producción necesitan la salida de los comandos anteriores.
+
+## Segunda prueba de treinta contactos
+
+La cantidad predeterminada sigue siendo diez. Desde v1.6.10 se puede preparar hasta treinta en un lote nuevo. Las reservas de la primera prueba se excluyen aunque el destinatario haya fallado: no se repite a ninguno de los diez anteriores. La preparación continúa pausada.
+
+```bash
+venv/bin/python -m app.services.campaign_pilot preparar --id piloto-wa-02 --cantidad 30 --confirmo-permiso-whatsapp --csv /home/alexander/prospectos_campana.csv
+venv/bin/python -m app.services.campaign_pilot activar --id piloto-wa-02 --ahora
+venv/bin/python -m app.services.campaign_pilot resumen --id piloto-wa-02
+```
+
+Preparar antes de activar permite revisar el resumen. Mantiene un intento por minuto, ventana de una hora, bajas, validación de plantilla y pausa ante resultado incierto o tres fallos. Revisar respuestas y límites actuales de la cuenta de Meta antes de decidir la siguiente tanda; treinta no activa el resto de la campaña.

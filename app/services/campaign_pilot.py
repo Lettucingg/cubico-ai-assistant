@@ -131,8 +131,8 @@ async def current_template():
 async def prepare(key, rows, operator, count=10, permission=False):
     if not re.fullmatch(r'[a-zA-Z0-9_-]{1,64}', key):
         raise ValueError('Identificador de lote inválido')
-    if not 1 <= count <= 10:
-        raise ValueError('El piloto admite entre 1 y 10 destinatarios')
+    if not 1 <= count <= 30:
+        raise ValueError('El piloto admite entre 1 y 30 destinatarios')
     if not permission:
         raise ValueError('Confirma que esta lista tiene permiso para recibir mensajes de WhatsApp; el CSV no lo demuestra por sí solo')
     # Idempotent preparation never silently replaces or expands a reviewed batch.
@@ -290,7 +290,7 @@ async def run_due():
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Preparar y activar un piloto de hasta 10 WhatsApp, sin duplicados ni reintentos')
+    parser = argparse.ArgumentParser(description='Preparar y activar un piloto de hasta 30 WhatsApp, sin duplicados ni reintentos')
     commands = parser.add_subparsers(dest='action', required=True)
     prep = commands.add_parser('preparar')
     prep.add_argument('--id', required=True)
