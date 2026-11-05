@@ -57,6 +57,10 @@ class Settings(BaseSettings):
 
     # API del sistema Cúbico. La clave se instala solo en el .env del servidor.
     CUBICO_BOT_KEY: str = ""
+    CUBICO_CHINA_AIR_ENABLED: bool = False
+    CUBICO_CHINA_AIR_LUIS_NUMBERS_JSON: str = "[]"
+    # Solo loopback; no enviar la clave a un dominio público ni seguir redirecciones.
+    CUBICO_INTERNAL_BASE_URL: str = "http://127.0.0.1:3000"
 
     # --- Datos privados del negocio (no publicar en GitHub) ---
     CUBICO_TEAM_COMMAND_NUMBERS_JSON: str = "[]"

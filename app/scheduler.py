@@ -215,6 +215,9 @@ def iniciar_scheduler():
     from app.services.campaign_pilot import run_due as run_pilot
     scheduler.add_job(run_pilot, IntervalTrigger(minutes=1), id='piloto_campana_whatsapp',
                       replace_existing=True, misfire_grace_time=60, max_instances=1)
+    from app.services.china_air_workflow import run_due as run_china_air
+    scheduler.add_job(run_china_air, IntervalTrigger(seconds=5), id='china_aereo_avisos_luis',
+                      replace_existing=True, misfire_grace_time=10, max_instances=1)
     scheduler.start()
     log.info(
         f"Scheduler iniciado: informe 8:00 AM + revisión de pagos "

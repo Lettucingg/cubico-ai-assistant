@@ -1,10 +1,10 @@
 {
-  "version": "1.6.8",
+  "version": "1.6.9",
   "fecha": "2026-11-05",
-  "titulo": "Piloto de WhatsApp preparado y bajas persistentes",
+  "titulo": "Registro confirmado de China aéreo con Luis",
   "novedades": [
-    "Preparación pausada de hasta diez destinatarios de la promoción aprobada, con exclusión de duplicados, bajas y redirecciones.",
-    "Activación inmediata o programada, un intento por minuto y pausa ante resultados inciertos; no se reintenta automáticamente.",
-    "Historial con contexto para Bruno, bajas de publicidad compartidas con el panel y resumen que distingue aceptación, entrega, lectura y fallos de Meta."
+    "Bruno reúne fotos y textos de Lynn y muestra la previsualización calculada por Cúbico a los números autorizados de Luis.",
+    "Los paquetes se registran solo tras confirmación explícita; los códigos ilegibles se consultan y los resultados parciales o inciertos no se repiten automáticamente.",
+    "Se conservan todos los mensajes cuando Meta agrupa un álbum. La integración requiere clave local, números autorizados y habilitación en el servidor."
   ]
 }
