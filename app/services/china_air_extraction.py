@@ -3,6 +3,7 @@ import asyncio
 import base64
 import json
 import re
+from datetime import datetime
 from anthropic import Anthropic
 from pydantic import BaseModel, ConfigDict, Field
 from app.core.config import settings
@@ -33,6 +34,14 @@ Devuelve exclusivamente JSON con esta estructura:
 "largo_cm":null,"ancho_cm":null,"alto_cm":null,"lb_proveedor":null,
 "costo_proveedor":null,"contenido":"","fecha_recepcion":null,
 "evidencia_cliente":"","observaciones":""}],"avisos":[]}
+La cantidad de paquetes la determina el aviso de Lynn: «un paquete más»,
+«3 paquetes» o «Paquete 1/2/3». Una hoja de nombre/CBC es identificación del
+cliente, NUNCA un paquete adicional. Combina la hoja de identificación con
+la etiqueta del mismo paquete, incluso si la etiqueta tiene un CBC cortado.
+Si ya encontraste el cliente completo por otra fuente, no adviertas sobre el
+código cortado de esa etiqueta. No inventes paquetes para cada foto.
+El costo de Lynn (costo_proveedor) y el cobro de Cúbico son conceptos distintos:
+extrae solo el costo original de Lynn; nunca copies el cobro de un resumen del bot.
 Cada tracking corresponde a UN paquete, combinando sus fotos de etiqueta,
 contenido y balanza. Nunca mezcles pesos de paquetes distintos. Revisa todas
 las fotos, incluidas hojas aparte. Tracking es el código de barras de la
@@ -47,22 +56,42 @@ peso_kg proviene del PESO FÍSICO. lb_proveedor y costo_proveedor provienen de
 la multiplicación de Lynn; no calcules ni inventes tarifas, libras ni cobros.
 Medidas solo si constan, en centímetros. Contenido describe en español lo que
 se ve en la foto, no la etiqueta genérica 生活用品. Si no se ve, déjalo vacío.
-fecha_recepcion solo de la fecha impresa en la foto, AAAA-MM-DD. Si no es
-legible, null; no uses la fecha de hoy o del reenvío. Deja vacíos o null los
+fecha_recepcion de la fecha impresa en la foto, AAAA-MM-DD. Si no es
+legible, usa la fecha del mensaje ORIGINAL de Lynn visible en texto/captura.
+Si tampoco está disponible, null; nunca uses la fecha de hoy o del reenvío. Deja vacíos o null los
 datos que no puedas leer. Incluye en avisos contradicciones, fotos faltantes o
 asociaciones de paquetes dudosas. No descartes un paquete por faltar cliente.
 Las correcciones explícitas de Luis prevalecen sobre la lectura de etiquetas.'''
 
 
-def parse_extraction(text):
+def parse_extraction(text, messages=()):
     value = re.sub(r'^```(?:json)?\s*|\s*```$', '', text.strip())
     batch = ExtractedBatch.model_validate(json.loads(value))
     if not batch.es_aviso_aereo:
         raise ValueError('No se identificó un aviso de recepción de China aéreo; no se registró nada')
+    # Only explicit dates in the forwarded source qualify; webhook arrival time
+    # is not the date of Lynn's original message.
+    dates = set()
+    for message in messages:
+        for raw in re.findall(r'\b\d{1,2}/\d{1,2}/\d{4}\b', message.get('texto') or ''):
+            try:
+                dates.add(datetime.strptime(raw, '%d/%m/%Y').date().isoformat())
+            except ValueError:
+                pass
+    expected = set()
+    for message in messages:
+        body = (message.get('texto') or '').lower()
+        expected.update(int(n) for n in re.findall(r'\b(\d{1,2})\s+paquetes?\b', body))
+        if re.search(r'\bun paquete(?: más| mas)?\b', body):
+            expected.add(1)
+    if len(expected) == 1 and len(batch.paquetes) != next(iter(expected)):
+        raise ValueError('La cantidad extraída no coincide con el aviso de Lynn; revisar fotos de identificación')
     packages = []
     warnings = [str(warning)[:500] for warning in batch.avisos]
     for index, package in enumerate(batch.paquetes, 1):
         data = package.model_dump(mode='json', exclude_none=True, exclude={'evidencia_cliente', 'observaciones'})
+        if not data.get('fecha_recepcion') and len(dates) == 1:
+            data['fecha_recepcion'] = next(iter(dates))
         if data['cliente'] and not package.evidencia_cliente.strip():
             data['cliente'] = ''
             warnings.append(f'Paquete {index}: cliente sin evidencia legible; confirmar con Luis')
@@ -103,4 +132,4 @@ async def extract(messages, phone):
         if getattr(result, 'stop_reason', None) == 'max_tokens':
             raise ValueError('La lectura quedó incompleta; divide el lote')
         return ''.join(block.text for block in result.content if getattr(block, 'type', '') == 'text')
-    return parse_extraction(await asyncio.to_thread(call))
+    return parse_extraction(await asyncio.to_thread(call), messages)

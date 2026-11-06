@@ -352,3 +352,80 @@ def test_single_message_in_later_entry_is_not_dropped(setup,monkeypatch):
     result=asyncio.run(whatsapp._procesar_payload_whatsapp(payload,BackgroundTasks()))
     assert result['status']=='china_aereo_en_cola'
     with setup.db() as db:assert db.query(flow.ChinaAirInbox).filter_by(message_id=raw['id']).count()==1
+
+@pytest.mark.parametrize('answer',['sí','si','ok','dale','correcto','Está correcto','👍'])
+def test_confirmation_aliases_do_not_reextract_or_replace_supplier_cost(setup, answer):
+    setup.extract.return_value=([{**PACKAGES[0], 'costo_proveedor':40}],[])
+    prepare(setup)
+    incoming(setup,'confirm-alias',text=answer);run()
+    setup.register.assert_awaited_once()
+    assert setup.register.call_args.args[0][0]['costo_proveedor']==40
+    assert setup.extract.await_count==1
+
+
+def test_unknown_confirmation_text_never_enters_extraction(setup):
+    prepare(setup)
+    incoming(setup,'unknown',text='Vi el resumen con $48');run()
+    assert batch(setup)['stage']=='awaiting'
+    setup.clock['now']+=timedelta(seconds=121);run()
+    assert setup.extract.await_count==1
+    setup.register.assert_not_awaited()
+
+
+def test_ezra_three_cancelled_attempts_are_isolated(setup):
+    ezra={**PACKAGES[0],'tracking':'SF5147491038495','cliente':'CBC-0079',
+          'peso_kg':1.7,'lb_proveedor':4,'costo_proveedor':40,'fecha_recepcion':'2026-10-24'}
+    setup.extract.return_value=([ezra],[])
+    def preview(packages):
+        result=rows_for(packages)
+        result[0]['paquete'].update(lb_cobrables=4,cobro_estimado=48)
+        return result
+    setup.preview.side_effect=preview
+    for attempt, cancel in enumerate(['/cancelar','cancelar','/china cancelar']):
+        incoming(setup,f'photo-{attempt}','image')
+        incoming(setup,f'lynn-{attempt}',text='Un paquete más. Lynn 24/10/2026. 4 lb $40')
+        incoming(setup,f'identity-{attempt}','image',text='Ezra Angel CBC0079')
+        run();setup.clock['now']+=timedelta(seconds=121);run()
+        state=batch(setup)
+        assert state['stage']=='awaiting'
+        assert len(setup.extract.call_args.args[0])==3
+        assert json.loads(state['packages_json'])[0]['costo_proveedor']==40
+        summary=setup.tell.call_args.args[1]
+        assert '1 paquete China' in summary and '4 lb' in summary
+        assert '$48.00' in summary and 'Costo de Lynn: $40.00' in summary
+        assert 'CBC-0079' in summary and 'SF5147491038495' in summary
+        assert flow.should_handle({'telefono':PHONE,'tipo':'text','texto':cancel})
+        incoming(setup,f'cancel-{attempt}',text=cancel);run()
+        assert batch(setup)['closed'] and batch(setup)['packages_json'] is None
+        with setup.db() as db:
+            assert not db.query(flow.ChinaAirInbox).filter_by(batch_id=state['id']).filter(
+                flow.ChinaAirInbox.media_id.isnot(None)).count()
+    setup.register.assert_not_awaited()
+
+
+def test_extraction_failure_logs_traceback(setup,caplog):
+    setup.extract.side_effect=ValueError('Test: faltan medidas del paquete 3')
+    incoming(setup,'failed-photo','image');run()
+    setup.clock['now']+=timedelta(seconds=121);run()
+    assert batch(setup)['stage']=='needs_input'
+    assert 'faltan medidas del paquete 3' in caplog.text
+    assert any(record.exc_info for record in caplog.records)
+
+
+def test_requested_two_numbers_route_when_configured(setup,monkeypatch):
+    numbers=['50769837308','50760705727']
+    monkeypatch.setattr(api.settings,'CUBICO_CHINA_AIR_LUIS_NUMBERS_JSON',json.dumps(numbers))
+    for phone in numbers:
+        assert flow.should_handle({'telefono':phone,'tipo':'image'})
+        assert flow.should_handle({'telefono':phone,'tipo':'text','texto':'/cancelar'})
+
+
+def test_source_date_fallback_and_identification_sheet_count_guard():
+    payload={'es_aviso_aereo':True,'paquetes':[{**PACKAGES[0],'fecha_recepcion':None,
+        'evidencia_cliente':'Hoja CBC-0093'}],'avisos':[]}
+    messages=[{'texto':'Lynn 24/10/2026: un paquete más'}]
+    packages,_=parse_extraction(json.dumps(payload),messages)
+    assert packages[0]['fecha_recepcion']=='2026-10-24'
+    payload['paquetes'].append({**payload['paquetes'][0],'tracking':'TEST00000002'})
+    with pytest.raises(ValueError,match='cantidad'):
+        parse_extraction(json.dumps(payload),messages)
