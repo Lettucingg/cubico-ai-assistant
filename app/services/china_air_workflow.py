@@ -4,6 +4,7 @@ No registration happens during collection/extraction. Claimed registrations are
 never replayed after a crash, including unknown HTTP outcomes.
 """
 import json
+import logging
 import re
 import unicodedata
 import uuid
@@ -14,6 +15,10 @@ from app.core.config import settings
 from app.db.session_store import BaseSesiones, SessionSesiones, engine_sesiones
 from app.services import china_air_client as api
 from app.services.china_air_extraction import extract
+
+logger = logging.getLogger(__name__)
+CANCEL = {'/cancelar', 'cancelar', '/china cancelar', 'no'}
+CONFIRM = {'si', 'ok', 'dale', 'correcto', 'esta correcto', '👍', '👍🏻', '👍🏼', '👍🏽', '👍🏾', '👍🏿'}
 
 BUSY = {'processing', 'confirming', 'saving'}
 
@@ -73,6 +78,8 @@ def should_handle(message):
     if message.get('tipo') not in {'text', 'image'}:
         return False
     value = clean(message.get('texto') or '')
+    if value in CANCEL:
+        return True
     if value.startswith('/') and not value.startswith('/china'):
         return False  # Preserve the team's existing operational commands.
     if message.get('tipo') == 'image' or value.startswith('/china') or (
@@ -153,6 +160,8 @@ async def show_preview(batch_id, packages, rows, warnings):
 def corrections(value, packages):
     """Explicit confirmation and deterministic client corrections only."""
     value = clean(value)
+    if value.rstrip(' .!') in CONFIRM:
+        return True, [dict(p) for p in packages]
     confirm = bool(re.match(r'^(?:si|confirmo|registrar|registralos)(?:\b|[, .])', value))
     tail = re.sub(r'^(?:si|confirmo|registrar|registralos)[, .:]*', '', value) if confirm else value
     copied = [dict(p) for p in packages]
@@ -199,6 +208,7 @@ async def confirm_batch(batch_id, value):
             await show_preview(batch_id, corrected, rows, warnings)
             return
     except Exception:
+        logger.exception('China aéreo: fallo validando lote %s', batch_id)
         update(batch_id, expected_stage='confirming', **{'stage': 'needs_input', 'detail': 'No se pudo validar la confirmación. No se registró nada.'})
         await tell(state['phone'], 'No pude validar el lote o la corrección. No registré nada. Usa «/china estado» para revisar o «/china cancelar» para reenviar el aviso completo.')
         return
@@ -207,6 +217,7 @@ async def confirm_batch(batch_id, value):
     try:
         results = await api.register(corrected, phone=state['phone'])
     except Exception:
+        logger.exception('China aéreo: fallo registrando lote %s', batch_id)
         update(batch_id, expected_stage='saving', **{'stage': 'uncertain', 'detail': 'Resultado del registro incierto; no repetir sin revisar Cúbico.'})
         await tell(state['phone'], '⚠️ No pude confirmar el resultado del registro. Puede haberse guardado parte o todo. Revisa Cúbico antes de repetir; no lo reenviaré automáticamente.')
         return
@@ -231,7 +242,7 @@ async def analyze(batch_id):
     state = snapshot(batch_id)
     with SessionSesiones() as db:
         messages = [{'texto': row.body, 'media_id': row.media_id} for row in db.query(ChinaAirInbox).filter_by(
-            batch_id=batch_id).order_by(ChinaAirInbox.id)]
+            batch_id=batch_id).filter(ChinaAirInbox.kind != 'control').order_by(ChinaAirInbox.id)]
     try:
         if len(messages) > 60:
             raise ValueError('Demasiados mensajes; divide el lote')
@@ -244,6 +255,7 @@ async def analyze(batch_id):
             return
         await show_preview(batch_id, packages, rows, warnings)
     except Exception:
+        logger.exception('China aéreo: fallo leyendo/previsualizando lote %s', batch_id)
         update(batch_id, expected_stage='processing', **{'stage': 'needs_input', 'detail': 'Lectura o previsualización incompleta; no se registró nada.'})
         await tell(state['phone'], 'No pude completar la lectura y previsualización de este aviso. No registré nada. Revisa que estén todas las fotos, el texto aéreo y los datos legibles. Puedes añadir lo que falta o usar «/china cancelar» y reenviar un lote más pequeño. Revisa también la conexión local de Cúbico.')
 
@@ -258,7 +270,7 @@ async def consume_one(phone):
         if batch and batch.stage in BUSY:
             return False
         value = clean(message.body)
-        if not batch and value in {'/china estado', '/china', '/china cancelar', '/china revisado'}:
+        if not batch and value in ({'/china estado', '/china', '/china revisado'} | CANCEL):
             previous = db.query(ChinaAirBatch).filter_by(phone=phone).order_by(ChinaAirBatch.updated.desc()).first()
             if not previous:
                 previous = ChinaAirBatch(id=str(uuid.uuid4()), phone=phone, stage='info', closed=True,
@@ -292,11 +304,15 @@ async def consume_one(phone):
         elif value == '/china revisado' and stage == 'uncertain':
             fields.update(stage='reviewed', closed=True, detail='Luis confirmó revisión manual en Cúbico; sin repetir registros.')
             action = ('notice', 'Marcaste el lote como revisado manualmente en Cúbico. No repetí ningún registro. Ya puedes reenviar un lote nuevo.')
-        elif value in {'cancelar', 'no', '/china cancelar'}:
+        elif value in CANCEL:
             if stage == 'uncertain':
                 action = ('notice', 'El resultado es incierto: revisa Cúbico antes de iniciar otro lote. Este registro no se repetirá automáticamente.')
             else:
-                fields.update(stage='cancelled', closed=True)
+                fields.update(stage='cancelled', closed=True, packages_json=None, preview_json=None,
+                              warnings_json='[]', prompt_sent=None, detail=None)
+                # Retire all raw inputs already associated with this cancelled attempt.
+                db.query(ChinaAirInbox).filter_by(batch_id=bid).update(
+                    {'body': '', 'media_id': None, 'kind': 'control'}, synchronize_session=False)
                 action = ('notice', 'Lote cancelado. No se registró nada por esta confirmación.')
         elif stage == 'uncertain':
             action = ('notice', 'El registro anterior sigue con resultado incierto. Revisa Cúbico; no voy a repetirlo ni abrir otro lote automáticamente.')
@@ -309,8 +325,7 @@ async def consume_one(phone):
                     fields['stage'] = 'confirming'
                     action = ('confirm', message.body)
                 except ValueError:
-                    fields.update(stage='collecting', due=message.received + timedelta(seconds=120), prompt_sent=None)
-                    action = ('notice', 'Añadí tu aclaración al lote. Volveré a revisarlo antes de pedir confirmación.')
+                    action = ('notice', 'Sigo esperando tu confirmación. Responde «sí», «ok», «dale», «correcto» o 👍. Para cambiar cliente: «2 CBC-0093». Para añadir fotos nuevas, cancela y reenvía el aviso completo.')
         else:
             fields.update(stage='collecting', due=message.received + timedelta(seconds=120), prompt_sent=None)
         claimed = db.query(ChinaAirBatch).filter_by(id=bid, version=version).update(fields, synchronize_session=False)
@@ -318,7 +333,10 @@ async def consume_one(phone):
             db.rollback()
             return False
         # A second worker must claim the same input, not merely the batch.
-        claimed_message = db.query(ChinaAirInbox).filter_by(message_id=message.message_id, batch_id=None).update({'batch_id': bid})
+        is_control = (value in CANCEL or value.rstrip(' .!') in CONFIRM or value.startswith('/china')
+                      or stage == 'awaiting' and message.kind == 'text')
+        claimed_message = db.query(ChinaAirInbox).filter_by(message_id=message.message_id, batch_id=None).update(
+            {'batch_id': bid, **({'kind': 'control'} if is_control else {})})
         if not claimed_message:
             db.rollback()
             return False
@@ -363,5 +381,4 @@ async def run_due():
                 await analyze(bid)
         except Exception:
             # Preserve inbox/draft and never dump model output, key, or HTTP headers.
-            import logging
-            logging.getLogger(__name__).error('China aéreo: revisar lote interno; no se reintenta un registro incierto')
+            logger.exception('China aéreo: fallo del trabajador; no se reintenta un registro incierto')
