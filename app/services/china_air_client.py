@@ -148,7 +148,7 @@ def safe_text(value, limit=350):
 
 
 def summary(packages, rows, warnings=()):
-    lines = [f'✈️ {len(packages)} paquetes China aéreo — PREVISUALIZACIÓN, todavía sin registrar.']
+    lines = [f'✈️ {len(packages)} {"paquete" if len(packages) == 1 else "paquetes"} China aéreo — PREVISUALIZACIÓN, todavía sin registrar.']
     for index, (package, row) in enumerate(zip(packages, rows), 1):
         calculated = row.get('paquete') or {}
         customer = calculated.get('cliente') or {}
@@ -162,7 +162,12 @@ def summary(packages, rows, warnings=()):
         lines.append(f"{index}. {safe_text(customer.get('codigo') or package['cliente'] or '¿Cliente?', 30)} "
                      f"{safe_text(customer.get('nombre'), 100)} · {safe_text(package['tracking'] or '¿Tracking?', 80)}"
                      f" · {safe_text(pounds or 'sin peso calculado', 40)} lb{quote}")
-        lines.append(f"   {safe_text(package.get('contenido'))} · recibido {safe_text(package.get('fecha_recepcion') or 'fecha pendiente', 30)}")
+        received = package.get('fecha_recepcion')
+        received = date.fromisoformat(received).strftime('%d/%m/%Y') if received else 'fecha pendiente'
+        lines.append(f"   {safe_text(package.get('contenido'))} · recibido {received}")
+        supplier = package.get('costo_proveedor')
+        if isinstance(supplier, (int, float)) and not isinstance(supplier, bool):
+            lines.append(f'   Costo de Lynn: ${supplier:.2f} · Cobro de Cúbico: {quote.removeprefix(" · ") or "pendiente"}')
         for label, field in (('ERROR', 'errores'), ('AVISO', 'avisos')):
             if row.get(field):
                 lines.append(f'   {label}: {safe_text(row[field])}')
