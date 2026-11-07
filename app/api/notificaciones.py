@@ -1,13 +1,40 @@
+import hashlib
+import logging
 import socket
+from datetime import datetime, timezone
 import secrets
 
 import httpx
 from fastapi import APIRouter, Header, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
+from sqlalchemy import Column, DateTime, String, Text
+from sqlalchemy.exc import IntegrityError
 
 from app.core.config import settings
-from app.db.session_store import agregar_al_historial, obtener_o_crear_sesion
+from app.db.session_store import (
+    BaseSesiones, SessionSesiones, agregar_al_historial, engine_sesiones,
+    obtener_o_crear_sesion,
+)
+from app.services.pickup_hours import pickup_window
+
+log = logging.getLogger(__name__)
+
+
+class AvisoRetiroProgramado(BaseSesiones):
+    __tablename__ = "avisos_retiro_programados"
+
+    id = Column(String(64), primary_key=True)
+    payload = Column(Text, nullable=False)
+    programado_utc = Column(DateTime, nullable=False, index=True)
+    estado = Column(String(20), nullable=False, default="pendiente")
+
+
+AvisoRetiroProgramado.__table__.create(engine_sesiones, checkfirst=True)
+
+
+def _utc_naive(value: datetime) -> datetime:
+    return value.astimezone(timezone.utc).replace(tzinfo=None)
 
 router = APIRouter(prefix="/notificar", tags=["notificaciones"])
 
@@ -149,6 +176,67 @@ async def notificar_carga_llegada(
     except Exception as error:
         return JSONResponse(status_code=400, content={"error": str(error)})
 
+    abierto, apertura = pickup_window()
+    payload = body.model_dump_json()
+    aviso_id = hashlib.sha256(payload.encode()).hexdigest()
+    with SessionSesiones() as db:
+        existente = db.get(AvisoRetiroProgramado, aviso_id)
+        if not abierto and existente is None:
+            existente = AvisoRetiroProgramado(id=aviso_id, payload=payload,
+                programado_utc=_utc_naive(apertura), estado="pendiente")
+            db.add(existente)
+            try:
+                db.commit()
+            except IntegrityError:
+                db.rollback()
+                existente = db.get(AvisoRetiroProgramado, aviso_id)
+                if existente is None:
+                    raise
+        if existente is not None:
+            estado = existente.estado
+            return {"ok": estado in {"pendiente", "enviando", "enviado"},
+                    "estado": estado, "programado": estado == "pendiente",
+                    "enviado": estado == "enviado",
+                    "programado_para": existente.programado_utc.replace(tzinfo=timezone.utc).isoformat()}
+
+    return await _enviar_carga_llegada(body)
+
+
+async def procesar_avisos_retiro():
+    """Send pending notices during office hours, claiming each once."""
+    if not pickup_window()[0]:
+        return
+    with SessionSesiones() as db:
+        ids = [row[0] for row in db.query(AvisoRetiroProgramado.id).filter(
+            AvisoRetiroProgramado.estado == "pendiente",
+            AvisoRetiroProgramado.programado_utc <= _utc_naive(datetime.now(timezone.utc)),
+        ).order_by(AvisoRetiroProgramado.programado_utc).limit(30)]
+    for aviso_id in ids:
+        if not pickup_window()[0]:
+            break
+        with SessionSesiones() as db:
+            claimed = db.query(AvisoRetiroProgramado).filter_by(id=aviso_id, estado="pendiente").update(
+                {"estado": "enviando"}, synchronize_session=False)
+            db.commit()
+            if not claimed:
+                continue
+            payload = db.get(AvisoRetiroProgramado, aviso_id).payload
+        estado = "revisar"
+        try:
+            resultado = await _enviar_carga_llegada(CargaLlegadaBody.model_validate_json(payload))
+            if isinstance(resultado, dict) and resultado.get("ok"):
+                estado = "enviado"
+            else:
+                log.error("Aviso de retiro %s: Meta no confirmó el envío; revisar", aviso_id)
+        except Exception:
+            log.exception("Aviso de retiro %s: no se pudo confirmar el envío", aviso_id)
+        with SessionSesiones() as db:
+            db.query(AvisoRetiroProgramado).filter_by(id=aviso_id).update(
+                {"estado": estado, "payload": ""}, synchronize_session=False)
+            db.commit()
+
+
+async def _enviar_carga_llegada(body: CargaLlegadaBody):
     payload = _construir_payload_carga_llegada(body)
     url_meta = (
         f"https://graph.facebook.com/{VERSION_API_META}/"
