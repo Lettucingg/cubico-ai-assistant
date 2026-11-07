@@ -1,4 +1,6 @@
 """Reviewed campaign facts. Preparation does not activate a promotion or a send."""
+from app.services.pickup_hours import PICKUP_HOURS
+
 CAMPAIGN_FACTS = {
     'campana': 'SOMOSCUBICO',
     'estado': 'preparada_pendiente_de_activacion',
@@ -12,7 +14,7 @@ CAMPAIGN_FACTS = {
     'miami_maritimo': 'USD 12 por pie cúbico; estimado de 7 a 10 días desde salida.',
     'china_aereo': 'USD 12 por libra; estimado de 12 a 15 días.',
     'china_maritimo': 'USD 325 por metro cúbico, mínimo USD 45; estimado de 30 a 45 días.',
-    'horario_panama': 'Lunes a viernes de 10:00 a 17:00; sábados de 10:00 a 13:00; domingos cerrado.',
+    'horario_panama': PICKUP_HOURS,
     'pendientes': ['Definir vencimiento del registro por invitación y destinatarios elegibles.',
                    'Integrar bajas persistentes con la plataforma que realizará el envío masivo.',
                    'Confirmar tratamiento de carga especial, mínimos aéreos y retiro por terceros.'],

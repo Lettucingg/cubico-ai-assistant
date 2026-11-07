@@ -218,6 +218,10 @@ def iniciar_scheduler():
     from app.services.china_air_workflow import run_due as run_china_air
     scheduler.add_job(run_china_air, IntervalTrigger(seconds=5), id='china_aereo_avisos_luis',
                       replace_existing=True, misfire_grace_time=10, max_instances=1)
+    from app.api.notificaciones import procesar_avisos_retiro
+    scheduler.add_job(procesar_avisos_retiro, IntervalTrigger(minutes=1),
+                      id="avisos_retiro_en_horario", replace_existing=True,
+                      misfire_grace_time=60, max_instances=1)
     scheduler.start()
     log.info(
         f"Scheduler iniciado: informe 8:00 AM + revisión de pagos "

@@ -1,3 +1,4 @@
+from app.services.pickup_hours import pickup_time_context
 from app.services.conversation_language import reply_language, language_rules, explicit_preference
 from app.services.payment_policy import payment_rules, yappy_reply, habitual_payment_followup, receipt_followup_reply, bank_transfer_reply
 from app.services.campaign_knowledge import campaign_rules
@@ -892,6 +893,11 @@ Simplemente gestiona el caso.
 
 
 RETIRO DE PAQUETES
+
+Si el aviso llegó fuera de horario, reconoce que llegó tarde y explica cuándo vuelve a abrir
+según el horario vigente. Un paquete listo no significa que el local esté abierto.
+Si el cliente dice «el próximo sábado», no lo cambies por «este sábado»; conserva su intención
+y no prometas que prepararán paquetes o reservarán una cita sin confirmación del equipo.
 
 Si un cliente verificado dice que pasará a retirar sus paquetes, utiliza avisar_retiro_paquete.
 
@@ -1933,7 +1939,7 @@ def generar_respuesta(
         punto = verified_location()
         if punto and not active_context(texto_cliente, historial):
             if language=='en':return f"Here is the confirmed pickup location:\n{punto['enlace']}\n{punto['direccion']}"
-            return f"Esta es la ubicación exacta para retirar:\n{punto['enlace']}\n{punto['direccion']}"
+            return f"Esta es la ubicación exacta para retirar:\n{punto['enlace']}\n{punto['direccion']}\n\n{pickup_time_context()}."
         if not punto:
             actualizar_sesion(telefono, necesita_atencion_humana=True,
                               motivo_escalamiento="Ubicación de retiro sin pin vigente verificado; confirmar el punto exacto antes de dirigir al cliente.")
@@ -2455,7 +2461,7 @@ def generar_respuesta(
         respuesta = call_anthropic(cliente_claude, phone=telefono, task='respuesta_automatica',
             model="claude-sonnet-5",
             max_tokens=1200,
-            system=system_with_context(SYSTEM_PROMPT + payment_rules() + campaign_rules() + language_rules(language) + "\n\n" + CONTEXT_RULES + DELIVERY_RULES + contact_rules() + "\n" + location_rules(), active_context(" ".join([texto_cliente, *trackings_consultados]), historial)),
+            system=system_with_context(SYSTEM_PROMPT + "\n\n" + pickup_time_context() + payment_rules() + campaign_rules() + language_rules(language) + "\n\n" + CONTEXT_RULES + DELIVERY_RULES + contact_rules() + "\n" + location_rules(), active_context(" ".join([texto_cliente, *trackings_consultados]), historial)),
             tools=HERRAMIENTAS,
             messages=mensajes,
         )
