@@ -17,6 +17,7 @@ from app.db.session_store import (
     obtener_o_crear_sesion,
 )
 from app.services.pickup_hours import pickup_window
+from app.services.operational_context import service_block
 
 log = logging.getLogger(__name__)
 
@@ -177,6 +178,7 @@ async def notificar_carga_llegada(
         return JSONResponse(status_code=400, content={"error": str(error)})
 
     abierto, apertura = pickup_window()
+    abierto = abierto and not service_block("local") and not service_block("retiros")
     payload = body.model_dump_json()
     aviso_id = hashlib.sha256(payload.encode()).hexdigest()
     with SessionSesiones() as db:
@@ -204,7 +206,7 @@ async def notificar_carga_llegada(
 
 async def procesar_avisos_retiro():
     """Send pending notices during office hours, claiming each once."""
-    if not pickup_window()[0]:
+    if not pickup_window()[0] or service_block("local") or service_block("retiros"):
         return
     with SessionSesiones() as db:
         ids = [row[0] for row in db.query(AvisoRetiroProgramado.id).filter(
@@ -212,7 +214,7 @@ async def procesar_avisos_retiro():
             AvisoRetiroProgramado.programado_utc <= _utc_naive(datetime.now(timezone.utc)),
         ).order_by(AvisoRetiroProgramado.programado_utc).limit(30)]
     for aviso_id in ids:
-        if not pickup_window()[0]:
+        if not pickup_window()[0] or service_block("local") or service_block("retiros"):
             break
         with SessionSesiones() as db:
             claimed = db.query(AvisoRetiroProgramado).filter_by(id=aviso_id, estado="pendiente").update(
