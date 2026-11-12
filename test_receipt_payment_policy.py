@@ -33,6 +33,14 @@ def test_old_bank_number_not_offered_without_explicit_activation(monkeypatch):
     assert 'nunca como una cuenta propia' in policy.payment_rules()
 
 
+def test_disputed_charge_or_unapplied_credit_must_be_escalated_without_recommending_full_payment():
+    rules=policy.payment_rules()
+    assert 'RECLAMOS DE COBRO, CRÉDITOS Y PAQUETES AJENOS' in rules
+    assert 'No le aconsejes pagar el total mientras se revisa' in rules
+    assert 'Utiliza escalar_a_humano para conciliar la factura y el comprobante' in rules
+    assert 'no repita un pago ya enviado' in rules
+
+
 @pytest.mark.parametrize('reply',[
     'La transferencia fue a SHIP2NEXO y no a Cúbico. Paga a nuestra cuenta Banco General 123.',
     'No puedo marcarte como pagado porque el destinatario es otra empresa.',
