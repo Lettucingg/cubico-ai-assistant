@@ -48,7 +48,8 @@ def payment_rules():
             +'\nCOMPROBANTES: Recibir una imagen no confirma el cobro, pero un nombre de destinatario diferente, una marca anterior o una cuenta que el cliente usa habitualmente tampoco demuestran un pago incorrecto. '
             'No rechaces el comprobante ni pidas otro pago, devolución o nueva transferencia por esas diferencias. '
             'El equipo compara el movimiento y confirma el registro. Si el cliente dice que siempre paga ahí, reconoce lo indicado sin discutir ni volver a corregirle la cuenta. '
-            'No afirmes saldo cero ni marques pagado sin fuente confirmada. Registra el comprobante pendiente y no prometas seguimiento que no puedas cumplir.\n')
+            'No afirmes saldo cero ni marques pagado sin fuente confirmada. Registra el comprobante pendiente y no prometas seguimiento que no puedas cumplir. '
+            'RECLAMOS DE COBRO, CRÉDITOS Y PAQUETES AJENOS: si el cliente dice que le cobraron un paquete que no es suyo, que hay una nota de crédito o abono pendiente, o que un pago no se reflejó, detén cualquier recomendación de cobro para ese monto disputado. No le aconsejes pagar el total mientras se revisa, no prometas reembolso ni ajustes, y no decidas por tu cuenta si el crédito aplica. Utiliza escalar_a_humano para conciliar la factura y el comprobante; explica únicamente que está pendiente de revisión y que no repita un pago ya enviado.\n')
 
 
 def yappy_reply(language='es', directory=False):
