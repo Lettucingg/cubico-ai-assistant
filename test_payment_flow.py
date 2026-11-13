@@ -110,3 +110,22 @@ def test_respeta_factura_marcada_pagada_por_la_web(tmp_path):
         assert False, "no debe duplicar un pago ya reflejado por la web"
     except ValueError as error:
         assert "ya aparece pagada" in str(error)
+
+
+def test_pago_anterior_no_reduce_factura_nueva(tmp_path):
+    fabrica = _crear_escenario(tmp_path, total=47.50)
+    with fabrica() as db:
+        cliente = db.query(ClienteCBC).one()
+        anterior = Factura(codigo="FAC-ANTERIOR", tipo_cliente="cbc", cliente_cbc_id=cliente.id,
+                           total=22.50, estado="pagado")
+        db.add(anterior)
+        db.flush()
+        db.add(Pago(factura_id=anterior.id, cliente_cbc_id=cliente.id, tipo_cliente="cbc",
+                    monto=22.50, metodo="yappy", tipo_pago="completo", referencia="PAGO-ANTERIOR", anulado=False))
+        db.commit()
+    datos = facturas.consultar_facturas_por_codigo("CBC-TEST")
+    assert datos["saldo_pendiente_total"] == 47.50
+    assert next(f for f in datos["facturas"] if f["codigo"] == "FAC-TEST")["saldo_pendiente"] == 47.50
+    with pytest.raises(ValueError, match="ya fue registrado"):
+        facturas.registrar_pago_factura_desde_panel("CBC-TEST", "FAC-TEST", 22.50, "yappy", "PAGO-ANTERIOR")
+    assert facturas.consultar_facturas_por_codigo("CBC-TEST")["saldo_pendiente_total"] == 47.50
