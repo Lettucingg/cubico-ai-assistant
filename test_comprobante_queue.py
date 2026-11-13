@@ -101,7 +101,7 @@ def test_comprobante_sin_solicitud_crea_caso_de_pago(monkeypatch):
     assert len(solicitudes) == 1
     assert solicitudes[0]["tipo"] == "pago"
     assert solicitudes[0]["tiene_comprobante"] is True
-    assert solicitudes[0]["factura_sugerida"] == "FAC-TEST"
+    assert solicitudes[0]["factura_sugerida"] is None
 
 
 def test_comprobante_con_retiro_no_se_duplica(monkeypatch):
@@ -209,3 +209,25 @@ def test_comprobante_sin_factura_no_se_marca_confirmado(monkeypatch):
 ])
 def test_monto_del_comprobante_no_trunca_los_miles(texto, esperado):
     assert parsear_monto_comprobante(texto) == esperado
+
+
+def test_no_asigna_comprobante_por_importe_ni_por_unica_factura(monkeypatch):
+    caso = _sesion(entregado=False, aviso_retiro_pendiente=True)
+    monkeypatch.setattr(panel, "obtener_sesion_existente", lambda _telefono: caso)
+    monkeypatch.setattr(panel, "consultar_facturas_por_codigo", _facturas)
+    monkeypatch.setattr(panel, "registrar_pago_factura_desde_panel", lambda *a: pytest.fail("No debe registrar"))
+    with pytest.raises(HTTPException) as error:
+        panel.actualizar_estado_solicitud(caso.telefono, {"tipo": "retiro", "accion": "confirmar_pago"}, usuario="tester")
+    assert error.value.status_code == 409
+    assert "Selecciona la factura" in error.value.detail
+
+
+def test_no_aplica_un_comprobante_que_cambio(monkeypatch):
+    caso = _sesion(entregado=False, aviso_retiro_pendiente=True)
+    monkeypatch.setattr(panel, "obtener_sesion_existente", lambda _telefono: caso)
+    monkeypatch.setattr(panel, "consultar_facturas_por_codigo", _facturas)
+    monkeypatch.setattr(panel, "registrar_pago_factura_desde_panel", lambda *a: pytest.fail("No debe registrar"))
+    with pytest.raises(HTTPException) as error:
+        panel.actualizar_estado_solicitud(caso.telefono, {"tipo": "retiro", "accion": "confirmar_pago", "factura_codigo": "FAC-TEST", "comprobante_media_id": "ANTERIOR"}, usuario="tester")
+    assert error.value.status_code == 409
+    assert "comprobante cambió" in error.value.detail
