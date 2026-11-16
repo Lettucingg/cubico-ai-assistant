@@ -34,7 +34,7 @@ jobs:
       - name: Compile Python
         run: python -m py_compile app/db/session_store.py app/services/delivery_cases.py app/api/panel.py app/ai/orchestrator.py app/api/whatsapp.py
       - name: Delivery and payment regression tests
-        run: python -m pytest -q test_delivery_cases.py test_delivery_locations.py test_comprobante_queue.py test_payment_flow.py test_inbound_visibility.py test_image_archive.py test_image_archive_integration.py
+        run: python -m pytest -q test_delivery_cases.py test_delivery_locations.py test_delivery_tool.py test_comprobante_queue.py test_payment_flow.py test_inbound_visibility.py test_image_archive.py test_image_archive_integration.py
       - uses: actions/setup-node@v4
         with:
           node-version: '22'

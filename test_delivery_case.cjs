@@ -1,6 +1,10 @@
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const {JSDOM}=require('jsdom');
+const vm=require('node:vm');
+const page=new JSDOM(fs.readFileSync('app/static/panel-nuevo-diseno.html','utf8'));
+for(const script of page.window.document.querySelectorAll('script:not([src])'))new vm.Script(script.textContent);
+page.window.close();
 const dom=new JSDOM('<section id="delivery-case"></section>',{runScripts:'outside-only',url:'https://cubico.test'});
 const w=dom.window,d=w.document;
 w.eval(fs.readFileSync('app/static/delivery-case.js','utf8'));
