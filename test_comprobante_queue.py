@@ -171,6 +171,7 @@ def test_comprobante_de_factura_ya_pagada_permite_preparar_retiro(monkeypatch):
 
 
 def test_comprobante_de_factura_ya_pagada_permite_coordinar_domicilio(monkeypatch):
+    monkeypatch.setattr(panel, "coordinar_ficha", lambda *args: panel.actualizar_sesion(args[0], domicilio_coordinado=True))
     sesion = _sesion(entregado=False, solicitud_domicilio_pendiente=True)
     monkeypatch.setattr(panel, "obtener_sesion_existente", lambda _telefono: sesion)
     monkeypatch.setattr(panel, "consultar_facturas_por_codigo", lambda _codigo: {

@@ -38,6 +38,7 @@ from app.services.alert_archive import listar_archivadas, archivar_alerta, resta
 from app.tools.clientes import obtener_nombre_completo_cliente
 from app.tools.comprobantes import descargar_imagen_de_whatsapp
 from app.services.image_archive import image_mime
+from app.services.delivery_cases import obtener_ficha, guardar_ficha, coordinar_ficha
 from app.tools.paquetes import consultar_paquetes_por_codigo
 from app.tools.transcripcion import descargar_audio_de_whatsapp
 from app.tools.facturas import (
@@ -885,6 +886,7 @@ def listar_solicitudes(usuario: str = Depends(verificar_credenciales_panel)):
                 "tipo": tipo,
                 "paquetes": detalle_paquetes,
                 "direccion": direccion,
+                "ficha_domicilio": obtener_ficha(sesion) if tipo == "domicilio" else None,
                 "monto_pendiente": monto_pendiente,
                 "monto_reportado": sesion.monto_pago_reportado,
                 "metodo_reportado": sesion.metodo_pago_reportado,
@@ -919,6 +921,21 @@ def listar_solicitudes(usuario: str = Depends(verificar_credenciales_panel)):
             })
     solicitudes.sort(key=lambda item: item["actualizado_en"] or "", reverse=True)
     return solicitudes
+
+
+@router.post("/solicitud/{telefono}/domicilio")
+def guardar_ficha_domicilio_panel(
+    telefono: str, body: dict, usuario: str = Depends(verificar_credenciales_panel),
+):
+    """Guarda datos operativos, sin pagos, mensajes ni confirmación automática."""
+    try:
+        ficha = guardar_ficha(telefono, body.get("datos"), body.get("token"), usuario)
+    except ValueError as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    except Exception as error:
+        logger.error("No se pudo guardar una ficha de domicilio (%s)", type(error).__name__)
+        raise HTTPException(status_code=503, detail="No se pudo guardar la ficha; conserva tus datos y reintenta") from error
+    return {"status": "ok", "ficha": ficha, "mensaje_enviado": False}
 
 
 @router.post("/solicitud/{telefono}/estado")
@@ -1035,7 +1052,11 @@ def actualizar_estado_solicitud(
         _exigir_factura_pagada(sesion)
         if not sesion.paquetes_preparados:
             raise HTTPException(status_code=409, detail="Primero marca los paquetes como listos")
-        cambios = {"domicilio_coordinado": True}
+        try:
+            coordinar_ficha(telefono, body.get("ficha_token"))
+        except ValueError as error:
+            raise HTTPException(status_code=409, detail=str(error)) from error
+        return {"status": "ok", "accion": accion, "tipo": tipo}
     elif accion == "entregar":
         _exigir_factura_pagada(sesion)
         if not sesion.paquetes_preparados:
