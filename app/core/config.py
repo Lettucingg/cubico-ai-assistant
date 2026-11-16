@@ -17,6 +17,8 @@ class Settings(BaseSettings):
     # Conversaciones del panel. Si no se define, mantiene el SQLite actual.
     # En Railway debe apuntar a PostgreSQL o a un volumen persistente.
     SESSION_DATABASE_URL: str = "sqlite:///sesiones.db"
+    # Directorio privado persistente de imágenes. Nunca dentro de app/static.
+    CUBICO_MEDIA_DIR: str = ""
 
     # Compatibilidad del contador anterior. El registro detallado utiliza tarifas
     # por modelo, incluyendo caché; estas variables no modifican datos históricos.

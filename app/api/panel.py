@@ -37,6 +37,7 @@ from app.services.daily_reports import listar_informes, usuarios_informes
 from app.services.alert_archive import listar_archivadas, archivar_alerta, restaurar_alerta
 from app.tools.clientes import obtener_nombre_completo_cliente
 from app.tools.comprobantes import descargar_imagen_de_whatsapp
+from app.services.image_archive import image_mime
 from app.tools.paquetes import consultar_paquetes_por_codigo
 from app.tools.transcripcion import descargar_audio_de_whatsapp
 from app.tools.facturas import (
@@ -1078,9 +1079,9 @@ async def obtener_comprobante(
     except Exception as error:
         raise HTTPException(
             status_code=502,
-            detail="Meta ya no permitió descargar ese comprobante; pide al cliente que lo reenvíe",
+            detail="No se pudo cargar el comprobante conservado ni descargarlo. Reintenta; este error no confirma que haya expirado",
         ) from error
-    return Response(content=contenido, media_type="image/jpeg")
+    return Response(content=contenido, media_type=image_mime(contenido), headers={"Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff"})
 
 
 @router.get("/imagen/{telefono}/{media_id}")
@@ -1102,11 +1103,11 @@ async def obtener_imagen_panel(
     try:
         contenido = await descargar_imagen_de_whatsapp(media_id)
     except Exception as error:
-        raise HTTPException(status_code=502, detail="Meta ya no permitió descargar esta imagen") from error
+        raise HTTPException(status_code=502, detail="No se pudo cargar la imagen conservada ni descargarla. Reintenta; este error no confirma que haya expirado") from error
     return Response(
         content=contenido,
-        media_type="image/jpeg",
-        headers={"Cache-Control": "private, max-age=60"},
+        media_type=image_mime(contenido),
+        headers={"Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff"},
     )
 
 

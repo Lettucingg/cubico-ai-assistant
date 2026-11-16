@@ -36,6 +36,9 @@ def test_push_y_buffer_solo_despues_de_guardar(database, monkeypatch):
 
 
 def test_imagen_no_desaparece_si_falla_procesamiento(database, monkeypatch):
+    async def download(media_id):
+        return b"\x89PNG\r\n\x1a\nfixture-image"
+    monkeypatch.setattr(wa, 'descargar_imagen_de_whatsapp', download)
     msg = {'telefono': '50760000000', 'texto': None, 'tipo': 'image', 'media_id': 'IMG-1', 'message_id': 'IN-2'}
     async def fail(msg):
         raise RuntimeError('vision unavailable')

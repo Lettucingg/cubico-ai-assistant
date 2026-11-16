@@ -190,6 +190,13 @@ async def subir_media_whatsapp(contenido: bytes, mime_type: str, nombre_archivo:
     media_id = respuesta.json().get("id")
     if not media_id:
         raise RuntimeError("Meta no devolvió el identificador del archivo")
+    if mime_type.lower().startswith("image/"):
+        try:
+            from app.services.image_archive import save_image
+            await asyncio.to_thread(save_image, media_id, contenido)
+        except (OSError, ValueError):
+            import logging
+            logging.getLogger(__name__).exception("No se pudo conservar una imagen enviada desde el panel")
     return media_id
 
 
@@ -840,6 +847,14 @@ async def procesar_entrada_con_push(mensaje: dict):
                         tipo=tipo, media_id=mensaje.get("media_id"),
                         whatsapp_message_id=mensaje.get("message_id"))
     mensaje = {**mensaje, "_inbound_ids": [mensaje["message_id"]] if mensaje.get("message_id") else []}
+    if tipo == "image":
+        try:
+            # Conservar antes de depender de la visión o del saldo de la IA.
+            # La segunda lectura durante el análisis usará la copia privada.
+            await descargar_imagen_de_whatsapp(mensaje["media_id"])
+        except Exception:
+            import logging
+            logging.getLogger(__name__).exception("No se pudo descargar la imagen al recibirla; el mensaje queda en el historial")
     nombre = None
     if sesion and sesion.codigo_cliente_verificado:
         info = obtener_nombre_completo_cliente(sesion.codigo_cliente_verificado)

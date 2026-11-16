@@ -3,6 +3,9 @@ from app.services.payment_policy import payment_rules, receipt_acknowledgement
 from app.services.cost_analytics import call_anthropic
 import base64
 import re
+import asyncio
+import logging
+from app.services.image_archive import read_image, save_image, image_mime
 
 import httpx
 from anthropic import Anthropic
@@ -61,6 +64,13 @@ async def descargar_imagen_de_whatsapp(media_id: str) -> bytes:
     Descarga una imagen real desde los servidores de Meta, usando
     el mismo patron de dos pasos que ya usamos para audio.
     """
+    try:
+        conservada = await asyncio.to_thread(read_image, media_id)
+    except (OSError, ValueError):
+        logging.getLogger(__name__).exception("No se pudo leer una imagen del archivo privado")
+        conservada = None
+    if conservada is not None:
+        return conservada
     headers = {"Authorization": f"Bearer {settings.WHATSAPP_TOKEN}"}
     async with httpx.AsyncClient(timeout=15.0) as client:
         respuesta_info = await client.get(
@@ -75,7 +85,15 @@ async def descargar_imagen_de_whatsapp(media_id: str) -> bytes:
             raise ValueError("Meta devolvió un comprobante vacío")
         if not respuesta_imagen.headers.get("content-type", "").lower().startswith("image/"):
             raise ValueError("Meta no devolvió una imagen válida")
-        return respuesta_imagen.content
+        contenido = respuesta_imagen.content
+        image_mime(contenido)
+        try:
+            await asyncio.to_thread(save_image, media_id, contenido)
+        except (OSError, ValueError):
+            # La recepción y la atención continúan aunque el volumen falle.
+            # El log deja constancia: conservar en disco no equivale a tener respaldo.
+            logging.getLogger(__name__).exception("No se pudo conservar una imagen en el archivo privado")
+        return contenido
 
 
 def analizar_imagen_cliente(
