@@ -1,0 +1,49 @@
+name: Verify delivery case
+on:
+  pull_request:
+    paths:
+      - 'app/**'
+      - 'test_delivery*'
+      - 'test_comprobante_queue.py'
+      - '.github/workflows/verify-delivery-case.yml'
+permissions:
+  contents: read
+jobs:
+  delivery-case:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      DATABASE_URL: sqlite://
+      SESSION_DATABASE_URL: sqlite://
+      ANTHROPIC_API_KEY: test
+      OPENAI_API_KEY: test
+      WHATSAPP_TOKEN: test
+      WHATSAPP_PHONE_NUMBER_ID: test
+      WHATSAPP_VERIFY_TOKEN: test
+      PANEL_USUARIOS_JSON: '{}'
+      CUBICO_NOTIFY_KEY: test
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install isolated test dependencies
+        run: python -m pip install pytest SQLAlchemy pydantic-settings python-dotenv fastapi httpx anthropic openai psycopg2-binary pywebpush apscheduler openpyxl mcp socksio
+      - name: Compile Python
+        run: python -m py_compile app/db/session_store.py app/services/delivery_cases.py app/api/panel.py app/ai/orchestrator.py app/api/whatsapp.py
+      - name: Delivery and payment regression tests
+        run: python -m pytest -q test_delivery_cases.py test_delivery_locations.py test_delivery_tool.py test_comprobante_queue.py test_payment_flow.py test_inbound_visibility.py test_image_archive.py test_image_archive_integration.py
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install DOM test dependency
+        run: npm install --no-save --prefix /tmp/cubico-js jsdom@26
+      - name: Form and release tests
+        env:
+          NODE_PATH: /tmp/cubico-js/node_modules
+        run: |
+          node --check app/static/delivery-case.js
+          node test_delivery_case.cjs
+          node test_app_release.cjs

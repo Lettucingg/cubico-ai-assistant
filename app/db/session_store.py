@@ -66,6 +66,22 @@ class Sesion(BaseSesiones):
         return json.loads(self.historial_json or "[]")
 
 
+class FichaDomicilio(BaseSesiones):
+    """Ficha y revisión por cliente y conjunto de paquetes; independiente del pago."""
+    __tablename__ = "fichas_domicilio"
+    id = Column(Integer, primary_key=True)
+    clave = Column(String(64), unique=True, nullable=False)
+    telefono = Column(String, index=True, nullable=False)
+    codigo_cliente = Column(String, nullable=False)
+    paquetes = Column(Text, nullable=False)
+    datos_json = Column(Text, nullable=False, default="{}")
+    eventos_json = Column(Text, nullable=False, default="[]")
+    revision = Column(Integer, nullable=False, default=1)
+    actualizado_por = Column(String, nullable=False)
+    creado_en = Column(DateTime, default=datetime.utcnow, nullable=False)
+    actualizado_en = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
 class UsoIA(BaseSesiones):
     """Una fila por llamada a Claude para medir consumo y costo por chat."""
 

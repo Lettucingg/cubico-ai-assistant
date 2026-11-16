@@ -1,11 +1,11 @@
 {
-  "version": "1.6.12",
+  "version": "1.6.13",
   "fecha": "2026-11-16",
-  "titulo": "Fotos y comprobantes en archivo privado",
+  "titulo": "Ficha de domicilio y programación por zona",
   "novedades": [
-    "Se intenta conservar cada imagen recibida antes de analizarla con la IA, y también las enviadas desde el panel.",
-    "El panel consulta primero la copia privada; las fotos antiguas disponibles se conservan al descargarlas.",
-    "Las imágenes mantienen autenticación y comprobación de pertenencia al chat, con su formato original.",
-    "Los errores de carga dejan de atribuirse automáticamente a expiración en WhatsApp. Es necesario vigilar espacio y respaldar el directorio."
+    "Dirección, sector, referencias y enlace de ubicación opcional reunidos en cada solicitud.",
+    "El día y horario solicitado por el cliente se guardan separados de la programación confirmada por el equipo.",
+    "Zonas con días preferentes, prioridad y acceso al mapa; los cambios requieren revisar la coordinación.",
+    "Guardar no envía mensajes ni registra pagos. Para coordinar siguen siendo necesarios pago, preparación y fecha revisada de lunes a viernes."
   ]
 }

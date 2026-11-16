@@ -3,6 +3,7 @@ from app.services.conversation_language import reply_language, language_rules, e
 from app.services.payment_policy import payment_rules, yappy_reply, habitual_payment_followup, receipt_followup_reply, bank_transfer_reply
 from app.services.campaign_knowledge import campaign_rules
 from app.services.delivery_continuity import DELIVERY_RULES, delivery_complaint
+from app.services.delivery_cases import guardar_preferencias_cliente, validar_datos, CAMPOS_CLIENTE
 from app.services.human_contact import call_request, call_reply, contact_rules
 from app.services.conversation_context import CONTEXT_RULES, context_window, memory_digest, clean_delivery_labels, delivery_context
 from app.services.business_location import verified_location, location_question, location_rules
@@ -1471,6 +1472,20 @@ HERRAMIENTAS = [
                         "el cliente ya la proporcionó en su mensaje."
                     ),
                 },
+                "preferencias": {
+                    "type": "object",
+                    "description": "Solo datos aportados por el cliente. Día, fecha, horario y zona son preferencias; nunca confirman disponibilidad. El enlace de ubicación es opcional; no lo exijas si hay dirección suficiente.",
+                    "properties": {
+                        "dia_solicitado": {"type": "string", "description": "Día expresado por el cliente; no inventar ni convertir una fecha ambigua"},
+                        "fecha_solicitada": {"type": "string", "description": "AAAA-MM-DD, únicamente si se conoce la fecha solicitada sin ambigüedad"},
+                        "horario_solicitado": {"type": "string", "description": "Franja o restricción que indicó el cliente"},
+                        "zona": {"type": "string", "enum": ["por_definir", "centro", "este", "otra"]},
+                        "barrio": {"type": "string"},
+                        "ubicacion_url": {"type": "string", "description": "Enlace HTTPS de Maps o Waze que compartió el cliente; no fabricar ubicaciones"},
+                        "referencias": {"type": "string"}
+                    },
+                    "additionalProperties": False
+                },
             },
             "required": ["codigo_cliente"],
         },
@@ -2174,10 +2189,20 @@ def generar_respuesta(
             ),
         }
 
-    def _solicitar_entrega_domicilio(codigo_cliente: str, direccion: str = None):
+    def _solicitar_entrega_domicilio(codigo_cliente: str, direccion: str = None, preferencias: dict = None):
+        preferencias = preferencias or {}
+        try:
+            if not isinstance(preferencias, dict) or set(preferencias) - CAMPOS_CLIENTE:
+                raise ValueError("Solo registra datos que el cliente solicitó; no confirmes fechas desde esta herramienta")
+            validar_datos(preferencias)
+        except ValueError as error:
+            return {"solicitado": False, "mensaje": str(error)}
         bloqueo = service_block("domicilios", texto_cliente, historial)
         if bloqueo: return bloqueo
         codigo_normalizado = normalizar_codigo_cliente(codigo_cliente)
+        identidad = obtener_sesion_existente(telefono)
+        if not identidad or normalizar_codigo_cliente(identidad.codigo_cliente_verificado or "") != codigo_normalizado:
+            return {"solicitado": False, "mensaje": "Verifica primero el cliente de esta conversación"}
 
         resultado_facturas = consultar_facturas_por_codigo(codigo_normalizado)
 
@@ -2280,14 +2305,29 @@ def generar_respuesta(
                 "fecha_pago_reportado": None,
                 "comprobante_media_id": None,
             })
+        if sesion_previa and (
+            sesion_previa.direccion_domicilio != direccion.strip()
+            or sesion_previa.paquetes_a_domicilio != ", ".join(trackings)
+        ):
+            cambios_domicilio["domicilio_coordinado"] = False
+        if sesion_previa and sesion_previa.paquetes_a_domicilio != ", ".join(trackings):
+            cambios_domicilio["paquetes_preparados"] = False
         actualizar_sesion(telefono, **cambios_domicilio)
+        preferencias_guardadas = True
+        try:
+            guardar_preferencias_cliente(telefono, preferencias)
+        except Exception as error:
+            import logging
+            logging.getLogger(__name__).error("No se pudieron guardar preferencias de domicilio (%s)", type(error).__name__)
+            preferencias_guardadas = False
 
         return {
+            "preferencias_guardadas": preferencias_guardadas,
             "solicitado": True,
             "trackings": trackings,
             "mensaje": (
                 "El equipo quedó notificado de la solicitud de entrega "
-                "a domicilio."
+                "a domicilio. Los días y horarios solicitados están pendientes de confirmación por el equipo; no prometas una cita."
             ),
         }
 
