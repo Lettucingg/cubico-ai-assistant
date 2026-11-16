@@ -1,11 +1,11 @@
 {
-  "version": "1.6.11",
+  "version": "1.6.12",
   "fecha": "2026-11-16",
-  "titulo": "Pagos distribuidos y chat móvil ampliado",
+  "titulo": "Fotos y comprobantes en archivo privado",
   "novedades": [
-    "Aplica un comprobante a una o varias facturas, con importes editables y una sola confirmación.",
-    "Verifica la suma y los saldos antes de aplicar pagos; una referencia registrada no puede utilizarse otra vez.",
-    "Los comprobantes procesados se separan del saldo actual, sin asignar nuevas facturas automáticamente.",
-    "El chat móvil ocupa la pantalla disponible, con herramientas compactas y adaptación al teclado."
+    "Se intenta conservar cada imagen recibida antes de analizarla con la IA, y también las enviadas desde el panel.",
+    "El panel consulta primero la copia privada; las fotos antiguas disponibles se conservan al descargarlas.",
+    "Las imágenes mantienen autenticación y comprobación de pertenencia al chat, con su formato original.",
+    "Los errores de carga dejan de atribuirse automáticamente a expiración en WhatsApp. Es necesario vigilar espacio y respaldar el directorio."
   ]
 }
