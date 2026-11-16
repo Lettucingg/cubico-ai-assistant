@@ -42,6 +42,7 @@ from app.tools.transcripcion import descargar_audio_de_whatsapp
 from app.tools.facturas import (
     consultar_facturas_por_codigo,
     registrar_pago_factura_desde_panel,
+    registrar_pago_distribuido_desde_panel,
 )
 from app.ai.orchestrator import (
     contexto_plantilla_propuesta,
@@ -851,16 +852,8 @@ def listar_solicitudes(usuario: str = Depends(verificar_credenciales_panel)):
                             factura for factura in facturas.get("facturas", [])
                             if factura.get("saldo_pendiente", 0) > 0
                         ]
-                        monto_reportado = sesion.monto_pago_reportado
-                        coincidencias = [
-                            factura for factura in detalle_facturas
-                            if monto_reportado is not None
-                            and abs(float(factura["saldo_pendiente"]) - float(monto_reportado)) < .005
-                        ]
-                        if len(coincidencias) == 1:
-                            factura_sugerida = coincidencias[0]["codigo"]
-                        elif len(detalle_facturas) == 1:
-                            factura_sugerida = detalle_facturas[0]["codigo"]
+                        # Un importe o una única factura no prueba que el comprobante
+                        # corresponda a esa compra. La asociación siempre es explícita.
                 except Exception:
                     monto_pendiente = None
             pago_confirmado_panel = bool(sesion.pago_confirmado)
@@ -978,29 +971,30 @@ def actualizar_estado_solicitud(
                         detail="Primero debe existir un comprobante con monto legible",
                     )
                 codigo_factura = body.get("factura_codigo")
-                if not codigo_factura:
-                    coincidencias = [
-                        factura for factura in pendientes
-                        if abs(float(factura["saldo_pendiente"]) - float(sesion.monto_pago_reportado)) < .005
-                    ]
-                    if len(coincidencias) == 1:
-                        codigo_factura = coincidencias[0]["codigo"]
-                    elif len(pendientes) == 1:
-                        codigo_factura = pendientes[0]["codigo"]
-                    else:
-                        raise HTTPException(
-                            status_code=409,
-                            detail="Selecciona la factura a la que corresponde el comprobante",
-                        )
-                try:
-                    resultado_pago = registrar_pago_factura_desde_panel(
-                        sesion.codigo_cliente_verificado,
-                        codigo_factura,
-                        sesion.monto_pago_reportado,
-                        sesion.metodo_pago_reportado,
-                        sesion.referencia_pago_reportado,
-                        sesion.fecha_pago_reportado,
+                asignaciones = body.get("asignaciones")
+                if not codigo_factura and not asignaciones:
+                    raise HTTPException(
+                        status_code=409,
+                        detail="Selecciona la factura a la que corresponde este comprobante; no se asigna por monto",
                     )
+                if body.get("comprobante_media_id") != sesion.comprobante_media_id:
+                    raise HTTPException(status_code=409, detail="El comprobante cambió; recarga el caso antes de registrar el pago")
+                try:
+                    if asignaciones is not None:
+                        resultado_pago = registrar_pago_distribuido_desde_panel(
+                            sesion.codigo_cliente_verificado, asignaciones,
+                            sesion.monto_pago_reportado, sesion.metodo_pago_reportado,
+                            sesion.referencia_pago_reportado, sesion.fecha_pago_reportado,
+                        )
+                    else:
+                        resultado_pago = registrar_pago_factura_desde_panel(
+                            sesion.codigo_cliente_verificado,
+                            codigo_factura,
+                            sesion.monto_pago_reportado,
+                            sesion.metodo_pago_reportado,
+                            sesion.referencia_pago_reportado,
+                            sesion.fecha_pago_reportado,
+                        )
                 except ValueError as error:
                     raise HTTPException(status_code=409, detail=str(error)) from error
                 except Exception as error:

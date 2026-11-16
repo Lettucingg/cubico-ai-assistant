@@ -1,10 +1,11 @@
 {
-  "version": "1.6.10",
-  "fecha": "2026-11-05",
-  "titulo": "Segunda prueba de campaña con hasta treinta contactos",
+  "version": "1.6.11",
+  "fecha": "2026-11-16",
+  "titulo": "Pagos distribuidos y chat móvil ampliado",
   "novedades": [
-    "El piloto permite preparar hasta treinta contactos nuevos por lote; la cantidad predeterminada sigue siendo diez.",
-    "Se excluyen todos los destinatarios reservados anteriormente, incluidos los envíos fallidos, y las bajas guardadas.",
-    "Se conserva la preparación pausada, un intento por minuto y el diagnóstico de entrega, sin activar automáticamente el resto de la campaña."
+    "Aplica un comprobante a una o varias facturas, con importes editables y una sola confirmación.",
+    "Verifica la suma y los saldos antes de aplicar pagos; una referencia registrada no puede utilizarse otra vez.",
+    "Los comprobantes procesados se separan del saldo actual, sin asignar nuevas facturas automáticamente.",
+    "El chat móvil ocupa la pantalla disponible, con herramientas compactas y adaptación al teclado."
   ]
 }

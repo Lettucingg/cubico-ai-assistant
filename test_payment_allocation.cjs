@@ -1,0 +1,18 @@
+const assert=require('node:assert/strict'),{JSDOM}=require('jsdom');
+const allocation=require('./app/static/payment-allocation.js');
+const invoices=[{codigo:'FAC-00274',saldo_pendiente:5.40,paquetes:[{tracking:'TRACK-A'}]},{codigo:'FAC-OTRA',saldo_pendiente:8.10,paquetes:[{tracking:'TRACK-B'}]}];
+assert.equal(allocation.cents('5,40'),540);assert.equal(allocation.cents('0.10'),10);assert.equal(allocation.cents('1.005'),null);assert.equal(allocation.cents('NaN'),null);
+const dom=new JSDOM('<div id="allocation"></div>'),d=dom.window.document,c=d.getElementById('allocation');let updates=0;
+allocation.render(c,invoices,13.50,false,s=>s,()=>updates++);
+assert.deepEqual(allocation.read(c),[]);
+const rows=c.querySelectorAll('[data-invoice-code]');
+rows[0].querySelector('[type=checkbox]').click();
+assert.deepEqual(allocation.read(c),[{factura_codigo:'FAC-00274',monto:'5.40'}]);
+assert.equal(allocation.validate(allocation.read(c),invoices,13.50).valid,false);
+rows[1].querySelector('[type=checkbox]').click();
+assert.equal(rows[1].querySelector('[data-allocation-amount]').value,'8.10');
+assert.equal(allocation.validate(allocation.read(c),invoices,13.50).valid,true);
+rows[1].querySelector('[data-allocation-amount]').value='9.10';assert.equal(allocation.validate(allocation.read(c),invoices,14.50).valid,false);
+rows[1].querySelector('[data-allocation-amount]').value='4,60';assert.equal(allocation.validate(allocation.read(c),invoices,10).valid,true);
+rows[0].querySelector('[type=checkbox]').click();assert.equal(allocation.read(c).length,1);assert.equal(rows[0].querySelector('[data-allocation-amount]').disabled,true);
+assert(updates>=3);dom.window.close();console.log('Allocation selection, cents, partial payments and over-allocation passed');

@@ -10,7 +10,10 @@
     function update(){
       pending=false;
       if(doc.hidden)return;
-      if(!root.matchMedia('(max-width:760px)').matches){inbox.style.removeProperty('--mobile-inbox-height');nav.style.removeProperty('top');nav.style.removeProperty('bottom');doc.body.style.removeProperty('--mobile-navigation-height');doc.body.classList.remove('chat-keyboard-open','chat-editor-open');inbox.style.removeProperty('--editor-viewport-top');inbox.style.removeProperty('--editor-viewport-height');return}
+      const mobile=root.matchMedia('(max-width:760px)').matches;
+      const fullChat=mobile&&chats.classList.contains('active')&&inbox.classList.contains('mobile-chat-open');
+      doc.body.classList.toggle('mobile-conversation-open',fullChat);
+      if(!mobile){inbox.style.removeProperty('--mobile-inbox-height');nav.style.removeProperty('top');nav.style.removeProperty('bottom');doc.body.style.removeProperty('--mobile-navigation-height');doc.body.classList.remove('chat-keyboard-open','chat-editor-open');inbox.style.removeProperty('--editor-viewport-top');inbox.style.removeProperty('--editor-viewport-height');return}
       const viewport=root.visualViewport;let bottom=viewport?viewport.offsetTop+viewport.height:root.innerHeight;
       const focused=doc.activeElement,editing=focused&&doc.querySelector('.app').contains(focused)&&focused.matches('input,textarea,[contenteditable=true]');
       const chatEditing=Boolean(editing&&inbox.contains(focused)&&chats.classList.contains('active'));
@@ -20,6 +23,12 @@
       doc.body.classList.toggle('chat-keyboard-open',keyboard);
       // CSS anchors navigation to the real viewport, never a remembered keyboard height.
       nav.style.top='auto';nav.style.bottom='0px';
+      if(fullChat){
+        inbox.style.setProperty('--chat-viewport-top',(viewport?viewport.offsetTop:0)+'px');
+        inbox.style.setProperty('--chat-viewport-height',(viewport?viewport.height:root.innerHeight)+'px');
+        inbox.style.setProperty('--mobile-inbox-height',(viewport?viewport.height:root.innerHeight)+'px');
+        return;
+      }
       const bounds=nav.getBoundingClientRect();
       const navHeight=keyboard?0:bounds.height;
       const nativeBounds=!keyboard&&Number.isFinite(bounds.bottom)&&bounds.bottom>0;
@@ -52,7 +61,7 @@
     doc.addEventListener('focusin',schedule);doc.addEventListener('focusout',schedule);
     doc.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',schedule));
     if(root.ResizeObserver){const observer=new root.ResizeObserver(schedule);observer.observe(nav);if(header)observer.observe(header)}
-    if(root.MutationObserver){const observer=new root.MutationObserver(schedule);observer.observe(chats,{attributes:true,attributeFilter:['class']});observer.observe(doc.querySelector('.app'),{attributes:true,attributeFilter:['style']})}
+    if(root.MutationObserver){const observer=new root.MutationObserver(schedule);observer.observe(chats,{attributes:true,attributeFilter:['class']});observer.observe(inbox,{attributes:true,attributeFilter:['class']});observer.observe(doc.querySelector('.app'),{attributes:true,attributeFilter:['style']})}
     if(typeof navigate==='function'){
       // A native button click already handles touch, pen, mouse, keyboard and
       // cancelled scroll gestures. Do not move the fixed bar during a press,
