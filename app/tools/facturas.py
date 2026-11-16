@@ -126,74 +126,76 @@ def consultar_ultimo_pago_por_codigo(codigo_cliente: str) -> dict:
 
 
 def registrar_pago_factura_desde_panel(
-    codigo_cliente: str,
-    codigo_factura: str,
-    monto: float,
-    metodo: str | None,
-    referencia: str | None,
-    fecha_reportada: str | None = None,
+    codigo_cliente: str, codigo_factura: str, monto: float,
+    metodo: str | None, referencia: str | None, fecha_reportada: str | None = None,
 ) -> dict:
-    """Registra una confirmación real y recalcula factura/paquetes atómicamente."""
-    importe = _dinero(monto)
-    if importe <= 0:
-        raise ValueError("El comprobante no tiene un monto válido")
+    resultado = registrar_pago_distribuido_desde_panel(
+        codigo_cliente, [{"factura_codigo": codigo_factura, "monto": monto}],
+        monto, metodo, referencia, fecha_reportada,
+    )
+    return resultado["distribuciones"][0]
+
+
+def registrar_pago_distribuido_desde_panel(
+    codigo_cliente: str, asignaciones: list, monto: float,
+    metodo: str | None, referencia: str | None, fecha_reportada: str | None = None,
+) -> dict:
+    """Una confirmación bancaria, varias aplicaciones; todo o nada."""
+    try:
+        importe = _dinero(monto)
+        if not importe.is_finite() or importe <= 0 or Decimal(str(monto)) != importe:
+            raise ValueError
+    except Exception:
+        raise ValueError("El comprobante no tiene un monto válido") from None
     metodo_normalizado = (metodo or "").strip().lower()
     if metodo_normalizado not in {"yappy", "ach", "efectivo"}:
         raise ValueError("Selecciona un método de pago válido: Yappy, ACH o efectivo")
-
+    if not isinstance(asignaciones, list) or not 1 <= len(asignaciones) <= 50:
+        raise ValueError("Selecciona entre una y cincuenta facturas")
+    aplicaciones = {}
+    for item in asignaciones:
+        if not isinstance(item, dict):
+            raise ValueError("Distribución de pago inválida")
+        codigo = str(item.get("factura_codigo") or "").strip().upper()
+        try:
+            valor = _dinero(item.get("monto"))
+            if not valor.is_finite() or valor <= 0 or Decimal(str(item.get("monto"))) != valor:
+                raise ValueError
+        except Exception:
+            raise ValueError("Cada importe debe ser mayor que cero") from None
+        if not codigo or codigo in aplicaciones:
+            raise ValueError("Cada factura debe seleccionarse una sola vez")
+        aplicaciones[codigo] = valor
+    if sum(aplicaciones.values(), Decimal("0.00")) != importe:
+        raise ValueError("La suma asignada debe coincidir exactamente con el comprobante")
+    referencia_limpia = (referencia or "").strip()
+    referencia_util = referencia_limpia.lower() not in {"", "no visible", "no especificado"}
+    if len(aplicaciones) > 1 and not referencia_util:
+        raise ValueError("Para distribuir el pago se necesita una referencia legible")
     db = SessionLocal()
     try:
-        tipo_cliente, cliente, _ = buscar_identidad_activa_por_codigo(
-            db, codigo_cliente
-        )
+        tipo_cliente, cliente, _ = buscar_identidad_activa_por_codigo(db, codigo_cliente)
         if cliente is None:
             raise ValueError("El cliente no existe en facturación")
-
-        filtro_propietario_factura = (
-            Factura.cliente_cbc_id == cliente.id
-            if tipo_cliente == "cbc"
-            else Factura.agencia_id == cliente.id
-        )
-        factura = (
-            db.query(Factura)
-            .filter(
-                filtro_propietario_factura,
-                func.upper(Factura.codigo) == codigo_factura.strip().upper(),
-            )
-            .with_for_update()
-            .first()
-        )
-        if factura is None:
-            raise ValueError("La factura seleccionada no pertenece al cliente")
-
-        saldo_antes = _saldo_factura(factura)
-        if saldo_antes <= 0:
-            raise ValueError("La factura ya aparece pagada")
-        if importe > saldo_antes:
-            raise ValueError(
-                f"El pago de ${float(importe):.2f} supera el saldo de ${float(saldo_antes):.2f}"
-            )
-
-        referencia_limpia = (referencia or "").strip()
-        referencia_util = referencia_limpia.lower() not in {"", "no visible", "no especificado"}
+        # Serializa las aplicaciones del mismo cliente, incluso entre facturas.
+        db.query(type(cliente)).filter_by(id=cliente.id).with_for_update().one()
         if referencia_util:
-            filtro_propietario_pago = (
-                Pago.cliente_cbc_id == cliente.id
-                if tipo_cliente == "cbc"
-                else Pago.agencia_id == cliente.id
-            )
-            duplicado = (
-                db.query(Pago)
-                .filter(
-                    filtro_propietario_pago,
-                    Pago.referencia == referencia_limpia,
-                    Pago.anulado.isnot(True),
-                )
-                .first()
-            )
+            propietario_pago = (Pago.cliente_cbc_id == cliente.id if tipo_cliente == "cbc"
+                                else Pago.agencia_id == cliente.id)
+            duplicado = db.query(Pago).filter(
+                propietario_pago,
+                func.lower(func.trim(Pago.referencia)) == referencia_limpia.lower(),
+                Pago.anulado.isnot(True),
+            ).first()
             if duplicado:
-                raise ValueError("Ese número de referencia ya fue registrado")
-
+                raise ValueError("Ese número de referencia ya fue registrado; revisa su aplicación")
+        propietario = (Factura.cliente_cbc_id == cliente.id if tipo_cliente == "cbc"
+                       else Factura.agencia_id == cliente.id)
+        facturas = db.query(Factura).filter(
+            propietario, func.upper(Factura.codigo).in_(sorted(aplicaciones)),
+        ).order_by(Factura.id).with_for_update().all()
+        if len(facturas) != len(aplicaciones):
+            raise ValueError("Una factura seleccionada no pertenece al cliente o ya no existe")
         fecha_pago = datetime.now(UTC).replace(tzinfo=None)
         if fecha_reportada:
             for formato in ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y"):
@@ -202,35 +204,33 @@ def registrar_pago_factura_desde_panel(
                     break
                 except ValueError:
                     continue
-
-        db.add(Pago(
-            factura_id=factura.id,
-            tipo_cliente=tipo_cliente,
-            cliente_cbc_id=cliente.id if tipo_cliente == "cbc" else None,
-            agencia_id=cliente.id if tipo_cliente == "agencia" else None,
-            monto=importe,
-            metodo=metodo_normalizado,
-            tipo_pago="completo" if importe == saldo_antes else "parcial",
-            referencia=referencia_limpia if referencia_util else None,
-            fecha_pago=fecha_pago,
-            anulado=False,
-            registrado_por=None,
-        ))
-        db.flush()
-
-        saldo_despues = max(Decimal("0.00"), saldo_antes - importe)
-        factura.estado = "pagado" if saldo_despues <= Decimal("0.01") else "parcial"
-        if factura.estado == "pagado":
-            for paquete in factura.paquetes:
-                paquete.estado_pago = "pagado"
+        resultados = []
+        for factura in facturas:
+            valor = aplicaciones[factura.codigo.strip().upper()]
+            saldo_antes = _saldo_factura(factura)
+            if saldo_antes <= 0:
+                raise ValueError("La factura ya aparece pagada; recarga antes de confirmar")
+            if valor > saldo_antes:
+                raise ValueError(f"El pago de ${float(valor):.2f} supera el saldo de ${float(saldo_antes):.2f} en {factura.codigo}")
+            db.add(Pago(
+                factura_id=factura.id, tipo_cliente=tipo_cliente,
+                cliente_cbc_id=cliente.id if tipo_cliente == "cbc" else None,
+                agencia_id=cliente.id if tipo_cliente == "agencia" else None,
+                monto=valor, metodo=metodo_normalizado,
+                tipo_pago="completo" if valor == saldo_antes else "parcial",
+                referencia=referencia_limpia if referencia_util else None,
+                fecha_pago=fecha_pago, anulado=False, registrado_por=None,
+            ))
+            saldo_despues = saldo_antes - valor
+            factura.estado = "pagado" if saldo_despues == 0 else "parcial"
+            if factura.estado == "pagado":
+                for paquete in factura.paquetes:
+                    paquete.estado_pago = "pagado"
+            resultados.append({"factura": factura.codigo, "monto_registrado": float(valor),
+                               "saldo_anterior": float(saldo_antes), "saldo_restante": float(saldo_despues),
+                               "estado_factura": factura.estado})
         db.commit()
-        return {
-            "factura": factura.codigo,
-            "monto_registrado": float(importe),
-            "saldo_anterior": float(saldo_antes),
-            "saldo_restante": float(saldo_despues),
-            "estado_factura": factura.estado,
-        }
+        return {"monto_registrado": float(importe), "distribuciones": resultados}
     except Exception:
         db.rollback()
         raise
