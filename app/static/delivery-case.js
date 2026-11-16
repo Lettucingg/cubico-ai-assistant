@@ -56,7 +56,7 @@
         finally{controls.forEach(el=>el.disabled=false)}
       });
     }
-    return {load};
+    return {load,hasUnsaved:()=>!!(current&&drafts.has(current.clave))};
   }
   root.CubicoDeliveryCase={init,safeLink};if(typeof module!=='undefined')module.exports=root.CubicoDeliveryCase;
 })(typeof window!=='undefined'?window:globalThis);

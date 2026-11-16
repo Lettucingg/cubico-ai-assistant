@@ -2310,6 +2310,8 @@ def generar_respuesta(
             or sesion_previa.paquetes_a_domicilio != ", ".join(trackings)
         ):
             cambios_domicilio["domicilio_coordinado"] = False
+        if sesion_previa and sesion_previa.paquetes_a_domicilio != ", ".join(trackings):
+            cambios_domicilio["paquetes_preparados"] = False
         actualizar_sesion(telefono, **cambios_domicilio)
         preferencias_guardadas = True
         try:

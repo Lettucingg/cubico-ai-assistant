@@ -749,6 +749,26 @@ def extraer_mensaje_entrante(payload: dict):
                 "timestamp": mensaje.get("timestamp"),
             }
 
+        if mensaje.get("type") == "location":
+            pin = mensaje.get("location") or {}
+            lat, lon = pin.get("latitude"), pin.get("longitude")
+            if (not isinstance(lat, (int, float)) or isinstance(lat, bool)
+                or not isinstance(lon, (int, float)) or isinstance(lon, bool)
+                or not -90 <= lat <= 90 or not -180 <= lon <= 180):
+                return None
+            ubicacion = {"latitude": lat, "longitude": lon}
+            detalles = " · ".join(str(pin.get(k) or "")[:500] for k in ("name", "address") if pin.get(k))
+            enlace = f"https://www.google.com/maps/search/?api=1&query={lat},{lon}"
+            return {
+                "telefono": mensaje["from"],
+                "texto": "[Cliente compartió una ubicación]" + (" " + detalles if detalles else "") + "\n" + enlace,
+                "ubicacion": ubicacion,
+                "media_id": None,
+                "message_id": mensaje["id"],
+                "tipo": "location",
+                "timestamp": mensaje.get("timestamp"),
+            }
+
         if mensaje.get("type") == "audio":
             return {
                 "telefono": mensaje["from"],
@@ -803,6 +823,9 @@ async def agregar_mensaje_a_buffer(mensaje: dict):
     temporizador de espera, para agrupar ráfagas de mensajes seguidos
     del mismo cliente en una sola respuesta.
     """
+    if mensaje.get("tipo") == "location":
+        mensaje = {**mensaje, "tipo": "text"}
+
     if mensaje["tipo"] == "audio":
         try:
             texto_transcrito = await procesar_nota_de_voz(mensaje["media_id"], mensaje["telefono"])
@@ -845,6 +868,7 @@ async def procesar_entrada_con_push(mensaje: dict):
     contenido = mensaje.get("texto") or ("[Cliente envió una nota de voz]" if tipo == "audio" else "[Cliente envió una imagen]")
     agregar_al_historial(mensaje["telefono"], "user", contenido,
                         tipo=tipo, media_id=mensaje.get("media_id"),
+                        ubicacion=mensaje.get("ubicacion"),
                         whatsapp_message_id=mensaje.get("message_id"))
     mensaje = {**mensaje, "_inbound_ids": [mensaje["message_id"]] if mensaje.get("message_id") else []}
     if tipo == "image":
