@@ -786,6 +786,23 @@ def agregar_al_historial(
             "ubicacion": ubicacion,
         }
         mensaje.update({clave: valor for clave, valor in metadatos.items() if valor})
+        # La recepción se persiste antes de procesar. No añadir de nuevo la
+        # ráfaga combinada ni el reintento de Meta. Las imágenes pueden
+        # enriquecerse con contexto visual sin cambiar el texto original.
+        if rol == "user" and whatsapp_message_id:
+            existente = next((m for m in historial if m.get("role") == "user" and
+                              ((tipo == "image" and media_id and m.get("media_id") == media_id)
+                               or m.get("whatsapp_message_id") == whatsapp_message_id)), None)
+            if existente is not None:
+                if contexto_ia:
+                    existente["contexto_ia"] = contexto_ia
+                if mime_type:
+                    existente["mime_type"] = mime_type
+                if existente.get("tipo") == "audio" and contenido and not contenido.startswith("[Cliente envió"):
+                    existente["content"] = contenido
+                sesion.historial_json = json.dumps(historial)
+                db.commit()
+                return
         historial.append(mensaje)
         historial = historial[-max_mensajes:]
 

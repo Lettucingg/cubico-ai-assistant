@@ -421,6 +421,7 @@ def combinar_mensajes_para_buffer(
 
     if anterior["tipo"] == "text" and nuevo["tipo"] == "text":
         combinado = dict(anterior)
+        combinado["_inbound_ids"] = list(dict.fromkeys(anterior.get("_inbound_ids", []) + nuevo.get("_inbound_ids", [])))
         combinado["texto"] = f"{anterior.get('texto') or ''}\n{nuevo.get('texto') or ''}".strip()
         combinado["message_id"] = nuevo.get("message_id") or anterior.get("message_id")
         combinado["timestamp"] = nuevo.get("timestamp") or anterior.get("timestamp")
@@ -434,6 +435,7 @@ def combinar_mensajes_para_buffer(
             for item in (anterior, nuevo)
             if item.get("texto")
         ]
+        imagen["_inbound_ids"] = list(dict.fromkeys(anterior.get("_inbound_ids", []) + nuevo.get("_inbound_ids", [])))
         imagen["texto"] = "\n".join(textos) or None
         imagen["message_id"] = nuevo.get("message_id") or imagen.get("message_id")
         imagen["timestamp"] = nuevo.get("timestamp") or imagen.get("timestamp")
@@ -830,8 +832,14 @@ async def agregar_mensaje_a_buffer(mensaje: dict):
 
 
 async def procesar_entrada_con_push(mensaje: dict):
-    """Procesa el mensaje y avisa a los paneles instalados en paralelo."""
-    sesion = obtener_sesion_existente(mensaje["telefono"])
+    """Guarda la entrada antes del buffer, la IA y el aviso al panel."""
+    sesion = obtener_o_crear_sesion(mensaje["telefono"])
+    tipo = mensaje.get("tipo")
+    contenido = mensaje.get("texto") or ("[Cliente envió una nota de voz]" if tipo == "audio" else "[Cliente envió una imagen]")
+    agregar_al_historial(mensaje["telefono"], "user", contenido,
+                        tipo=tipo, media_id=mensaje.get("media_id"),
+                        whatsapp_message_id=mensaje.get("message_id"))
+    mensaje = {**mensaje, "_inbound_ids": [mensaje["message_id"]] if mensaje.get("message_id") else []}
     nombre = None
     if sesion and sesion.codigo_cliente_verificado:
         info = obtener_nombre_completo_cliente(sesion.codigo_cliente_verificado)
@@ -858,6 +866,14 @@ async def procesar_mensaje_en_segundo_plano(mensaje: dict):
     candado = candados_procesamiento.setdefault(telefono, asyncio.Lock())
     async with candado:
         await _procesar_mensaje_en_segundo_plano_sin_candado(mensaje)
+
+
+def _historial_previo_a_entrada(sesion, mensaje):
+    # Los mensajes de esta ráfaga ya son visibles en el panel. La IA recibe
+    # la ráfaga como texto_cliente; no debe verla duplicada en su contexto.
+    ids = set(mensaje.get("_inbound_ids") or [])
+    return [m for m in sesion.obtener_historial()
+            if m.get("whatsapp_message_id") not in ids]
 
 
 async def _procesar_mensaje_en_segundo_plano_sin_candado(mensaje: dict):
@@ -920,7 +936,7 @@ async def _procesar_mensaje_en_segundo_plano_sin_candado(mensaje: dict):
                         contexto_ia,
                         mensaje["telefono"],
                         sesion.codigo_cliente_verificado,
-                        sesion.obtener_historial(),
+                        _historial_previo_a_entrada(sesion, mensaje),
                         sesion.tipo_cliente_verificado,
                     )
 
@@ -1077,7 +1093,7 @@ async def _procesar_mensaje_en_segundo_plano_sin_candado(mensaje: dict):
             mensaje["texto"],
             mensaje["telefono"],
             sesion.codigo_cliente_verificado,
-            sesion.obtener_historial(),
+            _historial_previo_a_entrada(sesion, mensaje),
             sesion.tipo_cliente_verificado,
         )
 
