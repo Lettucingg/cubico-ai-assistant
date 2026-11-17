@@ -60,13 +60,34 @@ const screenshotDir=process.env.QA_SCREENSHOT_DIR;
    assert(editor.width>=120,'Composer text field too narrow');assert(sendRect.y>=0&&sendRect.y+sendRect.height<=height,'Send button outside viewport');
    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),true,'Page overflow');
    assert.equal(await page.locator('.message-delivery.read').getAttribute('title'),'Leído');
-   await page.locator('#chat-actions-toggle').click();assert.equal(await page.locator('#customer-panel').isVisible(),true);
-   await page.locator('#customer-close').click();
+   for(let attempt=0;attempt<2;attempt++){
+    await page.locator('#chat-actions-toggle').click();assert.equal(await page.locator('#customer-panel').isVisible(),true);
+    const panelState=await page.locator('#customer-panel').evaluate(el=>{
+      const r=el.getBoundingClientRect(),x=r.x+r.width/2,y=r.y+Math.min(r.height/2,140);
+      const hit=document.elementFromPoint(x,y);
+      return {onTop:el.contains(hit),outsideInbox:!el.closest('.inbox'),filter:getComputedStyle(el).filter};
+    });
+    assert.equal(panelState.onTop,true,`${width}px: backdrop covers and blurs Gestionar`);
+    assert.equal(panelState.outsideInbox,true,`${width}px: Gestionar trapped in fullscreen chat stacking context`);
+    assert.equal(panelState.filter,'none');
+    await page.locator('#tab-chat').click();assert.equal(await page.locator('#management-chat').isVisible(),true);
+    await page.locator('#tab-cliente').click();assert.equal(await page.locator('#management-cliente').isVisible(),true);
+    await page.locator('#customer-close').click();
+    assert.equal(await page.locator('.inbox #customer-panel').count(),1,'closed drawer restored to its original layout');
+    assert.equal(await page.locator('#chat-actions-toggle').getAttribute('aria-expanded'),'false');
+   }
+
    if(screenshotDir){fs.mkdirSync(screenshotDir,{recursive:true});await page.screenshot({path:path.join(screenshotDir,`chat-${width}.png`)})}
    if(width<761){await page.locator('#message-input').fill('Mensaje largo de prueba. '.repeat(40));await page.setViewportSize({width,height:480});await page.waitForFunction(()=>document.body.classList.contains('chat-editor-open'));
      await page.waitForFunction(()=>{const r=document.getElementById('send').getBoundingClientRect();return r.y>=0&&r.bottom<=innerHeight},null,{timeout:3000});
      await page.locator('#chat-editing-done').click();await page.setViewportSize({width,height});
      await page.locator('#mobile-chat-back').click();assert.equal(await page.locator('.chat-list').isVisible(),true);}
+   if(width<761)await page.locator('.chat-item').first().click();
+   await page.locator('#chat-actions-toggle').click();
+   await page.evaluate(()=>mostrarLogin('Sesión de prueba finalizada'));
+   assert.equal(await page.locator('#customer-panel').isVisible(),false,'expired sessions must not leave the portaled customer data visible');
+   assert.equal(await page.locator('#customer-backdrop').getAttribute('class'),'customer-backdrop');
+   assert.equal(await page.locator('.inbox #customer-panel').count(),1);
    assert.deepEqual(errors,[],`${width}px: JavaScript errors`);
    console.log(`${width}px: compact chat list, Bruno, delivery marks, management, composer fit and mobile keyboard passed`);
   }finally{await browser.close()}
