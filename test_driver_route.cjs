@@ -4,9 +4,9 @@ w.eval(fs.readFileSync('app/static/driver-route.js','utf8'));
 const api=w.CubicoDriverRoute;
 const stop=id=>({id,telefono:'50760000001',nombre:'Cliente '+id+' <img src=x>',codigo_cliente:'CBC-'+id,trackings:['TRACK-'+id],direccion:'Calle 2 <script>alert(1)</script>',zona:'centro',barrio:'Centro',referencias:'Recepción',ubicacion_url:'',fecha_confirmada:'2026-11-16',hora_desde:'07:00',hora_hasta:'08:00',dia_solicitado:'lunes',fecha_solicitada:'2026-11-16',horario_solicitado:'Antes de las 9',prioridad:'normal',cargada:false});
 let state={fecha:'2026-11-16',hoy:'2026-11-16',zona:'todas',usuario:'alexander',token:'v0',revision:0,consultado_en:'2026-11-16T12:00:00Z',paradas:[stop('a'),stop('b')],pendientes:[{...stop('c'),pendientes:['Revisar pago en facturación']}],sin_programar:[{...stop('d'),pendientes:['Confirmar fecha']}],puede_recorrer:false,bloqueos_recorrido:['Verifica la carga']};
-let offline=false,conflict=false;const gets=[],posts=[],copied=[],cases=[],chats=[];
+let offline=false,conflict=false,pendingGet=null;const gets=[],posts=[],copied=[],cases=[],chats=[];
 const clone=()=>JSON.parse(JSON.stringify(state));
-const ui=api.init({get:async path=>{gets.push(path);if(offline)throw Error('Sin conexión');return {ok:true,json:async()=>clone()}},post:async(path,body)=>{posts.push([path,body]);if(conflict)return {ok:false,json:async()=>({detail:'La ruta cambió'})};state.paradas=body.orden.map(id=>({...state.paradas.find(p=>p.id===id),cargada:body.cargadas.includes(id)}));state.puede_recorrer=state.paradas.every(p=>p.cargada);state.bloqueos_recorrido=state.puede_recorrer?[]:['Verifica la carga'];state.token='v'+(++state.revision);return {ok:true,json:async()=>clone()}},copy:async value=>copied.push(value),openCase:phone=>cases.push(phone),openChat:phone=>chats.push(phone)});
+const ui=api.init({get:async path=>{gets.push(path);if(pendingGet)await pendingGet;if(offline)throw Error('Sin conexión');return {ok:true,json:async()=>clone()}},post:async(path,body)=>{posts.push([path,body]);if(conflict)return {ok:false,json:async()=>({detail:'La ruta cambió'})};state.paradas=body.orden.map(id=>({...state.paradas.find(p=>p.id===id),cargada:body.cargadas.includes(id)}));state.puede_recorrer=state.paradas.every(p=>p.cargada);state.bloqueos_recorrido=state.puede_recorrer?[]:['Verifica la carga'];state.token='v'+(++state.revision);return {ok:true,json:async()=>clone()}},copy:async value=>copied.push(value),openCase:phone=>cases.push(phone),openChat:phone=>chats.push(phone)});
 const tick=()=>new Promise(r=>setImmediate(r));
 const click=selector=>d.querySelector(selector).click();
 function check(id,value){const el=d.querySelector('[data-route-loaded="'+id+'"]');el.checked=value;el.dispatchEvent(new w.Event('change',{bubbles:true}));}
@@ -47,6 +47,9 @@ function check(id,value){const el=d.querySelector('[data-route-loaded="'+id+'"]'
   click('[data-route-start]');await tick();assert.equal(d.body.classList.contains('driver-focus'),true);
   state.paradas=state.paradas.filter(p=>p.id!=='b'); // completed/cancelled elsewhere
   click('[data-route-step="1"]');await tick();assert.equal(d.body.classList.contains('driver-focus'),false);
+  let releaseGet;pendingGet=new Promise(resolve=>releaseGet=resolve);
+  click('[data-route-start]');ui.close();releaseGet();await tick();pendingGet=null;
+  assert.equal(d.body.classList.contains('driver-focus'),false,'leaving a view during refresh must not reopen driver mode');
   offline=true;await ui.load();assert.match(d.body.textContent,/Sin conexión/);assert.equal(d.querySelector('a[href]'),null);
   assert(posts.every(([path])=>path==='/panel/ruta'));
   console.log('Driver route: fresh payment gates, load checklist, ordering, optional maps, focus navigation, XSS, stale conflicts and offline blocking passed');w.close();

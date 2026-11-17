@@ -21,11 +21,11 @@
   }
   function init({document:doc=root.document,get,post,openCase,openChat,copy=value=>root.navigator.clipboard.writeText(value)}){
     const box=doc.getElementById('driver-route');if(!box)return {load(){},close(){}};
-    let data=null,busy=false,mode=false,currentId=null,sequence=0;
+    let data=null,busy=false,mode=false,currentId=null,sequence=0,navigation=0;
     box.innerHTML='<div class="route-toolbar"><label>Día<input type="date" data-route-date></label><label>Zona<select data-route-zone>'+Object.entries(zones).map(([k,v])=>'<option value="'+k+'">'+v+'</option>').join('')+'</select></label><button type="button" class="btn" data-route-refresh>Actualizar</button></div><p class="route-status" data-route-status role="status" aria-live="polite"></p><div data-route-content></div>';
     const date=box.querySelector('[data-route-date]'),zone=box.querySelector('[data-route-zone]'),status=box.querySelector('[data-route-status]'),content=box.querySelector('[data-route-content]');
     function controls(disabled){busy=disabled;box.setAttribute('aria-busy',String(disabled));box.querySelectorAll('button,input,select').forEach(el=>el.disabled=disabled)}
-    function close(){mode=false;currentId=null;doc.body.classList.remove('driver-focus');render()}
+    function close(){navigation++;mode=false;currentId=null;doc.body.classList.remove('driver-focus');render()}
     function action(p){const l=links(p);return '<div class="route-links"><a class="btn dark" target="_blank" rel="noopener noreferrer" href="'+esc(l.map)+'">'+l.mapLabel+'</a><a class="btn" target="_blank" rel="noopener noreferrer" href="'+esc(l.waze)+'">'+l.wazeLabel+'</a>'+(/^\d{8,15}$/.test(p.telefono)?'<a class="btn" href="tel:+'+p.telefono+'">Llamar</a>':'')+'<button type="button" class="btn" data-route-copy="'+esc(p.id)+'">Copiar dirección</button><button type="button" class="btn" data-route-chat="'+esc(p.id)+'">Abrir chat</button><button type="button" class="btn" data-route-case="'+esc(p.id)+'">Ver solicitud</button></div>'}
     function details(p){return '<p class="route-address">'+esc(p.direccion)+'</p><p>'+esc(p.barrio)+' · '+esc(zones[p.zona]||p.zona)+'</p>'+(p.referencias?'<p><b>Acceso:</b> '+esc(p.referencias)+'</p>':'')+'<p><b>Equipo:</b> '+esc(p.fecha_confirmada||'Sin fecha confirmada')+(p.hora_desde?' · '+esc(p.hora_desde)+'–'+esc(p.hora_hasta):' · Sin hora fijada')+'</p>'+((p.dia_solicitado||p.fecha_solicitada||p.horario_solicitado)?'<p class="route-request"><b>Pidió el cliente:</b> '+esc([p.dia_solicitado,p.fecha_solicitada,p.horario_solicitado].filter(Boolean).join(' · '))+'</p>':'')+(p.prioridad==='alta'?'<p class="route-priority">Prioridad alta'+(p.motivo_prioridad?': '+esc(p.motivo_prioridad):'')+'</p>':'')+'<details><summary>'+p.trackings.length+' '+(p.trackings.length===1?'paquete':'paquetes')+' · ver trackings</summary><ul>'+p.trackings.map(t=>'<li>'+esc(t)+'</li>').join('')+'</ul></details>'}
     function render(){
@@ -63,8 +63,8 @@
       const button=e.target.closest('button');if(!button||busy)return;
       if(button.hasAttribute('data-route-refresh')){await load();return}
       if(button.hasAttribute('data-route-exit')){close();return}
-      if(button.hasAttribute('data-route-start')){if(await load()&&data.puede_recorrer){mode=true;currentId=data.paradas[0].id;doc.body.classList.add('driver-focus');render();box.scrollTop=0}return}
-      if(button.hasAttribute('data-route-step')){const delta=Number(button.dataset.routeStep),id=currentId;if(await load()&&mode){const index=data.paradas.findIndex(p=>p.id===id),next=data.paradas[index+delta];if(next){currentId=next.id;render();box.scrollTop=0}}return}
+      if(button.hasAttribute('data-route-start')){const scope=navigation;if(await load()&&scope===navigation&&data.puede_recorrer){mode=true;currentId=data.paradas[0].id;doc.body.classList.add('driver-focus');render();box.scrollTop=0}return}
+      if(button.hasAttribute('data-route-step')){const delta=Number(button.dataset.routeStep),id=currentId,scope=navigation;if(await load()&&mode&&scope===navigation){const index=data.paradas.findIndex(p=>p.id===id),next=data.paradas[index+delta];if(next){currentId=next.id;render();box.scrollTop=0}}return}
       if(button.dataset.routeMove&&data){const ids=data.paradas.map(p=>p.id),i=ids.indexOf(button.dataset.routeMove),j=i+Number(button.dataset.direction);if(j>=0&&j<ids.length){[ids[i],ids[j]]=[ids[j],ids[i]];await save(ids,data.paradas.filter(p=>p.cargada).map(p=>p.id))}return}
       const p=find(button.dataset.routeCopy||button.dataset.routeChat||button.dataset.routeCase);if(!p)return;
       if(button.dataset.routeCopy){try{await copy(p.direccion);status.textContent='Dirección copiada.'}catch(e){status.textContent='No se pudo copiar. Puedes seleccionar la dirección.'}}
