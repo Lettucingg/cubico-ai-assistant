@@ -78,3 +78,16 @@
   }
   root.CubicoMobileLayout={init,availableHeight,navigationTop};if(typeof module!=='undefined')module.exports=root.CubicoMobileLayout;
 })(typeof window!=='undefined'?window:globalThis);
+
+/* Contacto visible en ambas pestañas de Gestionar. */
+(function(){
+ const phone=document.getElementById('profile-phone'),panel=document.getElementById('customer-panel');
+ if(!phone||!panel)return;
+ const box=document.createElement('section');box.className='management-contact';
+ const number=document.createElement('b'),copy=document.createElement('button'),link=document.createElement('a'),status=document.createElement('span');
+ copy.type='button';copy.className='btn';copy.textContent='Copiar número';link.className='btn';link.textContent='Abrir en WhatsApp';link.target='_blank';link.rel='noopener noreferrer';status.setAttribute('role','status');
+ box.append(number,copy,link,status);panel.querySelector('.profile').after(box);
+ function update(){const value=phone.textContent.trim().replace(/^\+/, '');const valid=/^[1-9]\d{7,14}$/.test(value);number.textContent=valid?'+'+value:'Número no disponible';copy.disabled=!valid;link.hidden=!valid;if(valid)link.href='https://wa.me/'+value;else link.removeAttribute('href');status.textContent='';}
+ copy.addEventListener('click',async()=>{try{await navigator.clipboard.writeText(number.textContent);status.textContent='Número copiado';}catch(e){status.textContent='Mantén pulsado el número para copiarlo';}});
+ new MutationObserver(update).observe(phone,{childList:true,characterData:true,subtree:true});update();
+})();
