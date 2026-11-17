@@ -192,6 +192,8 @@ def test_authenticated_api_checks_live_cases_beyond_recent_chat_limit_and_has_no
         app.dependency_overrides[panel.verificar_credenciales_panel] = lambda: "alexander"
         r = client.get("/panel/ruta?fecha=" + DAY).json()
         assert len(r["paradas"]) == 1
+        selected = client.get("/panel/solicitudes?telefono=50760000001")
+        assert selected.status_code == 200 and selected.json()[0]["tipo"] == "domicilio"
         key = r["paradas"][0]["id"]
         body = {"fecha": DAY, "zona": "todas", "token": r["token"], "orden": [key], "cargadas": [key]}
         result = client.post("/panel/ruta", json=body)

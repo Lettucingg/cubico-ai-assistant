@@ -103,6 +103,7 @@ def construir_ruta(solicitudes, usuario, fecha, zona="todas", suspension=None):
     programadas.sort(key=lambda p: (p["hora_desde"] or "99:99", p["prioridad"] != "alta", p["zona"], p["nombre"].casefold(), p["id"]))
     orden = {key: i for i, key in enumerate(datos.get("orden", []))}
     listas = [p for p in programadas if p["lista"]]
+    sugerido = [p["id"] for p in listas]
     listas.sort(key=lambda p: orden.get(p["id"], len(orden)))
     cargadas = datos.get("cargadas", {})
     for p in listas:
@@ -127,7 +128,7 @@ def construir_ruta(solicitudes, usuario, fecha, zona="todas", suspension=None):
         "consultado_en": datetime.utcnow().isoformat() + "Z",
         "paradas": listas, "pendientes": pendientes, "sin_programar": sin_programar,
         "puede_recorrer": not bloqueos, "bloqueos_recorrido": bloqueos,
-        "orden_manual": bool(datos.get("orden")),
+        "orden_manual": [p["id"] for p in listas] != sugerido,
     }
 
 

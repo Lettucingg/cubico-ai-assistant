@@ -63,8 +63,8 @@
       const button=e.target.closest('button');if(!button||busy)return;
       if(button.hasAttribute('data-route-refresh')){await load();return}
       if(button.hasAttribute('data-route-exit')){close();return}
-      if(button.hasAttribute('data-route-start')){if(await load()&&data.puede_recorrer){mode=true;currentId=data.paradas[0].id;doc.body.classList.add('driver-focus');render()}return}
-      if(button.hasAttribute('data-route-step')){const delta=Number(button.dataset.routeStep),id=currentId;if(await load()&&mode){const index=data.paradas.findIndex(p=>p.id===id),next=data.paradas[index+delta];if(next){currentId=next.id;render();content.scrollTop=0}}return}
+      if(button.hasAttribute('data-route-start')){if(await load()&&data.puede_recorrer){mode=true;currentId=data.paradas[0].id;doc.body.classList.add('driver-focus');render();box.scrollTop=0}return}
+      if(button.hasAttribute('data-route-step')){const delta=Number(button.dataset.routeStep),id=currentId;if(await load()&&mode){const index=data.paradas.findIndex(p=>p.id===id),next=data.paradas[index+delta];if(next){currentId=next.id;render();box.scrollTop=0}}return}
       if(button.dataset.routeMove&&data){const ids=data.paradas.map(p=>p.id),i=ids.indexOf(button.dataset.routeMove),j=i+Number(button.dataset.direction);if(j>=0&&j<ids.length){[ids[i],ids[j]]=[ids[j],ids[i]];await save(ids,data.paradas.filter(p=>p.cargada).map(p=>p.id))}return}
       const p=find(button.dataset.routeCopy||button.dataset.routeChat||button.dataset.routeCase);if(!p)return;
       if(button.dataset.routeCopy){try{await copy(p.direccion);status.textContent='Dirección copiada.'}catch(e){status.textContent='No se pudo copiar. Puedes seleccionar la dirección.'}}
