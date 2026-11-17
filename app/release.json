@@ -1,11 +1,9 @@
 {
-  "version": "1.6.14",
-  "fecha": "2026-11-16",
-  "titulo": "Mi ruta: carga y navegación del repartidor",
+  "version": "1.6.15",
+  "fecha": "2026-11-17",
+  "titulo": "Gestionar nítido sobre el chat móvil",
   "novedades": [
-    "Vista de domicilios por fecha y zona, con entregas listas separadas de las pendientes de revisión.",
-    "Orden sugerido por horario y prioridad, ajustable y guardado por usuario y día, conservando la carga al filtrar por zona.",
-    "Lista personal de carga por tracking, referencias y acceso rápido a mapas, llamadas y conversación.",
-    "Modo de recorrido para hoy con carga verificada; revisar los datos no registra despachos, pagos ni entregas."
+    "El panel Gestionar se abre por encima del fondo desenfocado, incluso con el chat a pantalla completa.",
+    "Cerrar, cambiar de pestaña y volver al chat mantienen sus controles accesibles."
   ]
 }

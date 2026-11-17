@@ -5,6 +5,7 @@ on:
       - 'app/**'
       - 'test_delivery*'
       - 'test_driver_route*'
+      - 'test_chat_whatsapp_browser.cjs'
       - 'test_comprobante_queue.py'
       - '.github/workflows/verify-delivery-case.yml'
 permissions:
@@ -55,4 +56,6 @@ jobs:
       - name: Driver mobile layout checks
         env:
           NODE_PATH: /tmp/cubico-js/node_modules
-        run: node test_driver_route_browser.cjs
+        run: |
+          node test_driver_route_browser.cjs
+          node test_chat_whatsapp_browser.cjs
