@@ -89,7 +89,7 @@ const screenshotDir=process.env.QA_SCREENSHOT_DIR;
    await page.waitForFunction(()=>document.getElementById('operations').classList.contains('active'));
    await page.locator('#oc-new').click();await page.locator('#oc-type').selectOption('sin_repartidor');
    assert.match(await page.locator('#oc-title').inputValue(),/domicilio|repartidor/i);
-   assert.match(await page.locator('.oc-help').textContent(),/pulsa Activar/);
+   assert.match(await page.locator('.oc-help').textContent(),/Guardar no activa el aviso/);
    await page.locator('#settings-shortcut').click();
    await page.locator('#settings [data-view=operations]').click();
    await page.waitForFunction(()=>document.getElementById('operations').classList.contains('active'));
