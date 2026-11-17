@@ -1,11 +1,11 @@
 {
-  "version": "1.6.13",
+  "version": "1.6.14",
   "fecha": "2026-11-16",
-  "titulo": "Ficha de domicilio y programación por zona",
+  "titulo": "Mi ruta: carga y navegación del repartidor",
   "novedades": [
-    "Dirección, sector, referencias y enlace de ubicación opcional reunidos en cada solicitud.",
-    "El día y horario solicitado por el cliente se guardan separados de la programación confirmada por el equipo.",
-    "Zonas con días preferentes, prioridad y acceso al mapa; los cambios requieren revisar la coordinación.",
-    "Guardar no envía mensajes ni registra pagos. Para coordinar siguen siendo necesarios pago, preparación y fecha revisada de lunes a viernes."
+    "Vista de domicilios por fecha y zona, con entregas listas separadas de las pendientes de revisión.",
+    "Orden sugerido por horario y prioridad, ajustable y guardado por usuario y día, conservando la carga al filtrar por zona.",
+    "Lista personal de carga por tracking, referencias y acceso rápido a mapas, llamadas y conversación.",
+    "Modo de recorrido para hoy con carga verificada; revisar los datos no registra despachos, pagos ni entregas."
   ]
 }

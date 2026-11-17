@@ -82,6 +82,19 @@ class FichaDomicilio(BaseSesiones):
     actualizado_en = Column(DateTime, default=datetime.utcnow, nullable=False)
 
 
+class PlanRuta(BaseSesiones):
+    """Orden y lista de carga personales; no equivale a despacho ni entrega."""
+    __tablename__ = "planes_ruta_panel"
+    id = Column(Integer, primary_key=True)
+    clave = Column(String(64), unique=True, nullable=False)
+    usuario = Column(String, nullable=False)
+    fecha = Column(String(10), nullable=False)
+    zona = Column(String(30), nullable=False)
+    datos_json = Column(Text, nullable=False, default="{}")
+    revision = Column(Integer, nullable=False, default=1)
+    actualizado_en = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
 class UsoIA(BaseSesiones):
     """Una fila por llamada a Claude para medir consumo y costo por chat."""
 

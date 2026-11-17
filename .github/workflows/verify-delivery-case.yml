@@ -4,13 +4,14 @@ on:
     paths:
       - 'app/**'
       - 'test_delivery*'
+      - 'test_driver_route*'
       - 'test_comprobante_queue.py'
       - '.github/workflows/verify-delivery-case.yml'
 permissions:
   contents: read
 jobs:
   delivery-case:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     env:
       DATABASE_URL: sqlite://
@@ -32,18 +33,26 @@ jobs:
       - name: Install isolated test dependencies
         run: python -m pip install pytest SQLAlchemy pydantic-settings python-dotenv fastapi httpx anthropic openai psycopg2-binary pywebpush apscheduler openpyxl mcp socksio
       - name: Compile Python
-        run: python -m py_compile app/db/session_store.py app/services/delivery_cases.py app/api/panel.py app/ai/orchestrator.py app/api/whatsapp.py
+        run: python -m py_compile app/db/session_store.py app/services/delivery_cases.py app/api/panel.py app/ai/orchestrator.py app/api/whatsapp.py app/services/driver_route.py
       - name: Delivery and payment regression tests
-        run: python -m pytest -q test_delivery_cases.py test_delivery_locations.py test_delivery_tool.py test_comprobante_queue.py test_payment_flow.py test_inbound_visibility.py test_image_archive.py test_image_archive_integration.py
+        run: python -m pytest -q test_driver_route.py test_delivery_cases.py test_delivery_locations.py test_delivery_tool.py test_comprobante_queue.py test_payment_flow.py test_inbound_visibility.py test_image_archive.py test_image_archive_integration.py
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
       - name: Install DOM test dependency
-        run: npm install --no-save --prefix /tmp/cubico-js jsdom@26
+        run: npm install --no-save --prefix /tmp/cubico-js jsdom@26 playwright@1.56.1
       - name: Form and release tests
         env:
           NODE_PATH: /tmp/cubico-js/node_modules
         run: |
           node --check app/static/delivery-case.js
+          node test_driver_route.cjs
           node test_delivery_case.cjs
+          node test_panel_design.cjs
           node test_app_release.cjs
+      - name: Install Chromium for real mobile layout checks
+        run: /tmp/cubico-js/node_modules/.bin/playwright install --with-deps chromium
+      - name: Driver mobile layout checks
+        env:
+          NODE_PATH: /tmp/cubico-js/node_modules
+        run: node test_driver_route_browser.cjs
