@@ -88,11 +88,12 @@ def test_default_order_is_time_then_priority_and_manual_order_is_persistent(db):
 
 
 def test_zone_filter_preserves_other_zones_loading_and_users_are_isolated(db):
-    stops = [stop(), stop("b", ficha={"zona": "este"})]
+    stops = [stop(), stop("b", ficha={"zona": "este", "hora_desde": "07:00", "hora_hasta": "08:00"})]
     save(view(stops, zona="centro"), loaded=["a"])
     east = view(stops, zona="este")
     save(east, loaded=["b"])
     assert view(stops)["puede_recorrer"]
+    assert [p["id"] for p in view(stops)["paradas"]] == ["b", "a"], "checking loads in a zone must not silently reorder timed stops"
     assert not view(stops, user="teresa")["puede_recorrer"]
     assert view(stops, user="teresa")["revision"] == 0
 

@@ -160,7 +160,10 @@ def guardar_plan(ruta, usuario, body):
             restantes = [k for k in orden_anterior if k not in actuales]
             posicion = next((i for i, k in enumerate(orden_anterior) if k in actuales), len(restantes))
             posicion = min(posicion, len(restantes))
-            orden_total = restantes[:posicion] + orden + restantes[posicion:]
+            orden_actual = [p["id"] for p in ruta["paradas"]]
+            # Marcar carga no debe cambiar el orden global al filtrar una zona.
+            orden_total = (restantes[:posicion] + orden + restantes[posicion:]
+                           if orden != orden_actual else orden_anterior)
             carga_total = {k: v for k, v in anteriores.get("cargadas", {}).items() if k not in actuales}
             carga_total.update({k: actuales[k]["huella"] for k in cargadas})
             nuevos = json.dumps({"orden": orden_total, "cargadas": carga_total})
