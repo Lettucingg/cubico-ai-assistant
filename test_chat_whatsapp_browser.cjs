@@ -81,7 +81,7 @@ const screenshotDir=process.env.QA_SCREENSHOT_DIR;
    if(width<761){await page.locator('#message-input').fill('Mensaje largo de prueba. '.repeat(40));await page.setViewportSize({width,height:480});await page.waitForFunction(()=>document.body.classList.contains('chat-editor-open'));
      await page.waitForFunction(()=>{const r=document.getElementById('send').getBoundingClientRect();return r.y>=0&&r.bottom<=innerHeight},null,{timeout:3000});
      await page.locator('#chat-editing-done').click();await page.setViewportSize({width,height});
-     await page.locator('#mobile-chat-back').click();assert.equal(await page.locator('.chat-list').isVisible(),true);}
+     await page.locator('#mobile-chat-back').click();await page.locator('.chat-list').waitFor({state:'visible'});assert.equal(await page.locator('.chat-list').isVisible(),true);}
    if(width<761)await page.locator('.chat-item').first().click();
    await page.locator('#chat-actions-toggle').click();
    await page.evaluate(()=>mostrarLogin('Sesión de prueba finalizada'));
