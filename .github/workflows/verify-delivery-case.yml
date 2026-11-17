@@ -59,3 +59,4 @@ jobs:
         run: |
           node test_driver_route_browser.cjs
           node test_chat_whatsapp_browser.cjs
+          node test_panel_mobile_browser.cjs
