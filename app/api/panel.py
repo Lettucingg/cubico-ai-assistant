@@ -39,6 +39,8 @@ from app.tools.clientes import obtener_nombre_completo_cliente
 from app.tools.comprobantes import descargar_imagen_de_whatsapp
 from app.services.image_archive import image_mime
 from app.services.delivery_cases import obtener_ficha, guardar_ficha, coordinar_ficha
+from app.services.driver_route import construir_ruta, guardar_plan, validar_filtros
+from app.services.delivery_cases import hoy as hoy_domicilios
 from app.tools.paquetes import consultar_paquetes_por_codigo
 from app.tools.transcripcion import descargar_audio_de_whatsapp
 from app.tools.facturas import (
@@ -817,10 +819,17 @@ def control_operativo_manual(
 
 
 @router.get("/solicitudes")
-def listar_solicitudes(usuario: str = Depends(verificar_credenciales_panel)):
+def listar_solicitudes(usuario: str = Depends(verificar_credenciales_panel), telefono: str = ""):
     """Retiros, domicilios y comprobantes generados desde WhatsApp."""
+    if telefono:
+        sesion = obtener_sesion_existente(telefono)
+        return _serializar_solicitudes([sesion] if sesion else [])
+    return _serializar_solicitudes(listar_todas_sesiones(limite=500))
+
+
+def _serializar_solicitudes(sesiones):
     solicitudes = []
-    for sesion in listar_todas_sesiones(limite=500):
+    for sesion in sesiones:
         comprobante_pendiente = bool(sesion.pago_reportado and not sesion.pago_confirmado)
         if sesion.entregado and not comprobante_pendiente:
             continue
@@ -921,6 +930,46 @@ def listar_solicitudes(usuario: str = Depends(verificar_credenciales_panel)):
             })
     solicitudes.sort(key=lambda item: item["actualizado_en"] or "", reverse=True)
     return solicitudes
+
+
+def _ruta_actual(usuario, fecha, zona):
+    validar_filtros(fecha, zona)
+    # No limitar a los 500 chats recientes: un domicilio antiguo sigue pendiente.
+    from app.db import session_store as store
+    from app.services.operational_context import service_block
+    with store.SessionSesiones() as db:
+        sesiones = db.query(store.Sesion).filter(
+            store.Sesion.solicitud_domicilio_pendiente.is_(True),
+            store.Sesion.entregado.is_not(True),
+        ).all()
+        solicitudes = _serializar_solicitudes(sesiones)
+    return construir_ruta(solicitudes, usuario, fecha, zona, service_block("domicilios"))
+
+
+@router.get("/ruta")
+def consultar_ruta_panel(fecha: str = "", zona: str = "todas", usuario: str = Depends(verificar_credenciales_panel)):
+    try:
+        return _ruta_actual(usuario, fecha or hoy_domicilios().isoformat(), zona)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    except Exception as error:
+        logger.error("No se pudo consultar la ruta (%s)", type(error).__name__)
+        raise HTTPException(status_code=503, detail="No se pudo comprobar la ruta. Actualiza antes de salir") from error
+
+
+@router.post("/ruta")
+def guardar_ruta_panel(body: dict, usuario: str = Depends(verificar_credenciales_panel)):
+    try:
+        fecha, zona = body.get("fecha"), body.get("zona")
+        validar_filtros(fecha, zona)
+        ruta = _ruta_actual(usuario, fecha, zona)
+        guardar_plan(ruta, usuario, body)
+        return _ruta_actual(usuario, fecha, zona)
+    except ValueError as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    except Exception as error:
+        logger.error("No se pudo guardar el plan de ruta (%s)", type(error).__name__)
+        raise HTTPException(status_code=503, detail="No se pudo guardar. Actualiza para comprobar el estado antes de continuar") from error
 
 
 @router.post("/solicitud/{telefono}/domicilio")
