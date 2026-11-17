@@ -45,14 +45,14 @@
       try{const q=new URLSearchParams({zona:zone.value});if(date.value)q.set('fecha',date.value);
         const r=await get('/panel/ruta?'+q);const result=await r.json();if(!r.ok)throw Error(result.detail||'No se pudo comprobar la ruta');
         if(serial!==sequence)return false;data=result;date.value=result.fecha;status.textContent='Ruta actualizada. No se enviaron mensajes.';render();return true;
-      }catch(e){data=null;mode=false;doc.body.classList.remove('driver-focus');content.replaceChildren();status.textContent=(e.message||'Error de conexión')+'. Actualiza antes de continuar.';return false}
-      finally{controls(false);render()}
+      }catch(e){if(serial!==sequence)return false;data=null;mode=false;doc.body.classList.remove('driver-focus');content.replaceChildren();status.textContent=(e.message||'Error de conexión')+'. Actualiza antes de continuar.';return false}
+      finally{if(serial===sequence){controls(false);render()}}
     }
     async function save(order,loaded){
-      if(busy||!data)return;controls(true);status.textContent='Guardando tu plan…';
-      try{const r=await post('/panel/ruta',{fecha:data.fecha,zona:data.zona,token:data.token,orden:order,cargadas:loaded});const result=await r.json();if(!r.ok)throw Error(result.detail||'No se pudo guardar el plan');data=result;status.textContent='Plan guardado. No se registró despacho, entrega ni pago.'}
-      catch(e){data=null;mode=false;doc.body.classList.remove('driver-focus');status.textContent=(e.message||'No se pudo guardar')+'. Pulsa Actualizar para revisar el estado.'}
-      finally{controls(false);render()}
+      if(busy||!data)return;const serial=sequence;controls(true);status.textContent='Guardando tu plan…';
+      try{const r=await post('/panel/ruta',{fecha:data.fecha,zona:data.zona,token:data.token,orden:order,cargadas:loaded});const result=await r.json();if(serial!==sequence)return;if(!r.ok)throw Error(result.detail||'No se pudo guardar el plan');data=result;status.textContent='Plan guardado. No se registró despacho, entrega ni pago.'}
+      catch(e){if(serial!==sequence)return;data=null;mode=false;doc.body.classList.remove('driver-focus');status.textContent=(e.message||'No se pudo guardar')+'. Pulsa Actualizar para revisar el estado.'}
+      finally{if(serial===sequence){controls(false);render()}}
     }
     function find(id){return data&&[...data.paradas,...data.pendientes,...data.sin_programar].find(p=>p.id===id)}
     box.addEventListener('change',e=>{
@@ -72,7 +72,8 @@
       if(button.dataset.routeCase){close();openCase?.(p.telefono)}
     });
     doc.addEventListener('visibilitychange',()=>{if(doc.visibilityState==='visible'&&mode&&!busy)load()});
-    return {load,close};
+    function reset(){sequence++;close();data=null;date.value='';zone.value='todas';status.textContent='';controls(false);render()}
+    return {load,close,reset};
   }
   root.CubicoDriverRoute={init,links,safeMap};if(typeof module!=='undefined')module.exports=root.CubicoDriverRoute;
 })(typeof window!=='undefined'?window:globalThis);

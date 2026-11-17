@@ -50,6 +50,11 @@ function check(id,value){const el=d.querySelector('[data-route-loaded="'+id+'"]'
   let releaseGet;pendingGet=new Promise(resolve=>releaseGet=resolve);
   click('[data-route-start]');ui.close();releaseGet();await tick();pendingGet=null;
   assert.equal(d.body.classList.contains('driver-focus'),false,'leaving a view during refresh must not reopen driver mode');
+  pendingGet=new Promise(resolve=>releaseGet=resolve);
+  const loading=ui.load();ui.reset();releaseGet();await loading;pendingGet=null;
+  assert.equal(d.querySelector('[data-route-loaded]'),null,'reset prevents a previous session response from restoring private route data');
+  assert.equal(d.querySelector('[data-route-date]').value,'');
+  await ui.load();
   offline=true;await ui.load();assert.match(d.body.textContent,/Sin conexión/);assert.equal(d.querySelector('a[href]'),null);
   assert(posts.every(([path])=>path==='/panel/ruta'));
   console.log('Driver route: fresh payment gates, load checklist, ordering, optional maps, focus navigation, XSS, stale conflicts and offline blocking passed');w.close();

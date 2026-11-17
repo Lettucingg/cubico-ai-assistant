@@ -947,7 +947,8 @@ def _ruta_actual(usuario, fecha, zona):
 
 
 @router.get("/ruta")
-def consultar_ruta_panel(fecha: str = "", zona: str = "todas", usuario: str = Depends(verificar_credenciales_panel)):
+def consultar_ruta_panel(response: Response, fecha: str = "", zona: str = "todas", usuario: str = Depends(verificar_credenciales_panel)):
+    response.headers["Cache-Control"] = "private, no-store"
     try:
         return _ruta_actual(usuario, fecha or hoy_domicilios().isoformat(), zona)
     except ValueError as error:
@@ -958,7 +959,8 @@ def consultar_ruta_panel(fecha: str = "", zona: str = "todas", usuario: str = De
 
 
 @router.post("/ruta")
-def guardar_ruta_panel(body: dict, usuario: str = Depends(verificar_credenciales_panel)):
+def guardar_ruta_panel(body: dict, response: Response, usuario: str = Depends(verificar_credenciales_panel)):
+    response.headers["Cache-Control"] = "private, no-store"
     try:
         fecha, zona = body.get("fecha"), body.get("zona")
         validar_filtros(fecha, zona)

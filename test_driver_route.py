@@ -190,7 +190,9 @@ def test_authenticated_api_checks_live_cases_beyond_recent_chat_limit_and_has_no
         assert client.get("/panel/ruta?fecha=" + DAY).status_code in (401, 403)
         assert client.post("/panel/ruta", json={}).status_code in (401, 403)
         app.dependency_overrides[panel.verificar_credenciales_panel] = lambda: "alexander"
-        r = client.get("/panel/ruta?fecha=" + DAY).json()
+        response = client.get("/panel/ruta?fecha=" + DAY)
+        assert response.headers["cache-control"] == "private, no-store"
+        r = response.json()
         assert len(r["paradas"]) == 1
         selected = client.get("/panel/solicitudes?telefono=50760000001")
         assert selected.status_code == 200 and selected.json()[0]["tipo"] == "domicilio"
