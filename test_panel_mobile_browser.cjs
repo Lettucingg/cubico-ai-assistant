@@ -76,6 +76,8 @@ const screenshotDir=process.env.QA_SCREENSHOT_DIR;
    await page.waitForFunction(()=>!document.body.classList.contains('chat-keyboard-open'));
    await page.evaluate(()=>window.dispatchEvent(new PageTransitionEvent('pageshow',{persisted:true})));
    assert.equal(await page.locator('#message-input').inputValue(),'Borrador conservado');
+   await page.locator('#mobile-chat-back').tap();
+   await page.locator('.sidebar').waitFor({state:'visible'});
    await page.locator('.sidebar .nav button[data-view=costs]').tap();
    await page.waitForFunction(()=>document.getElementById('costs').classList.contains('active'));
    // Alertas is a real sixth navigation target; operations has discoverable entry points.
@@ -93,6 +95,7 @@ const screenshotDir=process.env.QA_SCREENSHOT_DIR;
    await page.waitForFunction(()=>document.getElementById('operations').classList.contains('active'));
    // The reactivation input used to be 13px. Check real computed size and focus cleanup.
    await page.locator('.sidebar .nav button[data-view=chats]').tap();
+   await page.locator('.chat-item').first().tap();
    await page.locator('#chat-actions-toggle').click();
    await page.locator('#tab-chat').click();await page.locator('#reactivar-chat').click();
    assert.equal(await page.locator('#saludo-nombre').evaluate(el=>getComputedStyle(el).fontSize),'16px');
