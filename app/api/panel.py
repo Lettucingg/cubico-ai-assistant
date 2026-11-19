@@ -1,3 +1,4 @@
+from app.services.delivery_completion import token_entrega, confirmar_entrega, listar_entregas
 import asyncio
 import json
 import logging
@@ -893,6 +894,7 @@ def _serializar_solicitudes(sesiones):
                 "nombre": _nombre_cliente(sesion) or sesion.telefono,
                 "codigo_cliente": sesion.codigo_cliente_verificado,
                 "tipo": tipo,
+                "token_entrega": token_entrega(sesion, tipo) if tipo != "pago" else None,
                 "paquetes": detalle_paquetes,
                 "direccion": direccion,
                 "ficha_domicilio": obtener_ficha(sesion) if tipo == "domicilio" else None,
@@ -944,6 +946,15 @@ def _ruta_actual(usuario, fecha, zona):
         ).all()
         solicitudes = _serializar_solicitudes(sesiones)
     return construir_ruta(solicitudes, usuario, fecha, zona, service_block("domicilios"))
+
+
+@router.get("/entregas")
+def consultar_entregas_panel(response: Response, fecha: str = "", usuario: str = Depends(verificar_credenciales_panel)):
+    response.headers["Cache-Control"] = "private, no-store"
+    try:
+        return listar_entregas(fecha or hoy_domicilios().isoformat())
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
 
 
 @router.get("/ruta")
@@ -1109,16 +1120,13 @@ def actualizar_estado_solicitud(
             raise HTTPException(status_code=409, detail=str(error)) from error
         return {"status": "ok", "accion": accion, "tipo": tipo}
     elif accion == "entregar":
-        _exigir_factura_pagada(sesion)
-        if not sesion.paquetes_preparados:
-            raise HTTPException(status_code=409, detail="Primero marca los paquetes como listos")
-        if tipo == "domicilio" and not sesion.domicilio_coordinado:
-            raise HTTPException(status_code=409, detail="Primero coordina el domicilio")
-        cambios = {
-            "entregado": True,
-            "aviso_retiro_pendiente": False if tipo == "retiro" else sesion.aviso_retiro_pendiente,
-            "solicitud_domicilio_pendiente": False if tipo == "domicilio" else sesion.solicitud_domicilio_pendiente,
-        }
+        try:
+            registro = confirmar_entrega(telefono, tipo, body.get("entrega_token"), usuario,
+                                        _exigir_factura_pagada, _nombre_cliente)
+        except ValueError as error:
+            raise HTTPException(status_code=409, detail=str(error)) from error
+        return {"status": "ok", "accion": accion, "tipo": tipo, "entrega": registro,
+                "mensaje_enviado": False}
     else:
         raise HTTPException(status_code=400, detail="Acción inválida")
 

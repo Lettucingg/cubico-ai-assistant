@@ -1,10 +1,10 @@
 {
-  "version": "1.6.16",
+  "version": "1.6.17",
   "fecha": "2026-11-19",
-  "titulo": "Solicitudes más claras en el celular",
+  "titulo": "Entregas confirmadas y consultables",
   "novedades": [
-    "Lista con búsqueda y siguiente paso para cada cliente.",
-    "Domicilios con dirección visible, zona y fecha; detalles opcionales plegados.",
-    "Pago y distribución entre facturas agrupados para revisar antes de confirmar."
+    "Marca entregado desde Mi ruta o la solicitud, con confirmación.",
+    "Consulta Entregadas por fecha, con paquetes, usuario y hora de confirmación.",
+    "El registro operativo conserva sus datos aunque después se abra otra solicitud."
   ]
 }
