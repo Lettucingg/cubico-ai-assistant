@@ -214,3 +214,23 @@ def test_no_redondea_importes_fraccionarios_ocultamente(tmp_path):
         ], "1.005", "yappy", "FRACCION")
     with fabrica() as db:
         assert db.query(Pago).count() == 0
+
+
+@pytest.mark.parametrize("referencia", [None, "", "No visible", "sin referencia", "# No legible"])
+def test_transferencia_sin_referencia_no_descontara_saldo(tmp_path, referencia):
+    fabrica = _crear_escenario(tmp_path, total=50)
+    with pytest.raises(ValueError, match="referencia bancaria"):
+        facturas.registrar_pago_factura_desde_panel("CBC-TEST", "FAC-TEST", 10, "yappy", referencia)
+    with fabrica() as db:
+        assert db.query(Pago).count() == 0
+        assert db.query(Factura).one().estado == "pendiente"
+
+
+def test_mismo_abono_con_prefijo_de_comprobante_no_se_cuenta_dos_veces(tmp_path):
+    fabrica = _crear_escenario(tmp_path, total=50)
+    facturas.registrar_pago_factura_desde_panel("CBC-TEST", "FAC-TEST", 10, "ach", "# ABC-123")
+    with pytest.raises(ValueError, match="ya fue registrado"):
+        facturas.registrar_pago_factura_desde_panel("CBC-TEST", "FAC-TEST", 10, "ach", "abc-123")
+    with fabrica() as db:
+        assert db.query(Pago).count() == 1
+    assert facturas.consultar_facturas_por_codigo("CBC-TEST")["saldo_pendiente_total"] == 40
