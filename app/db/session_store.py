@@ -82,6 +82,19 @@ class FichaDomicilio(BaseSesiones):
     actualizado_en = Column(DateTime, default=datetime.utcnow, nullable=False)
 
 
+class EntregaPanel(BaseSesiones):
+    """Evidencia operativa duradera; no equivale a movimiento bancario o despacho."""
+    __tablename__ = "entregas_panel"
+    id = Column(Integer, primary_key=True)
+    token = Column(String(64), unique=True, nullable=False)
+    telefono = Column(String, index=True, nullable=False)
+    tipo = Column(String(20), nullable=False)
+    fecha_local = Column(String(10), index=True, nullable=False)
+    confirmado_en = Column(DateTime, default=datetime.utcnow, nullable=False)
+    confirmado_por = Column(String, nullable=False)
+    datos_json = Column(Text, nullable=False)
+
+
 class PlanRuta(BaseSesiones):
     """Orden y lista de carga personales; no equivale a despacho ni entrega."""
     __tablename__ = "planes_ruta_panel"

@@ -21,6 +21,7 @@ const payment={telefono:'50700000002',nombre:'Cliente pago de prueba',tipo:'pago
     if(req.method()==='OPTIONS')return route.fulfill({status:204,headers});
     let data={};
     if(req.method()==='POST'){posts.push({path:url.pathname,body:req.postDataJSON()});data={ficha};}
+    else if(url.pathname==='/panel/entregas')data={fecha:'2026-11-19',entregas:[{nombre:'Cliente entrega confirmada <img src=x>',codigo_cliente:'CBC-TEST',tipo:'domicilio',direccion:'Dirección entregada',confirmado_en:'2026-11-19T15:30:00Z',confirmado_por:'alexander',paquetes:'TRACK-ENTREGADO',telefono:'50700000001'}]};
     else if(url.pathname==='/panel/solicitudes')data=[delivery,payment];
     else if(['/panel/conversaciones','/panel/actividad','/panel/oportunidades','/panel/alertas/paquetes','/panel/alertas/papelera'].includes(url.pathname))data=[];
     else if(url.pathname==='/panel/version')data=JSON.parse(fs.readFileSync('app/release.json','utf8'));
@@ -72,6 +73,14 @@ const payment={telefono:'50700000002',nombre:'Cliente pago de prueba',tipo:'pago
   page.once('dialog',async dialog=>{assert.match(dialog.message(),/banco/);await dialog.dismiss()});
   await confirm.click();assert.equal(posts.length,1,'cancelling confirmation must not register payment');
   assert.equal(await page.locator('#case-amount').innerText(),'$13.50','selection must not subtract from balance');
+  await page.locator('#case-close').click();
+  await page.locator('.package-tab[data-package-filter=completed]').click();
+  await page.locator('.delivered-card').waitFor({state:'visible'});
+  assert.match(await page.locator('.delivered-card').innerText(),/alexander/);
+  assert.equal(await page.locator('#delivery-history img').count(),0);
+  assert.equal(await page.locator('#package-rows').isVisible(),false);
+  await page.locator('.delivered-card summary').click();
+  assert.match(await page.locator('.delivered-card').innerText(),/TRACK-ENTREGADO/);
   assert.deepEqual(errors,[]);await context.close();console.log(`Solicitudes ${width}px: search, categories, compact domicile, separate preferences, safe save and multi-invoice payment guards passed`);
  }}finally{await browser.close()}
 })().catch(e=>{console.error(e);process.exitCode=1});

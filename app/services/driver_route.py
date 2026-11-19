@@ -61,6 +61,7 @@ def _parada(solicitud):
     map_url = ficha.get("ubicacion_url") or ""
     data = {
         "id": ficha.get("clave") or _hash([phone, solicitud.get("codigo_cliente"), trackings]),
+        "token_entrega": solicitud.get("token_entrega"),
         "telefono": phone, "nombre": solicitud.get("nombre") or phone,
         "codigo_cliente": solicitud.get("codigo_cliente"), "trackings": trackings,
         "direccion": ficha.get("direccion") or solicitud.get("direccion") or "",
