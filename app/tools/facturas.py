@@ -1,11 +1,15 @@
 from datetime import UTC, datetime
 from decimal import Decimal
 
-from sqlalchemy import func
+from sqlalchemy import func, text
 
 from app.db.database import SessionLocal
 from app.db.models import Factura, Pago
 from app.tools.clientes import buscar_identidad_activa_por_codigo
+
+
+def _referencia_pago(valor):
+    return str(valor or "").strip().lstrip("#").strip().casefold()
 
 
 def _dinero(valor) -> Decimal:
@@ -169,11 +173,16 @@ def registrar_pago_distribuido_desde_panel(
     if sum(aplicaciones.values(), Decimal("0.00")) != importe:
         raise ValueError("La suma asignada debe coincidir exactamente con el comprobante")
     referencia_limpia = (referencia or "").strip()
-    referencia_util = referencia_limpia.lower() not in {"", "no visible", "no especificado"}
+    referencia_util = _referencia_pago(referencia_limpia) not in {"", "no visible", "no especificado", "sin referencia", "no legible", "pendiente", "none", "null", "n/a", "s/r"}
+    if metodo_normalizado in {"yappy", "ach"} and not referencia_util:
+        raise ValueError("Falta la referencia bancaria legible. Revisa el ingreso antes de registrar el pago; no lo confirmes nuevamente")
     if len(aplicaciones) > 1 and not referencia_util:
         raise ValueError("Para distribuir el pago se necesita una referencia legible")
     db = SessionLocal()
     try:
+        # SQLite ignora FOR UPDATE. Reclamar la escritura antes de consultar saldos.
+        if db.get_bind().dialect.name == "sqlite":
+            db.execute(text("BEGIN IMMEDIATE"))
         tipo_cliente, cliente, _ = buscar_identidad_activa_por_codigo(db, codigo_cliente)
         if cliente is None:
             raise ValueError("El cliente no existe en facturación")
@@ -182,18 +191,18 @@ def registrar_pago_distribuido_desde_panel(
         if referencia_util:
             propietario_pago = (Pago.cliente_cbc_id == cliente.id if tipo_cliente == "cbc"
                                 else Pago.agencia_id == cliente.id)
-            duplicado = db.query(Pago).filter(
-                propietario_pago,
-                func.lower(func.trim(Pago.referencia)) == referencia_limpia.lower(),
-                Pago.anulado.isnot(True),
-            ).first()
+            candidatos = db.query(Pago).filter(
+                propietario_pago, Pago.anulado.isnot(True), Pago.referencia.isnot(None),
+            ).all()
+            duplicado = next((p for p in candidatos
+                if _referencia_pago(p.referencia) == _referencia_pago(referencia_limpia)), None)
             if duplicado:
                 raise ValueError("Ese número de referencia ya fue registrado; revisa su aplicación")
         propietario = (Factura.cliente_cbc_id == cliente.id if tipo_cliente == "cbc"
                        else Factura.agencia_id == cliente.id)
         facturas = db.query(Factura).filter(
             propietario, func.upper(Factura.codigo).in_(sorted(aplicaciones)),
-        ).order_by(Factura.id).with_for_update().all()
+        ).order_by(Factura.id).with_for_update().populate_existing().all()
         if len(facturas) != len(aplicaciones):
             raise ValueError("Una factura seleccionada no pertenece al cliente o ya no existe")
         fecha_pago = datetime.now(UTC).replace(tzinfo=None)
@@ -207,6 +216,7 @@ def registrar_pago_distribuido_desde_panel(
         resultados = []
         for factura in facturas:
             valor = aplicaciones[factura.codigo.strip().upper()]
+            db.expire(factura, ["pagos"])
             saldo_antes = _saldo_factura(factura)
             if saldo_antes <= 0:
                 raise ValueError("La factura ya aparece pagada; recarga antes de confirmar")
