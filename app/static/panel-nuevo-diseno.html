@@ -1616,7 +1616,7 @@
       renderSolicitudes();
     }
     document.getElementById('request-search').addEventListener('input',renderSolicitudes);
-    document.getElementById('case-close').addEventListener('click',()=>{solicitudActiva=null;renderSolicitudes()});
+    document.getElementById('case-close').addEventListener('click',()=>{solicitudActiva=null;renderSolicitudes();if(window.innerWidth<=760)document.querySelector('#packages .table-toolbar').scrollIntoView({block:'start'})});
     document.querySelectorAll('.package-tab').forEach(tab=>tab.addEventListener('click',()=>aplicarFiltroSolicitud(tab.dataset.packageFilter)));
     document.querySelectorAll('[data-package-filter-link]').forEach(tarjeta=>tarjeta.addEventListener('click',()=>aplicarFiltroSolicitud(tarjeta.dataset.packageFilterLink)));
     document.querySelector('.open-chat-case').addEventListener('click',()=>{if(!solicitudActiva)return;showView('chats');abrirChat(solicitudActiva.telefono)});
