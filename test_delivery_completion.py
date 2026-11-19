@@ -75,7 +75,7 @@ def test_concurrent_double_confirmation_keeps_single_record(factory):
     with factory() as db:assert db.query(store.EntregaPanel).count()==1
 
 def test_panel_endpoint_requires_auth_and_uses_current_payment_guard(factory,monkeypatch):
-    app=FastAPI();app.include_router(panel.router,prefix='/panel');client=TestClient(app)
+    app=FastAPI();app.include_router(panel.router);client=TestClient(app)
     assert client.get('/panel/entregas').status_code==401
     app.dependency_overrides[panel.verificar_credenciales_panel]=lambda:'teresa'
     monkeypatch.setattr(panel,'obtener_sesion_existente',lambda _:object())
