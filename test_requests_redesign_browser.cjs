@@ -49,6 +49,11 @@ const payment={telefono:'50700000002',nombre:'Cliente pago de prueba',tipo:'pago
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),true,`${width}px overflow`);
   if(process.env.QA_SCREENSHOT_DIR){fs.mkdirSync(process.env.QA_SCREENSHOT_DIR,{recursive:true});await page.screenshot({path:path.join(process.env.QA_SCREENSHOT_DIR,`delivery-${width}.png`),fullPage:true})}
   await page.locator('.delivery-address summary').click();
+  await page.locator('[data-delivery-field=direccion]').fill('');
+  await page.locator('.delivery-address summary').click();
+  await page.locator('[data-delivery-save]').click();
+  assert.equal(await page.locator('[data-delivery-field=direccion]').isVisible(),true,'invalid required field must open its editor');
+  assert.equal(posts.length,0,'missing address must not save');
   await page.locator('[data-delivery-field=direccion]').fill('Dirección corregida de prueba');
   await page.locator('[data-delivery-save]').click();
   await page.waitForFunction(()=>document.getElementById('toast').textContent.includes('Ficha guardada'));
