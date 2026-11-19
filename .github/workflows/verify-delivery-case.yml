@@ -7,6 +7,7 @@ on:
       - 'test_driver_route*'
       - 'test_chat_whatsapp_browser.cjs'
       - 'test_comprobante_queue.py'
+      - 'test_requests_redesign_browser.cjs'
       - '.github/workflows/verify-delivery-case.yml'
 permissions:
   contents: read
@@ -51,8 +52,14 @@ jobs:
           node test_delivery_case.cjs
           node test_panel_design.cjs
           node test_app_release.cjs
-      - name: Install Chromium for real mobile layout checks
-        run: /tmp/cubico-js/node_modules/.bin/playwright install --with-deps chromium
+      - name: Prepare browser for real mobile layout checks
+        run: |
+          if command -v google-chrome >/dev/null 2>&1; then
+            echo "BROWSER_EXECUTABLE=$(command -v google-chrome)" >> "$GITHUB_ENV"
+            google-chrome --version
+          else
+            /tmp/cubico-js/node_modules/.bin/playwright install --with-deps chromium
+          fi
       - name: Driver mobile layout checks
         env:
           NODE_PATH: /tmp/cubico-js/node_modules
@@ -60,3 +67,4 @@ jobs:
           node test_driver_route_browser.cjs
           node test_chat_whatsapp_browser.cjs
           node test_panel_mobile_browser.cjs
+          node test_requests_redesign_browser.cjs
