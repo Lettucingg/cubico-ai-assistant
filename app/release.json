@@ -1,9 +1,10 @@
 {
-  "version": "1.6.15",
-  "fecha": "2026-11-17",
-  "titulo": "Gestionar nítido sobre el chat móvil",
+  "version": "1.6.16",
+  "fecha": "2026-11-19",
+  "titulo": "Solicitudes más claras en el celular",
   "novedades": [
-    "El panel Gestionar se abre por encima del fondo desenfocado, incluso con el chat a pantalla completa.",
-    "Cerrar, cambiar de pestaña y volver al chat mantienen sus controles accesibles."
+    "Lista con búsqueda y siguiente paso para cada cliente.",
+    "Domicilios con dirección visible, zona y fecha; detalles opcionales plegados.",
+    "Pago y distribución entre facturas agrupados para revisar antes de confirmar."
   ]
 }

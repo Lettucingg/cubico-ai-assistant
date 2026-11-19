@@ -7,6 +7,7 @@ on:
       - 'test_driver_route*'
       - 'test_chat_whatsapp_browser.cjs'
       - 'test_comprobante_queue.py'
+      - 'test_requests_redesign_browser.cjs'
       - '.github/workflows/verify-delivery-case.yml'
 permissions:
   contents: read
@@ -60,3 +61,4 @@ jobs:
           node test_driver_route_browser.cjs
           node test_chat_whatsapp_browser.cjs
           node test_panel_mobile_browser.cjs
+          node test_requests_redesign_browser.cjs
