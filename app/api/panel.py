@@ -985,6 +985,19 @@ def guardar_ruta_panel(body: dict, response: Response, usuario: str = Depends(ve
         raise HTTPException(status_code=503, detail="No se pudo guardar. Actualiza para comprobar el estado antes de continuar") from error
 
 
+@router.post("/solicitud/{telefono}/domicilio/hoy")
+def agregar_domicilio_hoy(telefono: str, body: dict, usuario: str = Depends(verificar_credenciales_panel)):
+    fecha = hoy_domicilios()
+    if fecha.weekday() >= 5:
+        raise HTTPException(status_code=409, detail="La ruta de domicilios funciona de lunes a viernes")
+    try:
+        ficha = guardar_ficha(telefono, {"fecha_confirmada": fecha.isoformat(), "hora_desde": "", "hora_hasta": ""},
+                              body.get("token"), usuario)
+    except ValueError as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    return {"ficha": ficha, "fecha": fecha.isoformat()}
+
+
 @router.post("/solicitud/{telefono}/domicilio")
 def guardar_ficha_domicilio_panel(
     telefono: str, body: dict, usuario: str = Depends(verificar_credenciales_panel),
@@ -1119,10 +1132,11 @@ def actualizar_estado_solicitud(
         except ValueError as error:
             raise HTTPException(status_code=409, detail=str(error)) from error
         return {"status": "ok", "accion": accion, "tipo": tipo}
-    elif accion == "entregar":
+    elif accion == "entregar" or (accion == "archivar_entrega_anterior" and tipo == "domicilio"):
         try:
             registro = confirmar_entrega(telefono, tipo, body.get("entrega_token"), usuario,
-                                        _exigir_factura_pagada, _nombre_cliente)
+                                        _exigir_factura_pagada, _nombre_cliente,
+                                        anterior_reportada=accion == "archivar_entrega_anterior")
         except ValueError as error:
             raise HTTPException(status_code=409, detail=str(error)) from error
         return {"status": "ok", "accion": accion, "tipo": tipo, "entrega": registro,

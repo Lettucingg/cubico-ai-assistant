@@ -1,5 +1,7 @@
 import hashlib
 import logging
+import re
+import unicodedata
 import socket
 from datetime import datetime, timezone
 import secrets
@@ -238,7 +240,62 @@ async def procesar_avisos_retiro():
             db.commit()
 
 
+def es_reporte_destinatario_equivocado(texto, historial):
+    if not any(str(m.get("content") or "").startswith(
+            "[Notificación enviada: carga disponible para retiro;") and m.get("role") == "assistant"
+            for m in historial[-20:]):
+        return False
+    simple = "".join(c for c in unicodedata.normalize("NFD", texto.casefold())
+                     if not unicodedata.combining(c))
+    return bool(re.search(
+        r"(?:numero|telefono|celular) (?:esta )?(?:equivocado|incorrecto)|"
+        r"(?:no soy|persona equivocada|no era para mi|no es para mi)|"
+        r"(?:enviando|mandando) (?:los )?(?:avisos|mensajes) a mi", simple))
+
+
+def _telefono_panama(valor):
+    numero = re.sub(r"[ +().-]", "", valor or "")
+    if re.fullmatch(r"[2-9][0-9]{6,7}", numero):
+        numero = "507" + numero
+    return numero if re.fullmatch(r"[1-9][0-9]{7,14}", numero) else None
+
+
+def _destinatario_verificado(body):
+    from app.db.database import SessionLocal
+    from app.db.models import Factura
+    from app.db.session_store import obtener_sesion_existente
+    from app.tools.clientes import normalizar_codigo_cliente
+
+    destino = _telefono_panama(body.telefono)
+    if not destino:
+        return False
+    with SessionLocal() as db:
+        factura = db.query(Factura).filter_by(codigo=body.factura.strip().upper()).one_or_none()
+        if not factura or factura.tipo_cliente not in {"cbc", "agencia"}:
+            return False
+        titular = factura.cliente_cbc if factura.tipo_cliente == "cbc" else factura.agencia
+        codigo = normalizar_codigo_cliente(body.codigo)
+        if (not titular or not codigo or codigo != normalizar_codigo_cliente(titular.codigo)
+                or destino != _telefono_panama(titular.telefono)):
+            return False
+        chat = obtener_sesion_existente(destino)
+        return not chat or not chat.codigo_cliente_verificado or (
+            normalizar_codigo_cliente(chat.codigo_cliente_verificado) == codigo
+            and chat.tipo_cliente_verificado in (None, factura.tipo_cliente)
+        )
+
+
 async def _enviar_carga_llegada(body: CargaLlegadaBody):
+    import asyncio
+    try:
+        verificado = await asyncio.to_thread(_destinatario_verificado, body)
+    except Exception:
+        log.error("Aviso de retiro retenido: no se pudo comprobar el destinatario")
+        return {"ok": False, "motivo": "No se pudo comprobar el destinatario. Revisar antes de reenviar."}
+    if not verificado:
+        log.warning("Aviso de retiro retenido: destinatario inconsistente")
+        return {"ok": False, "motivo": "El teléfono, la factura o el cliente no coinciden. Revisar antes de reenviar."}
+    body = body.model_copy(update={"telefono": _telefono_panama(body.telefono)})
     payload = _construir_payload_carga_llegada(body)
     url_meta = (
         f"https://graph.facebook.com/{VERSION_API_META}/"

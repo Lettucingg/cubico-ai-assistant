@@ -1064,6 +1064,22 @@ async def _procesar_mensaje_en_segundo_plano_sin_candado(mensaje: dict):
             )
             return
 
+        from app.api.notificaciones import es_reporte_destinatario_equivocado
+        if es_reporte_destinatario_equivocado(mensaje["texto"], sesion.obtener_historial()):
+            motivo = "Aviso de retiro enviado al número equivocado: verificar contacto y factura"
+            avisar = not sesion.necesita_atencion_humana or sesion.motivo_escalamiento != motivo
+            agregar_al_historial(sesion.telefono, "user", mensaje["texto"],
+                                 whatsapp_message_id=mensaje.get("message_id"))
+            actualizar_sesion(sesion.telefono, necesita_atencion_humana=True, motivo_escalamiento=motivo)
+            if avisar:
+                await notificar_equipo_escalamiento(sesion.telefono, mensaje["texto"], motivo)
+            respuesta = "Disculpa, el aviso no era para ti. Dejé el caso para que el equipo revise el número."
+            resultado = await enviar_mensaje_whatsapp(sesion.telefono, respuesta)
+            if resultado.is_success:
+                agregar_al_historial(sesion.telefono, "assistant", respuesta,
+                                     whatsapp_message_id=extraer_id_mensaje_meta(resultado), estado_entrega="accepted")
+            return
+
         respuesta_limite = respuesta_para_limite_del_cliente(mensaje["texto"])
         if respuesta_limite:
             motivo_limite = "Cliente pidió detener la conversación"

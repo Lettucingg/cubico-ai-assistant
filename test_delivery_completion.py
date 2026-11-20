@@ -96,3 +96,53 @@ def test_completing_domicile_keeps_separate_pickup_pending(factory):
     with factory() as db:
         s=db.query(store.Sesion).one()
         assert s.aviso_retiro_pendiente and not s.solicitud_domicilio_pendiente and not s.entregado
+
+
+def test_historical_delivery_closes_pending_domicile_without_payment(factory):
+    with factory() as db:
+        row = db.query(store.Sesion).one()
+        row.paquetes_preparados = False
+        row.domicilio_coordinado = False
+        row.pago_reportado = True
+        db.commit()
+    entry = service.confirmar_entrega(PHONE, 'domicilio', token(factory), 'alexander',
+        lambda _: pytest.fail('An archival action must not touch payment'),
+        lambda _: 'Cliente Prueba', anterior_reportada=True)
+    assert entry['entrega_anterior_reportada']
+    with factory() as db:
+        row = db.query(store.Sesion).one()
+        assert not row.solicitud_domicilio_pendiente and row.pago_reportado and not row.pago_confirmado
+
+
+def test_wrong_pickup_recipient_matches_owner_and_verified_chat(monkeypatch):
+    import asyncio
+    from types import SimpleNamespace
+    from app.api import notificaciones as api
+    from app.db import database
+    from app.db.models import Factura, ClienteCBC
+
+    engine = create_engine('sqlite://')
+    ClienteCBC.__table__.create(engine)
+    Factura.__table__.create(engine)
+    db_factory = sessionmaker(bind=engine)
+    with db_factory() as db:
+        db.add(Factura(codigo='FAC-1', tipo_cliente='cbc',
+                       cliente_cbc=ClienteCBC(codigo='CBC-0123', nombre='Prueba', telefono='6000-0001')))
+        db.commit()
+    monkeypatch.setattr(database, 'SessionLocal', db_factory)
+    chat = SimpleNamespace(codigo_cliente_verificado='CBC-OTHER', tipo_cliente_verificado='cbc')
+    monkeypatch.setattr(store, 'obtener_sesion_existente', lambda _: chat)
+    body = api.CargaLlegadaBody(telefono='50760000001', codigo='CBC0123', factura='FAC-1',
+                                tracking='TRACK-1', nombre='Prueba', monto='4.40', paquetes='1')
+    assert not api._destinatario_verificado(body)
+    chat.codigo_cliente_verificado = 'CBC-0123'
+    assert api._destinatario_verificado(body)
+    assert not api._destinatario_verificado(body.model_copy(update={'telefono':'50760000002'}))
+    monkeypatch.setattr(api, '_destinatario_verificado', lambda _: False)
+    monkeypatch.setattr(api.httpx, 'AsyncClient', lambda **_: pytest.fail('Would contact Meta'))
+    assert not asyncio.run(api._enviar_carga_llegada(body))['ok']
+    historial = [{'role':'assistant','content':'[Notificación enviada: carga disponible para retiro; prueba]'}]
+    mensaje = 'Revisa su celular, me estás enviando los mensajes a mím'
+    assert api.es_reporte_destinatario_equivocado(mensaje, historial)
+    assert not api.es_reporte_destinatario_equivocado(mensaje, [])
+    assert not api.es_reporte_destinatario_equivocado('Está equivocado', historial)

@@ -1,10 +1,10 @@
 {
-  "version": "1.6.17",
-  "fecha": "2026-11-19",
-  "titulo": "Entregas confirmadas y consultables",
+  "version": "1.6.18",
+  "fecha": "2026-11-20",
+  "titulo": "Ruta de hoy y revisión de destinatarios",
   "novedades": [
-    "Marca entregado desde Mi ruta o la solicitud, con confirmación.",
-    "Consulta Entregadas por fecha, con paquetes, usuario y hora de confirmación.",
-    "El registro operativo conserva sus datos aunque después se abra otra solicitud."
+    "Agrega solicitudes pendientes a la ruta de hoy y revisa lo que falta antes de salir.",
+    "Retira del listado los domicilios entregados anteriormente sin registrar un pago.",
+    "Los avisos de retiro se retienen si la factura, el cliente y el teléfono no coinciden."
   ]
 }
