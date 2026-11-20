@@ -62,6 +62,7 @@ def _parada(solicitud):
     data = {
         "id": ficha.get("clave") or _hash([phone, solicitud.get("codigo_cliente"), trackings]),
         "token_entrega": solicitud.get("token_entrega"),
+        "token_ficha": ficha.get("token"),
         "telefono": phone, "nombre": solicitud.get("nombre") or phone,
         "codigo_cliente": solicitud.get("codigo_cliente"), "trackings": trackings,
         "direccion": ficha.get("direccion") or solicitud.get("direccion") or "",
@@ -89,11 +90,13 @@ def construir_ruta(solicitudes, usuario, fecha, zona="todas", suspension=None):
         datos = json.loads(fila.datos_json) if fila else {}
         revision = fila.revision if fila else 0
         actualizado = fila.actualizado_en.isoformat() + "Z" if fila else None
-    programadas, sin_programar = [], []
+    programadas, sin_programar, candidatos = [], [], []
     for s in solicitudes:
         if s.get("tipo") != "domicilio":
             continue
         p = _parada(s)
+        if p["fecha_confirmada"] != fecha:
+            candidatos.append(p)
         if zona != "todas" and p["zona"] != zona:
             continue
         if not p["fecha_confirmada"]:
@@ -127,7 +130,7 @@ def construir_ruta(solicitudes, usuario, fecha, zona="todas", suspension=None):
         "fecha": fecha, "hoy": hoy().isoformat(), "zona": zona, "usuario": usuario,
         "token": token, "revision": revision, "actualizado_en": actualizado,
         "consultado_en": datetime.utcnow().isoformat() + "Z",
-        "paradas": listas, "pendientes": pendientes, "sin_programar": sin_programar,
+        "paradas": listas, "pendientes": pendientes, "sin_programar": sin_programar, "candidatos": candidatos,
         "puede_recorrer": not bloqueos, "bloqueos_recorrido": bloqueos,
         "orden_manual": [p["id"] for p in listas] != sugerido,
     }

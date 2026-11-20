@@ -25,7 +25,7 @@ def serializar(fila):
                 confirmado_en=fila.confirmado_en.isoformat()+'Z', confirmado_por=fila.confirmado_por)
 
 
-def confirmar_entrega(telefono, tipo, token, usuario, verificar_pago, nombre):
+def confirmar_entrega(telefono, tipo, token, usuario, verificar_pago, nombre, *, anterior_reportada=False):
     if tipo not in {'retiro', 'domicilio'} or not isinstance(token, str) or not re.fullmatch('[a-f0-9]{64}', token):
         raise ValueError('Actualiza la solicitud antes de marcar la entrega')
     with store.SessionSesiones() as db:
@@ -39,19 +39,21 @@ def confirmar_entrega(telefono, tipo, token, usuario, verificar_pago, nombre):
             raise ValueError('La solicitud cambió. Actualiza antes de marcar entregado')
         pendiente = sesion.solicitud_domicilio_pendiente if tipo == 'domicilio' else sesion.aviso_retiro_pendiente
         paquetes = sesion.paquetes_a_domicilio if tipo == 'domicilio' else sesion.paquetes_a_retirar
-        if sesion.entregado or not pendiente or not str(paquetes or '').strip():
+        if sesion.entregado or not pendiente or (not anterior_reportada and not str(paquetes or '').strip()):
             raise ValueError('No hay paquetes pendientes de entrega en esta solicitud')
-        verificar_pago(sesion)
-        if not sesion.paquetes_preparados:
-            raise ValueError('Primero marca los paquetes como listos')
-        if tipo == 'domicilio' and not sesion.domicilio_coordinado:
-            raise ValueError('Primero coordina el domicilio')
+        if not anterior_reportada:
+            verificar_pago(sesion)
+            if not sesion.paquetes_preparados:
+                raise ValueError('Primero marca los paquetes como listos')
+            if tipo == 'domicilio' and not sesion.domicilio_coordinado:
+                raise ValueError('Primero coordina el domicilio')
         now = datetime.now(timezone.utc)
         registro = store.EntregaPanel(token=token, telefono=telefono, tipo=tipo,
             fecha_local=now.astimezone(ZoneInfo('America/Panama')).date().isoformat(),
             confirmado_en=now.replace(tzinfo=None), confirmado_por=usuario,
             datos_json=json.dumps({'nombre': nombre(sesion) or telefono,
                 'codigo_cliente': sesion.codigo_cliente_verificado, 'paquetes': paquetes,
+                'entrega_anterior_reportada': anterior_reportada,
                 'direccion': sesion.direccion_domicilio if tipo == 'domicilio' else 'Sucursal Cúbico'}, ensure_ascii=False))
         db.add(registro)
         if tipo == 'domicilio': sesion.solicitud_domicilio_pendiente = False
