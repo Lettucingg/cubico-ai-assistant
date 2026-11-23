@@ -66,6 +66,14 @@ const payment={telefono:'50700000002',nombre:'Cliente pago de prueba',tipo:'pago
   assert.equal(await page.locator('#case-amount').innerText(),'$13.50');
   assert.equal(await page.locator('#case-reported').innerText(),'$13.50');
   const confirm=page.locator('[data-action=confirmar_pago]');assert.equal(await confirm.isDisabled(),true);
+  await page.evaluate(()=>Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async valor=>{window.referenciaCopiada=valor}}}));
+  await page.locator('#case-copy-reference').click();
+  await page.waitForFunction(()=>document.getElementById('case-copy-status').textContent==='Referencia copiada');
+  assert.equal(await page.evaluate(()=>window.referenciaCopiada),'PRUEBA-123');
+  await page.evaluate(()=>Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async()=>{throw Error('denied')}}}));
+  await page.locator('#case-copy-reference').click();
+  await page.waitForFunction(()=>document.activeElement.id==='case-reference');
+  assert.equal(await page.locator('#case-reference').evaluate(input=>input.selectionEnd-input.selectionStart),10);
   await page.locator('[data-invoice-code="FAC-TEST-1"] input[type=checkbox]').check();
   assert.equal(await confirm.isDisabled(),true);
   await page.locator('[data-invoice-code="FAC-TEST-2"] input[type=checkbox]').check();

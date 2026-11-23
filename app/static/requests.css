@@ -10,3 +10,9 @@
 @media(max-width:760px){#packages .payment-panel.has-case>.table-card{display:none}#packages .payment-panel.has-case .payment-summary{order:0}#packages .payment-summary{padding:14px}#packages .package-kpis .mini-kpi{min-width:125px}#packages .case-finance{padding:14px}#packages .delivery-case{padding:14px}#packages .request-cards{padding:0 12px 12px}#packages .package-tabs{padding:12px}#packages .request-card{padding:14px}#packages .case-close{width:100%;text-align:left}#packages .payment-panel{display:block}#packages .payment-summary #case-kind{scroll-margin-top:12px}}
 
 #packages [hidden]{display:none!important}#delivery-history{padding:16px;min-width:0}#delivery-history>label{display:grid;gap:8px;margin-bottom:12px;font-size:13px}#delivery-history input{width:100%;min-width:0;min-height:48px;border:1px solid var(--line);border-radius:10px;padding:10px;font:inherit;font-size:16px;box-sizing:border-box}#delivery-history button,#delivery-history summary{min-height:44px}#delivery-history .delivered-card{padding:16px;border:1px solid var(--line);border-radius:14px;margin-top:12px;overflow-wrap:anywhere}#delivery-history h3{font-size:17px;margin:12px 0}#delivery-history p{font-size:13px;line-height:1.6}#delivery-history summary{cursor:pointer;display:flex;align-items:center;font-size:13px}#delivery-history .delivered-card button{width:100%;margin-top:10px}.route-complete{min-height:48px;width:100%;margin:14px 0;font-size:15px}
+
+#packages .case-reference{display:grid;gap:7px;margin:12px 0;font-size:13px}
+#packages .case-reference input{width:100%;min-width:0;min-height:44px;border:1px solid var(--line);border-radius:9px;background:var(--card);color:inherit;font:inherit;font-size:16px;padding:8px 10px}
+#packages .case-reference button{min-height:44px;justify-self:start}
+#packages .case-reference [role=status]{margin:0}
+#packages .case-reference [role=status]:empty{display:none}

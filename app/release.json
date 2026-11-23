@@ -1,10 +1,6 @@
 {
-  "version": "1.6.18",
-  "fecha": "2026-11-20",
-  "titulo": "Ruta de hoy y revisión de destinatarios",
-  "novedades": [
-    "Agrega solicitudes pendientes a la ruta de hoy y revisa lo que falta antes de salir.",
-    "Retira del listado los domicilios entregados anteriormente sin registrar un pago.",
-    "Los avisos de retiro se retienen si la factura, el cliente y el teléfono no coinciden."
-  ]
+  "version": "1.6.19",
+  "fecha": "2026-11-23",
+  "titulo": "Copia rápida de referencias",
+  "novedades": ["Copia solo la referencia del comprobante desde Solicitudes, con un toque."]
 }
