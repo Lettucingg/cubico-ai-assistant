@@ -158,6 +158,21 @@ def _registrar_carga_llegada_en_historial(
     )
 
 
+def _aviso_desactivado(body: CargaLlegadaBody) -> bool:
+    from app.tools.clientes import normalizar_codigo_cliente
+
+    excluidos = {
+        normalizar_codigo_cliente(codigo)
+        for codigo in settings.CUBICO_SIN_AVISOS_RETIRO_WHATSAPP.split(",")
+        if codigo.strip()
+    }
+    return normalizar_codigo_cliente(body.codigo) in excluidos
+
+
+def _resultado_desactivado():
+    return {"ok": True, "estado": "omitido_preferencia", "programado": False, "enviado": False}
+
+
 @router.post("/carga-llegada")
 async def notificar_carga_llegada(
     request: Request,
@@ -179,6 +194,9 @@ async def notificar_carga_llegada(
     except Exception as error:
         return JSONResponse(status_code=400, content={"error": str(error)})
 
+    if _aviso_desactivado(body):
+        return _resultado_desactivado()
+
     abierto, apertura = pickup_window()
     abierto = abierto and not service_block("local") and not service_block("retiros")
     payload = body.model_dump_json()
@@ -198,7 +216,7 @@ async def notificar_carga_llegada(
                     raise
         if existente is not None:
             estado = existente.estado
-            return {"ok": estado in {"pendiente", "enviando", "enviado"},
+            return {"ok": estado in {"pendiente", "enviando", "enviado", "omitido_preferencia"},
                     "estado": estado, "programado": estado == "pendiente",
                     "enviado": estado == "enviado",
                     "programado_para": existente.programado_utc.replace(tzinfo=timezone.utc).isoformat()}
@@ -229,7 +247,7 @@ async def procesar_avisos_retiro():
         try:
             resultado = await _enviar_carga_llegada(CargaLlegadaBody.model_validate_json(payload))
             if isinstance(resultado, dict) and resultado.get("ok"):
-                estado = "enviado"
+                estado = "omitido_preferencia" if resultado.get("estado") == "omitido_preferencia" else "enviado"
             else:
                 log.error("Aviso de retiro %s: Meta no confirmó el envío; revisar", aviso_id)
         except Exception:
@@ -286,6 +304,8 @@ def _destinatario_verificado(body):
 
 
 async def _enviar_carga_llegada(body: CargaLlegadaBody):
+    if _aviso_desactivado(body):
+        return _resultado_desactivado()
     import asyncio
     try:
         verificado = await asyncio.to_thread(_destinatario_verificado, body)

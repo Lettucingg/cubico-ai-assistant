@@ -57,3 +57,36 @@ def test_saturday_notice_waits_until_monday_and_is_not_sent_twice(tmp_path, monk
         assert (await notices.notificar_carga_llegada(request, 'test'))['enviado']
 
     asyncio.run(scenario())
+
+
+def test_preferencia_omite_aviso_inmediato_y_programado(tmp_path, monkeypatch):
+    engine = create_engine(f"sqlite:///{tmp_path / 'optout.db'}")
+    notices.AvisoRetiroProgramado.__table__.create(engine)
+    factory = sessionmaker(bind=engine)
+    monkeypatch.setattr(notices, 'SessionSesiones', factory)
+    monkeypatch.setattr(notices, '_ip_autorizada', lambda _: True)
+    monkeypatch.setattr(notices.settings, 'CUBICO_NOTIFY_KEY', 'test')
+    monkeypatch.setattr(notices.settings, 'CUBICO_SIN_AVISOS_RETIRO_WHATSAPP', ' CBC-1234 ')
+    monkeypatch.setattr(notices, 'pickup_window', lambda: (True, None))
+    monkeypatch.setattr(notices, 'service_block', lambda _: False)
+    body = notices.CargaLlegadaBody(telefono='50760000000', nombre='Prueba', codigo='cbc1234',
+                                  tracking='TEST', factura='FAC-TEST', monto='1', paquetes='1')
+    with factory() as db:
+        db.add(notices.AvisoRetiroProgramado(id='test', payload=body.model_dump_json(),
+               programado_utc=datetime(2026, 1, 1), estado='pendiente'))
+        db.commit()
+    request = SimpleNamespace(headers={}, client=None, json=AsyncMock(return_value=body.model_dump()))
+
+    def no_meta(*args, **kwargs):
+        raise AssertionError('No debe contactar a Meta')
+
+    monkeypatch.setattr(notices, '_destinatario_verificado', no_meta)
+    async def scenario():
+        result = await notices.notificar_carga_llegada(request, 'test')
+        assert result['estado'] == 'omitido_preferencia' and not result['enviado']
+        await notices.procesar_avisos_retiro()
+    asyncio.run(scenario())
+
+    with factory() as db:
+        assert db.get(notices.AvisoRetiroProgramado, 'test').estado == 'omitido_preferencia'
+    assert not notices._aviso_desactivado(body.model_copy(update={'codigo': 'CBC-9999'}))
