@@ -56,6 +56,7 @@ class Settings(BaseSettings):
     # --- Notificaciones internas (POST /notificar/carga-llegada) ---
     # Clave compartida esperada en el header X-Cubico-Key.
     CUBICO_NOTIFY_KEY: str
+    CUBICO_SIN_AVISOS_RETIRO_WHATSAPP: str = ""
 
     # API del sistema Cúbico. La clave se instala solo en el .env del servidor.
     CUBICO_BOT_KEY: str = ""
