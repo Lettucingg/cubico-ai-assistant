@@ -9,6 +9,12 @@ const dom=new JSDOM('<section id="delivery-case"></section>',{runScripts:'outsid
 const w=dom.window,d=w.document;
 w.eval(fs.readFileSync('app/static/delivery-case.js','utf8'));
 const api=w.CubicoDeliveryCase;
+const manual=api.normalizeLocation(' 8.98, -79.52 ');
+assert.equal(new URL(manual).searchParams.get('query'),'8.98,-79.52');
+assert.equal(api.normalizeLocation('https://maps.app.goo.gl/shared'),'https://maps.app.goo.gl/shared');
+assert.equal(api.normalizeLocation(' '),'');
+assert.throws(()=>api.normalizeLocation('91,-79.52'),/latitud/);
+assert.throws(()=>api.normalizeLocation('https://example.org'),/latitud/);
 const calls=[],saved=[],reloaded=[];
 let response={ok:true,json:async()=>({ficha:{revision:2}})};
 const ui=api.init({post:async(...args)=>{calls.push(args);return response},afterSave:async(...args)=>saved.push(args),reload:phone=>reloaded.push(phone)});

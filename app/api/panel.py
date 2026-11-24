@@ -610,7 +610,34 @@ def _nombre_cliente(sesion) -> str | None:
         return None
 
 
-def _exigir_factura_pagada(sesion) -> dict:
+def _estado_paquetes_solicitud(paquetes, facturas):
+    """Usa facturas del titular y exige encontrar todos los trackings."""
+    buscados = {p.strip().upper() for p in re.split(r"[,;\n]+", paquetes or "") if p.strip()}
+    if not buscados:
+        return None
+    coincidencias = {}
+    for factura in facturas.get("facturas", []):
+        for paquete in factura.get("paquetes", []):
+            tracking = str(paquete.get("tracking") or "").strip().upper()
+            if tracking in buscados:
+                if tracking in coincidencias:
+                    return None
+                coincidencias[tracking] = (factura, paquete)
+    if coincidencias.keys() != buscados:
+        return None
+    asociadas = list({id(f): f for f, _ in coincidencias.values()}.values())
+    return {
+        "entregados": all(str(p.get("estado_cargo") or "").strip().lower() == "entregado"
+                          for _, p in coincidencias.values()),
+        "pagados": all(f.get("saldo_pendiente") == 0 for f in asociadas),
+    }
+
+
+def _trackings_solicitud(sesion, tipo):
+    return getattr(sesion, {"retiro": "paquetes_a_retirar", "domicilio": "paquetes_a_domicilio"}.get(tipo, ""), None)
+
+
+def _exigir_factura_pagada(sesion, tipo=None) -> dict:
     """Bloquea la preparación/entrega si no existe una factura saldada."""
     if not sesion.codigo_cliente_verificado:
         raise HTTPException(
@@ -629,6 +656,9 @@ def _exigir_factura_pagada(sesion) -> dict:
             status_code=409,
             detail="No se puede continuar: el cliente todavía no tiene una factura asociada",
         )
+    alcance = _estado_paquetes_solicitud(_trackings_solicitud(sesion, tipo), facturas)
+    if alcance is not None and alcance["pagados"]:
+        return facturas
     if float(facturas.get("saldo_pendiente_total") or 0) > .01:
         raise HTTPException(
             status_code=409,
@@ -844,7 +874,11 @@ def _serializar_solicitudes(sesiones):
         # de pago para que ningún operador lo pierda.
         if comprobante_pendiente and not tipos:
             tipos.append("pago")
-        for tipo in tipos:
+        entregas_visibles = 0
+        for tipo in tipos + (["pago"] if comprobante_pendiente and "pago" not in tipos else []):
+            if tipo == "pago" and entregas_visibles:
+                continue
+            facturas = {}
             monto_pendiente = None
             pago_confirmado_sistema = False
             detalle_facturas = []
@@ -889,6 +923,13 @@ def _serializar_solicitudes(sesiones):
                 )
                 direccion = "No aplica"
 
+            alcance = _estado_paquetes_solicitud(_trackings_solicitud(sesion, tipo), facturas)
+            if alcance and alcance["entregados"]:
+                continue
+            if tipo != "pago":
+                entregas_visibles += 1
+            pago_solicitud = bool(alcance and alcance["pagados"])
+
             solicitudes.append({
                 "telefono": sesion.telefono,
                 "nombre": _nombre_cliente(sesion) or sesion.telefono,
@@ -913,10 +954,11 @@ def _serializar_solicitudes(sesiones):
                 "pago_reportado": bool(sesion.pago_reportado),
                 "pago_confirmado": pago_confirmado_panel,
                 "pago_confirmado_sistema": pago_confirmado_sistema,
+                "paquetes_pagados_sistema": pago_solicitud,
                 "requiere_verificacion": not bool(sesion.codigo_cliente_verificado),
                 "requiere_factura": bool(sesion.codigo_cliente_verificado) and not tiene_facturas,
                 "pago_resuelto": (
-                    pago_confirmado_sistema
+                    pago_confirmado_sistema or pago_solicitud
                     if tipo != "pago"
                     else pago_confirmado_sistema or pago_confirmado_panel
                 ),
@@ -1121,10 +1163,10 @@ def actualizar_estado_solicitud(
             )
         cambios = {"pago_confirmado": True}
     elif accion == "preparar":
-        _exigir_factura_pagada(sesion)
+        _exigir_factura_pagada(sesion, tipo)
         cambios = {"paquetes_preparados": True}
     elif accion == "coordinar" and tipo == "domicilio":
-        _exigir_factura_pagada(sesion)
+        _exigir_factura_pagada(sesion, tipo)
         if not sesion.paquetes_preparados:
             raise HTTPException(status_code=409, detail="Primero marca los paquetes como listos")
         try:
@@ -1132,10 +1174,10 @@ def actualizar_estado_solicitud(
         except ValueError as error:
             raise HTTPException(status_code=409, detail=str(error)) from error
         return {"status": "ok", "accion": accion, "tipo": tipo}
-    elif accion == "entregar" or (accion == "archivar_entrega_anterior" and tipo == "domicilio"):
+    elif accion == "entregar" or (accion == "archivar_entrega_anterior" and tipo in {"domicilio", "retiro"}):
         try:
             registro = confirmar_entrega(telefono, tipo, body.get("entrega_token"), usuario,
-                                        _exigir_factura_pagada, _nombre_cliente,
+                                        lambda ficha: _exigir_factura_pagada(ficha, tipo), _nombre_cliente,
                                         anterior_reportada=accion == "archivar_entrega_anterior")
         except ValueError as error:
             raise HTTPException(status_code=409, detail=str(error)) from error

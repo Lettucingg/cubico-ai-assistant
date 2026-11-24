@@ -43,6 +43,7 @@ def _parada(solicitud):
         pago_verificado = bool(solicitud.get("pago_resuelto")) and saldo is not None and not isinstance(saldo, bool) and math.isfinite(float(saldo)) and float(saldo) <= .01
     except (ValueError, TypeError):
         pago_verificado = False
+    pago_verificado = pago_verificado or solicitud.get("paquetes_pagados_sistema") is True
     if not pago_verificado:
         motivos.append("Revisar pago en facturación")
     if not solicitud.get("paquetes_preparados"):

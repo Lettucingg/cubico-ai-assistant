@@ -250,7 +250,7 @@ def test_panel_payment_gate_remains_required_for_coordination(db_factory, monkey
     from fastapi import HTTPException
     ficha = save(db_factory)
     monkeypatch.setattr(panel, "obtener_sesion_existente", lambda _: session(db_factory))
-    def unpaid(_):
+    def unpaid(_, _tipo=None):
         raise HTTPException(status_code=409, detail="Aún existe saldo pendiente")
     monkeypatch.setattr(panel, "_exigir_factura_pagada", unpaid)
     with pytest.raises(HTTPException):
@@ -262,7 +262,7 @@ def test_panel_payment_gate_remains_required_for_coordination(db_factory, monkey
 def test_panel_coordinates_reviewed_paid_case(db_factory, monkeypatch):
     ficha = save(db_factory)
     monkeypatch.setattr(panel, "obtener_sesion_existente", lambda _: session(db_factory))
-    monkeypatch.setattr(panel, "_exigir_factura_pagada", lambda _: {"saldo_pendiente_total": 0})
+    monkeypatch.setattr(panel, "_exigir_factura_pagada", lambda _, _tipo=None: {"saldo_pendiente_total": 0})
     result = panel.actualizar_estado_solicitud("50700000000",
         {"tipo": "domicilio", "accion": "coordinar", "ficha_token": ficha["token"]}, usuario="operator")
     assert result["status"] == "ok" and session(db_factory).domicilio_coordinado
