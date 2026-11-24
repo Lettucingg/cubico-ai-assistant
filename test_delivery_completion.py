@@ -79,7 +79,7 @@ def test_panel_endpoint_requires_auth_and_uses_current_payment_guard(factory,mon
     assert client.get('/panel/entregas').status_code==401
     app.dependency_overrides[panel.verificar_credenciales_panel]=lambda:'teresa'
     monkeypatch.setattr(panel,'obtener_sesion_existente',lambda _:object())
-    monkeypatch.setattr(panel,'_exigir_factura_pagada',lambda s:None)
+    monkeypatch.setattr(panel,'_exigir_factura_pagada',lambda s, tipo=None:None)
     monkeypatch.setattr(panel,'_nombre_cliente',lambda s:'Cliente Prueba')
     r=client.post('/panel/solicitud/'+PHONE+'/estado',json={'tipo':'domicilio','accion':'entregar','entrega_token':token(factory)})
     assert r.status_code==200 and r.json()['mensaje_enviado'] is False

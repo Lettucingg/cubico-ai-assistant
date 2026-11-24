@@ -264,3 +264,24 @@ def test_api_no_confirma_si_la_distribucion_falla(monkeypatch):
         panel.actualizar_estado_solicitud(caso.telefono, {"tipo": "retiro", "accion": "confirmar_pago", "asignaciones": [{"factura_codigo": "FAC-TEST", "monto": 10}], "comprobante_media_id": caso.comprobante_media_id}, usuario="tester")
     assert error.value.status_code == 409
     assert caso.pago_confirmado is False
+
+
+def test_closes_only_fully_delivered_tracking_sets_and_keeps_receipt():
+    facturas = {"facturas": [
+        {"saldo_pendiente": 0, "paquetes": [{"tracking": "ABC", "estado_cargo": "entregado"}]},
+        {"saldo_pendiente": 8, "paquetes": [{"tracking": "DEF", "estado_cargo": "notificado"}]},
+    ]}
+    assert panel._estado_paquetes_solicitud("abc", facturas) == {"entregados": True, "pagados": True}
+    assert panel._estado_paquetes_solicitud("ABC,DEF", facturas) == {"entregados": False, "pagados": False}
+    assert panel._estado_paquetes_solicitud("ABC,OTRO", facturas) is None
+
+
+def test_delivery_already_in_inventory_leaves_pending_receipt_visible(monkeypatch):
+    caso = _sesion(entregado=False, aviso_retiro_pendiente=True, paquetes_a_retirar="ABC",
+                   pago_reportado=True, pago_confirmado=False)
+    monkeypatch.setattr(panel, "_nombre_cliente", lambda _: "Cliente")
+    monkeypatch.setattr(panel, "consultar_facturas_por_codigo", lambda _: {
+        "encontrado": True, "cantidad_facturas": 1, "saldo_pendiente_total": 0,
+        "facturas": [{"saldo_pendiente": 0, "paquetes": [{"tracking": "ABC", "estado_cargo": "entregado"}]}],
+    })
+    assert [s["tipo"] for s in panel._serializar_solicitudes([caso])] == ["pago"]
